@@ -15,6 +15,25 @@ function apiUrl(path) {
   return `${API_BASE_URL}${path}`
 }
 
+async function readApiPayload(response) {
+  const contentType = response.headers.get('content-type') || ''
+
+  if (contentType.includes('application/json')) {
+    try {
+      return await response.json()
+    } catch {
+      return null
+    }
+  }
+
+  try {
+    const text = await response.text()
+    return text ? { detail: text } : null
+  } catch {
+    return null
+  }
+}
+
 function App() {
   const [level, setLevel] = useState(1)
   const [xp, setXp] = useState(0)
@@ -109,7 +128,7 @@ function App() {
       body: JSON.stringify({ refresh }),
     })
 
-    const data = await response.json()
+    const data = await readApiPayload(response)
     if (!response.ok || !data.access) {
       throw new Error(data?.detail || 'Session refresh failed.')
     }
@@ -143,12 +162,7 @@ function App() {
       }
     }
 
-    let data = null
-    try {
-      data = await response.json()
-    } catch {
-      data = null
-    }
+    const data = await readApiPayload(response)
 
     if (!response.ok) {
       throw new Error(data?.detail || data?.error || 'Request failed.')
@@ -210,7 +224,7 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: emailInput, password: passwordInput }),
         })
-        const registerData = await registerResponse.json()
+        const registerData = await readApiPayload(registerResponse)
         if (!registerResponse.ok) {
           throw new Error(registerData.error || 'Registration failed.')
         }
@@ -221,7 +235,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: emailInput, password: passwordInput }),
       })
-      const loginData = await loginResponse.json()
+      const loginData = await readApiPayload(loginResponse)
       if (!loginResponse.ok) {
         throw new Error(loginData.detail || 'Login failed.')
       }
