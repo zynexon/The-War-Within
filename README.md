@@ -1,26 +1,27 @@
 # Zynexon - The War Within
 
-Full-stack starter using React (Vite) + Django with Supabase for auth and database.
+Full-stack starter using React (Vite) + Django REST Framework + JWT auth.
 
 ## Stack
 
-- Frontend: React + Vite + `@supabase/supabase-js`
-- Backend: Django
-- Auth/DB: Supabase
+- Frontend: React + Vite + Tailwind
+- Backend: Django + DRF + SimpleJWT
+- DB: SQLite (can be switched to Postgres for production)
 
 ## Environment Setup
 
 1. Frontend env
-   - Copy `frontend/.env.example` to `frontend/.env`
-   - Set:
-     - `VITE_SUPABASE_URL`
-     - `VITE_SUPABASE_ANON_KEY`
+  - Copy `frontend/.env.example` to `frontend/.env`
+  - Set:
+    - `VITE_API_BASE_URL` (local: `http://127.0.0.1:8000`)
 
 2. Backend env
-   - Copy `backend/.env.example` to `backend/.env`
-   - Set:
-     - `SUPABASE_URL`
-     - `SUPABASE_ANON_KEY`
+  - Copy `backend/.env.example` to `backend/.env`
+  - Set:
+    - `DEBUG`
+    - `ALLOWED_HOSTS`
+    - `CORS_ALLOWED_ORIGINS`
+    - `CSRF_TRUSTED_ORIGINS`
 
 ## Run Locally
 
@@ -38,14 +39,21 @@ cd frontend
 npm run dev
 ```
 
-## Implemented Endpoints
+## Railway + Vercel Deployment Connection
 
-- `GET /api/hello/` basic health response
-- `GET /api/me/` validates a Supabase bearer token and returns user profile fields
+1. Deploy backend to Railway using `backend/requirements.txt` and start command:
 
-## Frontend Auth Flow
+```powershell
+python manage.py migrate && python manage.py seed_tasks && python manage.py runserver 0.0.0.0:$PORT
+```
 
-- Sign up with email/password
-- Sign in with email/password
-- Sign out
-- Verify current access token against Django `/api/me/`
+2. On Railway set envs:
+  - `DEBUG=0`
+  - `ALLOWED_HOSTS=your-railway-domain.up.railway.app`
+  - `CORS_ALLOWED_ORIGINS=https://your-vercel-app.vercel.app`
+  - `CSRF_TRUSTED_ORIGINS=https://your-vercel-app.vercel.app`
+
+3. On Vercel set frontend env:
+  - `VITE_API_BASE_URL=https://your-railway-domain.up.railway.app`
+
+Once set, frontend calls backend using absolute API URL, and Railway accepts requests from your Vercel domain.

@@ -6,6 +6,14 @@ import XPBar from './components/XPBar'
 
 const ACCESS_TOKEN_KEY = 'zynexon_access_token'
 const REFRESH_TOKEN_KEY = 'zynexon_refresh_token'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+
+function apiUrl(path) {
+  if (!API_BASE_URL) {
+    return path
+  }
+  return `${API_BASE_URL}${path}`
+}
 
 function App() {
   const [level, setLevel] = useState(1)
@@ -95,7 +103,7 @@ function App() {
       throw new Error('No refresh token available.')
     }
 
-    const response = await fetch('/api/auth/refresh/', {
+    const response = await fetch(apiUrl('/api/auth/refresh/'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh }),
@@ -112,7 +120,7 @@ function App() {
 
   async function authedFetch(path, options = {}, retryOnAuth = true) {
     const execute = async (token) => {
-      return fetch(path, {
+      return fetch(apiUrl(path), {
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -197,7 +205,7 @@ function App() {
 
     try {
       if (authMode === 'register') {
-        const registerResponse = await fetch('/api/auth/register/', {
+        const registerResponse = await fetch(apiUrl('/api/auth/register/'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: emailInput, password: passwordInput }),
@@ -208,7 +216,7 @@ function App() {
         }
       }
 
-      const loginResponse = await fetch('/api/auth/login/', {
+      const loginResponse = await fetch(apiUrl('/api/auth/login/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: emailInput, password: passwordInput }),
