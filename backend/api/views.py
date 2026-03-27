@@ -1,15 +1,17 @@
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .models import User, XPLog
+from .models import GameSession, User, XPLog
 from .serializers import (
 	AssignDailyTasksInputSerializer,
 	CompleteTaskInputSerializer,
 	DailyTasksQuerySerializer,
+	GameSubmitInputSerializer,
 	GameXPInputSerializer,
 	LeaderboardQuerySerializer,
 	RegisterInputSerializer,
@@ -18,8 +20,14 @@ from .serializers import (
 )
 from .services import (
 	MAX_DAILY_GAME_XP,
+	GAME_MAX_DURATION_SECONDS,
+	GAME_MAX_SCORE,
+	GAME_MIN_DURATION_SECONDS,
 	assign_daily_tasks,
+	calculate_game_session_xp,
 	create_xp_log,
+	get_daily_tasks,
+	get_game_session,
 	get_leaderboard,
 	get_user_task,
 	get_today_game_xp,
@@ -133,10 +141,100 @@ class DailyTasksView(APIView):
 		serializer = DailyTasksQuerySerializer(data=request.query_params)
 		serializer.is_valid(raise_exception=True)
 
+		requested_user_id = serializer.validated_data.get("userId")
+		if requested_user_id and requested_user_id != request.user.id:
+			return Response(
+				{"error": "You do not have permission to view another user's tasks."},
+				status=status.HTTP_403_FORBIDDEN,
+			)
+
 		target_date = serializer.validated_data.get("date")
-		assigned, _ = assign_daily_tasks(request.user, target_date)
+		assigned = get_daily_tasks(request.user, target_date)
 		assigned = sorted(assigned, key=lambda item: item.task.title)
 		return Response(UserTaskSerializer(assigned, many=True).data)
+
+
+class GameStartView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def post(self, request):
+		session = GameSession.objects.create(user=request.user)
+		return Response({"session_id": str(session.id)}, status=status.HTTP_201_CREATED)
+
+
+class GameSubmitView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	@transaction.atomic
+	def post(self, request):
+		serializer = GameSubmitInputSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		session = get_game_session(
+			serializer.validated_data["session_id"],
+			request.user,
+			for_update=True,
+		)
+
+		if session.ended_at is not None:
+			return Response(
+				{"error": "This game session has already been submitted."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		now = timezone.now()
+		duration_seconds = (now - session.started_at).total_seconds()
+		score = serializer.validated_data["score"]
+
+		if duration_seconds < GAME_MIN_DURATION_SECONDS:
+			return Response(
+				{"error": "Game submitted too quickly."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		if duration_seconds > GAME_MAX_DURATION_SECONDS:
+			return Response(
+				{"error": "Game session expired."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		if score < 0 or score > GAME_MAX_SCORE:
+			return Response(
+				{"error": "Invalid score submitted."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		user = User.objects.select_for_update().get(id=request.user.id)
+		xp = calculate_game_session_xp(score)
+		game_xp_today = get_today_game_xp(user)
+		remaining = MAX_DAILY_GAME_XP - game_xp_today
+		xp_awarded = 0 if remaining <= 0 else min(xp, remaining)
+		capped_by_daily_limit = xp_awarded < xp
+
+		session.ended_at = now
+		session.score = score
+		session.xp_awarded = xp_awarded
+		session.save(update_fields=["ended_at", "score", "xp_awarded"])
+
+		if xp_awarded > 0:
+			increment_user_xp(user, xp_awarded)
+
+		create_xp_log(user, XPLog.SOURCE_GAME, xp_awarded)
+		update_streak(user)
+
+		return Response(
+			{
+				"score": score,
+				"xp_calculated": xp,
+				"xp_awarded": xp_awarded,
+				"daily_cap": MAX_DAILY_GAME_XP,
+				"today_game_xp_before": game_xp_today,
+				"remaining_today": max(0, remaining - xp_awarded),
+				"capped_by_daily_limit": capped_by_daily_limit,
+				"total_xp": user.xp,
+				"level": user.level,
+			}
+		)
 
 
 class LeaderboardView(APIView):

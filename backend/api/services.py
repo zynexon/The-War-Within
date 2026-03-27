@@ -7,11 +7,16 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
-from .models import DailyTaskSet, Task, User, UserTask, XPLog
+from .models import DailyTaskSet, GameSession, Task, User, UserTask, XPLog
 
 
 MAX_DAILY_GAME_XP = 50
 DAILY_TASK_COUNT = 5
+GAME_MIN_DURATION_SECONDS = 20
+GAME_MAX_DURATION_SECONDS = 120
+GAME_MAX_SCORE = 60
+GAME_XP_PER_SCORE = 2
+GAME_XP_PER_SESSION_CAP = 30
 DEFAULT_TASK_TEMPLATES = [
     {"title": "Deep work: 45 minutes", "xp": 20},
     {"title": "No social scroll before noon", "xp": 15},
@@ -55,6 +60,17 @@ def get_user_task(user_task_id, for_update=False):
         return query.get(id=user_task_id)
     except UserTask.DoesNotExist as exc:
         raise NotFound("User task not found.") from exc
+
+
+def get_game_session(session_id, user, for_update=False):
+    query = GameSession.objects.filter(id=session_id, user=user)
+    if for_update:
+        query = query.select_for_update()
+
+    session = query.first()
+    if not session:
+        raise NotFound("Game session not found.")
+    return session
 
 
 def calculate_level(xp):
@@ -102,6 +118,10 @@ def get_today_game_xp(user):
         ).aggregate(total=Sum("amount"))
     )
     return result["total"] or 0
+
+
+def calculate_game_session_xp(score):
+    return min(score * GAME_XP_PER_SCORE, GAME_XP_PER_SESSION_CAP)
 
 
 def seed_task_templates():

@@ -52,6 +52,14 @@ function App() {
   const [activeTab, setActiveTab] = useState('Home')
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
   const [currentUserRank, setCurrentUserRank] = useState(null)
+  const [gameSessionId, setGameSessionId] = useState('')
+  const [gameStarted, setGameStarted] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(30)
+  const [score, setScore] = useState(0)
+  const [currentQuestion, setCurrentQuestion] = useState(null)
+  const [userAnswer, setUserAnswer] = useState('')
+  const [gameSubmitting, setGameSubmitting] = useState(false)
+  const [gameResult, setGameResult] = useState(null)
 
   const levelStartXp = useMemo(() => {
     if (level <= 1) {
@@ -212,6 +220,26 @@ function App() {
     loadDashboard()
   }, [accessToken])
 
+  useEffect(() => {
+    if (!gameStarted) {
+      return
+    }
+
+    const interval = setInterval(() => {
+      setTimeLeft((previous) => Math.max(0, previous - 1))
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [gameStarted])
+
+  useEffect(() => {
+    if (gameStarted && timeLeft === 0) {
+      setGameStarted(false)
+      setCurrentQuestion(null)
+      void submitGameResult(score)
+    }
+  }, [gameStarted, timeLeft, score])
+
   async function handleAuthSubmit(event) {
     event.preventDefault()
     setAuthLoading(true)
@@ -260,6 +288,110 @@ function App() {
     setStreakDays(0)
     setLeaderboardEntries([])
     setCurrentUserRank(null)
+    setGameSessionId('')
+    setGameStarted(false)
+    setTimeLeft(30)
+    setScore(0)
+    setCurrentQuestion(null)
+    setUserAnswer('')
+    setGameSubmitting(false)
+    setGameResult(null)
+  }
+
+  function generateQuestion() {
+    const num1 = Math.floor(Math.random() * 20) + 1
+    const num2 = Math.floor(Math.random() * 20) + 1
+    const operators = ['+', '-', '*']
+    const operator = operators[Math.floor(Math.random() * operators.length)]
+
+    let answer = 0
+    if (operator === '+') {
+      answer = num1 + num2
+    } else if (operator === '-') {
+      answer = num1 - num2
+    } else {
+      answer = num1 * num2
+    }
+
+    return { num1, num2, operator, answer }
+  }
+
+  async function handleStartGame() {
+    if (gameStarted) {
+      return
+    }
+
+    const question = generateQuestion()
+    setGameStarted(true)
+    setTimeLeft(30)
+    setScore(0)
+    setCurrentQuestion(question)
+    setUserAnswer('')
+    setGameResult(null)
+
+    try {
+      setErrorText('')
+      const data = await authedFetch('/api/game/start/', { method: 'POST' })
+      setGameSessionId(data.session_id)
+    } catch (error) {
+      setGameStarted(false)
+      setCurrentQuestion(null)
+      setTimeLeft(30)
+      setErrorText(error.message || 'Could not start game session.')
+    }
+  }
+
+  function handleSubmitAnswer(event) {
+    event.preventDefault()
+
+    if (!gameStarted || !currentQuestion) {
+      return
+    }
+
+    const parsed = Number.parseInt(userAnswer, 10)
+    if (!Number.isNaN(parsed) && parsed === currentQuestion.answer) {
+      setScore((previous) => previous + 1)
+    }
+
+    setUserAnswer('')
+    setCurrentQuestion(generateQuestion())
+  }
+
+  async function submitGameResult(finalScore) {
+    if (!gameSessionId) {
+      setErrorText('Game session was not created. Please start again.')
+      return
+    }
+
+    setGameSubmitting(true)
+    try {
+      setErrorText('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: gameSessionId,
+          score: finalScore,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const user = await authedFetch('/api/auth/me/')
+      setStreakDays(user.streak)
+      setGameResult({
+        score: data.score,
+        xp_awarded: data.xp_awarded,
+        daily_cap: data.daily_cap,
+        remaining_today: data.remaining_today,
+        capped_by_daily_limit: data.capped_by_daily_limit,
+      })
+      setGameSessionId('')
+      setTimeLeft(30)
+    } catch (error) {
+      setErrorText(error.message || 'Could not submit game result.')
+    } finally {
+      setGameSubmitting(false)
+    }
   }
 
   function handleAskComplete(task) {
@@ -424,6 +556,69 @@ function App() {
               <p className="text-sm text-zinc-500">No leaderboard data yet.</p>
             ) : null}
           </div>
+        </section>
+      ) : activeTab === 'Game' ? (
+        <section className="space-y-5">
+          <div className="text-center pt-2">
+            <h2 className="text-4xl font-black leading-tight tracking-tighter text-zinc-950">Quick Math</h2>
+            <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">30 seconds. No excuses.</p>
+          </div>
+
+          <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center">
+            <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Time Left</p>
+            <p className="mt-2 text-5xl font-black tracking-tight text-zinc-950">{timeLeft}s</p>
+            <p className="mt-2 text-sm font-black text-zinc-900">Score: {score}</p>
+            <p className="mt-2 text-xs font-semibold text-zinc-500">
+              {gameStarted ? 'Solve as many as you can.' : 'Start when you are ready.'}
+            </p>
+          </section>
+
+          <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4">
+            <button
+              type="button"
+              onClick={handleStartGame}
+              disabled={gameStarted || gameSubmitting}
+              className="w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-60"
+            >
+              {gameStarted ? 'Game Running...' : 'Start 30s Game'}
+            </button>
+
+            {gameStarted && currentQuestion ? (
+              <form className="space-y-3" onSubmit={handleSubmitAnswer}>
+                <p className="text-center text-3xl font-black tracking-tight text-zinc-950">
+                  {currentQuestion.num1} {currentQuestion.operator} {currentQuestion.num2}
+                </p>
+                <input
+                  type="number"
+                  value={userAnswer}
+                  onChange={(event) => setUserAnswer(event.target.value)}
+                  placeholder="Your answer"
+                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100"
+                >
+                  Submit Answer
+                </button>
+              </form>
+            ) : null}
+
+            {gameResult ? (
+              <div className="rounded-xl bg-zinc-100 px-4 py-3 text-left">
+                <p className="text-sm font-bold text-zinc-900">Score: {gameResult.score}</p>
+                <p className="text-sm font-bold text-zinc-900">XP Awarded: {gameResult.xp_awarded}</p>
+                {gameResult.capped_by_daily_limit ? (
+                  <p className="mt-1 text-xs font-semibold text-zinc-600">
+                    Daily game XP cap reached. Remaining today: {gameResult.remaining_today}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+          </section>
         </section>
       ) : (
         <>

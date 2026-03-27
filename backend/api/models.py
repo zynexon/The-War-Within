@@ -66,3 +66,15 @@ class XPLog(models.Model):
 	source = models.CharField(max_length=20, choices=SOURCE_CHOICES)
 	amount = models.IntegerField()
 	created_at = models.DateTimeField(auto_now_add=True)
+
+
+class GameSession(models.Model):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="game_sessions")
+	started_at = models.DateTimeField(auto_now_add=True)
+	ended_at = models.DateTimeField(null=True, blank=True)
+	score = models.IntegerField(default=0)
+	xp_awarded = models.IntegerField(default=0)
+
+	class Meta:
+		ordering = ["-started_at"]

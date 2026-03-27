@@ -11,11 +11,17 @@ class GameXPInputSerializer(serializers.Serializer):
     xpEarned = serializers.IntegerField(min_value=1)
 
 
+class GameSubmitInputSerializer(serializers.Serializer):
+    session_id = serializers.UUIDField()
+    score = serializers.IntegerField(min_value=0, max_value=60)
+
+
 class AssignDailyTasksInputSerializer(serializers.Serializer):
     date = serializers.DateField(required=False)
 
 
 class DailyTasksQuerySerializer(serializers.Serializer):
+    userId = serializers.UUIDField(required=False)
     date = serializers.DateField(required=False)
 
 
