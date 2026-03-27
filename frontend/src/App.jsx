@@ -22,6 +22,9 @@ function App() {
   const [selectedTask, setSelectedTask] = useState(null)
   const [justCompletedId, setJustCompletedId] = useState(null)
   const [tasks, setTasks] = useState([])
+  const [activeTab, setActiveTab] = useState('Home')
+  const [leaderboardEntries, setLeaderboardEntries] = useState([])
+  const [currentUserRank, setCurrentUserRank] = useState(null)
 
   const levelStartXp = useMemo(() => {
     if (level <= 1) {
@@ -38,6 +41,43 @@ function App() {
   const currentLevelXp = useMemo(() => Math.max(0, xp - levelStartXp), [xp, levelStartXp])
   const xpTarget = useMemo(() => Math.max(1, levelEndXp - levelStartXp), [levelEndXp, levelStartXp])
   const completedCount = useMemo(() => tasks.filter((t) => t.completed).length, [tasks])
+  const dailyStatusMessage = useMemo(() => {
+    if (completedCount === 0) {
+      return 'Win the first battle of the day.'
+    }
+
+    if (tasks.length > 0 && completedCount === tasks.length) {
+      return 'Day won.'
+    }
+
+    return "You showed up. That's power."
+  }, [completedCount, tasks.length])
+
+  function rankMeta(rank) {
+    if (rank === 1) {
+      return {
+        icon: '🥇',
+        className: 'bg-amber-100 text-amber-700 ring-1 ring-amber-300 text-sm',
+      }
+    }
+    if (rank === 2) {
+      return {
+        icon: '🥈',
+        className: 'bg-slate-100 text-slate-700 ring-1 ring-slate-300',
+      }
+    }
+    if (rank === 3) {
+      return {
+        icon: '🥉',
+        className: 'bg-orange-100 text-orange-700 ring-1 ring-orange-300',
+      }
+    }
+
+    return {
+      icon: null,
+      className: 'bg-zinc-100 text-zinc-700',
+    }
+  }
 
   function persistTokens(access, refresh) {
     if (access) {
@@ -135,6 +175,10 @@ function App() {
             completed: task.completed,
           })),
         )
+
+        const leaderboard = await authedFetch('/api/leaderboard/?limit=25')
+        setLeaderboardEntries(leaderboard.entries || [])
+        setCurrentUserRank(leaderboard.current_user_rank || null)
       } catch (error) {
         setErrorText(error.message || 'Could not connect to backend.')
         handleLogout()
@@ -192,6 +236,8 @@ function App() {
     setLevel(1)
     setXp(0)
     setStreakDays(0)
+    setLeaderboardEntries([])
+    setCurrentUserRank(null)
   }
 
   function handleAskComplete(task) {
@@ -304,53 +350,110 @@ function App() {
         </section>
       )}
 
-      <section className="text-center pt-2">
-        <h2 className="text-5xl font-black leading-[1.05] tracking-tighter text-zinc-950">
-          Did you win<br />today?
-        </h2>
-        <p className="mt-4 text-xs font-bold uppercase tracking-widest text-zinc-400">
-          Every action builds your identity.
-        </p>
-      </section>
+      {activeTab === 'Leaderboard' ? (
+        <section className="space-y-4">
+          <div className="text-center pt-2">
+            <h2 className="text-4xl font-black leading-tight tracking-tighter text-zinc-950">Leaderboard</h2>
+            <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">You vs your weaker self.</p>
+            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+              {currentUserRank?.rank === 1 ? 'Climb or stay average.' : 'Someone is ahead of you.'}
+            </p>
+          </div>
 
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-zinc-800">Daily Tasks</h2>
-          <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-black tracking-widest text-zinc-600">
-            {completedCount}/{tasks.length}
-          </span>
-        </div>
+          {currentUserRank ? (
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-900 p-4 text-white shadow-md">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">Your Position</p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-lg font-black">#{currentUserRank.rank}</p>
+                <p className="text-sm font-semibold">{currentUserRank.xp} XP • {currentUserRank.streak} streak</p>
+              </div>
+            </div>
+          ) : null}
 
-        <div className="space-y-3.5 relative">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onComplete={handleAskComplete}
-              isJustCompleted={task.id === justCompletedId}
-            />
-          ))}
-          {isLoading ? <p className="text-sm text-zinc-500">Loading daily tasks...</p> : null}
-        </div>
-      </section>
+          <div className="space-y-2.5">
+            {leaderboardEntries.map((entry) => {
+              const badge = rankMeta(entry.rank)
 
-      <section className="flex flex-col items-center justify-center rounded-3xl border border-zinc-200 bg-white py-8 px-4 text-center shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-        <span className="text-4xl drop-shadow-sm">🔥</span>
-        <h3 className="mt-3 text-xl font-black tracking-tight text-zinc-900">{streakDays} Day Streak</h3>
-        <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400">Don't break the chain.</p>
-      </section>
+              return (
+                <div
+                  key={entry.user_id}
+                  className={`rounded-2xl border px-3 py-3 transition ${entry.is_current_user ? 'border-zinc-900 bg-zinc-100' : 'border-zinc-200 bg-white'}`}
+                >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`inline-flex min-w-[68px] items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${badge.className}`}>
+                      <span>#{entry.rank}</span>
+                      {badge.icon ? <span>{badge.icon}</span> : null}
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-zinc-900">
+                        {entry.email}
+                        {entry.is_current_user ? ' (You)' : ''}
+                      </p>
+                      <p className="text-[11px] font-semibold text-zinc-500">LV.{entry.level} • 🔥 {entry.streak}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-black text-zinc-900">{entry.xp} XP</p>
+                </div>
+                </div>
+              )
+            })}
+            {!isLoading && leaderboardEntries.length === 0 ? (
+              <p className="text-sm text-zinc-500">No leaderboard data yet.</p>
+            ) : null}
+          </div>
+        </section>
+      ) : (
+        <>
+          <section className="text-center pt-2">
+            <h2 className="text-5xl font-black leading-[1.05] tracking-tighter text-zinc-950">
+              Did you win<br />today?
+            </h2>
+            <p className="mt-4 text-xs font-bold uppercase tracking-widest text-zinc-400">
+              Every action builds your identity.
+            </p>
+          </section>
 
-      <div className="text-center pt-2 min-h-12">
-        <p className={`text-[13px] font-bold uppercase tracking-wide transition-all duration-500 ${
-          completedCount > 0 ? 'text-zinc-900' : 'text-zinc-400'
-        }`}>
-          {completedCount > 0 ? "You showed up. That's power." : "Weakness is waiting."}
-        </p>
-        {errorText ? <p className="mt-2 text-xs font-semibold text-red-600">{errorText}</p> : null}
-      </div>
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-[11px] font-black uppercase tracking-widest text-zinc-800">Daily Tasks</h2>
+              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-black tracking-widest text-zinc-600">
+                {completedCount}/{tasks.length}
+              </span>
+            </div>
+
+            <div className="space-y-3.5 relative">
+              {tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onComplete={handleAskComplete}
+                  isJustCompleted={task.id === justCompletedId}
+                />
+              ))}
+              {isLoading ? <p className="text-sm text-zinc-500">Loading daily tasks...</p> : null}
+            </div>
+          </section>
+
+          <section className="flex flex-col items-center justify-center rounded-3xl border border-zinc-200 bg-white py-8 px-4 text-center shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+            <span className="text-4xl drop-shadow-sm">🔥</span>
+            <h3 className="mt-3 text-xl font-black tracking-tight text-zinc-900">{streakDays} Day Streak</h3>
+            <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400">Don't break the chain.</p>
+          </section>
+
+          <div className="text-center pt-2 min-h-12">
+            <p className={`text-[13px] font-bold uppercase tracking-wide transition-all duration-500 ${
+              completedCount > 0 ? 'text-zinc-900' : 'text-zinc-400'
+            }`}>
+              {dailyStatusMessage}
+            </p>
+            {errorText ? <p className="mt-2 text-xs font-semibold text-red-600">{errorText}</p> : null}
+          </div>
+        </>
+      )}
 
       <div className="mt-auto pt-6">
-        <Navbar />
+        <Navbar activeTab={activeTab} onChange={setActiveTab} />
       </div>
 
       <ConfirmationModal

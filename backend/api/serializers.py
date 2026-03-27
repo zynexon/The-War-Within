@@ -19,6 +19,10 @@ class DailyTasksQuerySerializer(serializers.Serializer):
     date = serializers.DateField(required=False)
 
 
+class LeaderboardQuerySerializer(serializers.Serializer):
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=100, default=20)
+
+
 class BootstrapUserInputSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
 

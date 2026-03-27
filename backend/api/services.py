@@ -1,6 +1,9 @@
 import math
+from datetime import date
 
+from django.db.models import DateField
 from django.db.models import Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
@@ -114,3 +117,34 @@ def assign_daily_tasks(user, date=None):
             created_count += 1
 
     return assigned, created_count
+
+
+def get_leaderboard(current_user, limit=20):
+    users = list(
+        User.objects.annotate(
+            recent_activity=Coalesce("last_active_date", date(1970, 1, 1), output_field=DateField()),
+        )
+        .order_by("-xp", "-streak", "-recent_activity", "created_at")
+    )
+
+    entries = []
+    current_user_rank = None
+    for index, user in enumerate(users, start=1):
+        entry = {
+            "rank": index,
+            "user_id": str(user.id),
+            "email": user.email,
+            "xp": user.xp,
+            "level": user.level,
+            "streak": user.streak,
+            "last_active_date": user.last_active_date,
+            "is_current_user": user.id == current_user.id,
+        }
+
+        if entry["is_current_user"]:
+            current_user_rank = entry
+
+        if len(entries) < limit:
+            entries.append(entry)
+
+    return entries, current_user_rank

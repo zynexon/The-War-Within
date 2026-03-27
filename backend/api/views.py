@@ -11,6 +11,7 @@ from .serializers import (
 	CompleteTaskInputSerializer,
 	DailyTasksQuerySerializer,
 	GameXPInputSerializer,
+	LeaderboardQuerySerializer,
 	RegisterInputSerializer,
 	UserSerializer,
 	UserTaskSerializer,
@@ -19,6 +20,7 @@ from .services import (
 	MAX_DAILY_GAME_XP,
 	assign_daily_tasks,
 	create_xp_log,
+	get_leaderboard,
 	get_user_task,
 	get_today_game_xp,
 	increment_user_xp,
@@ -135,6 +137,23 @@ class DailyTasksView(APIView):
 		assigned, _ = assign_daily_tasks(request.user, target_date)
 		assigned = sorted(assigned, key=lambda item: item.task.title)
 		return Response(UserTaskSerializer(assigned, many=True).data)
+
+
+class LeaderboardView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		serializer = LeaderboardQuerySerializer(data=request.query_params)
+		serializer.is_valid(raise_exception=True)
+
+		limit = serializer.validated_data.get("limit", 20)
+		entries, current_user_rank = get_leaderboard(request.user, limit)
+		return Response(
+			{
+				"entries": entries,
+				"current_user_rank": current_user_rank,
+			}
+		)
 
 
 class CompleteTaskView(APIView):

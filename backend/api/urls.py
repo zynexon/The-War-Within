@@ -7,6 +7,7 @@ from .views import (
     CompleteTaskView,
     DailyTasksView,
     HelloView,
+    LeaderboardView,
     LoginView,
     RefreshTokenView,
     RegisterView,
@@ -26,4 +27,5 @@ urlpatterns = [
     path("seed-tasks/", SeedTasksView.as_view(), name="seed-tasks"),
     path("assign-daily-tasks/", AssignDailyTasksView.as_view(), name="assign-daily-tasks"),
     path("daily-tasks/", DailyTasksView.as_view(), name="daily-tasks"),
+    path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
 ]
