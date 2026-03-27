@@ -7,16 +7,35 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
-from .models import Task, User, UserTask, XPLog
+from .models import DailyTaskSet, Task, User, UserTask, XPLog
 
 
 MAX_DAILY_GAME_XP = 50
+DAILY_TASK_COUNT = 5
 DEFAULT_TASK_TEMPLATES = [
     {"title": "Deep work: 45 minutes", "xp": 20},
     {"title": "No social scroll before noon", "xp": 15},
     {"title": "Workout or walk", "xp": 25},
     {"title": "Read 10 pages", "xp": 10},
     {"title": "Plan tomorrow in 5 mins", "xp": 10},
+    
+    {"title": "Wake up before 7 AM", "xp": 15},
+    {"title": "No phone for first 30 mins", "xp": 15},
+    {"title": "Drink 2L of water", "xp": 10},
+    {"title": "Meditate for 10 minutes", "xp": 15},
+    {"title": "Write 5 key learnings today", "xp": 10},
+
+    {"title": "Study/work 60 minutes distraction-free", "xp": 20},
+    {"title": "Avoid junk food today", "xp": 15},
+    {"title": "Do 50 push-ups (or equivalent)", "xp": 20},
+    {"title": "Spend 15 mins learning something new", "xp": 10},
+    {"title": "Clean your workspace", "xp": 10},
+
+    {"title": "No social media after 9 PM", "xp": 15},
+    {"title": "Track your expenses today", "xp": 10},
+    {"title": "Have 1 meaningful conversation", "xp": 10},
+    {"title": "Write your goals for the week", "xp": 15},
+    {"title": "Sleep before 11 PM", "xp": 20},
 ]
 
 
@@ -97,15 +116,39 @@ def seed_task_templates():
     return created_count
 
 
+def get_or_create_daily_task_set(target_date=None):
+    """
+    Get or create a DailyTaskSet for the given date.
+    If it doesn't exist, randomly select DAILY_TASK_COUNT tasks.
+    All users get the same tasks for a given day.
+    """
+    if target_date is None:
+        target_date = timezone.localdate()
+
+    daily_set, created = DailyTaskSet.objects.get_or_create(date=target_date)
+
+    if created:
+        available_tasks = list(Task.objects.order_by("?")[: DAILY_TASK_COUNT])
+        if len(available_tasks) < DAILY_TASK_COUNT:
+            raise ValidationError(
+                f"Not enough tasks available. Need {DAILY_TASK_COUNT}, found {len(available_tasks)}."
+            )
+        daily_set.tasks.set(available_tasks)
+
+    return daily_set
+
+
 def assign_daily_tasks(user, date=None):
+    """
+    Assign today's global task set to a user.
+    Uses get_or_create to avoid duplicates.
+    """
     target_date = date or timezone.localdate()
-    tasks = list(Task.objects.order_by("title")[:5])
-    if not tasks:
-        raise ValidationError("No task templates available. Seed tasks first.")
+    daily_set = get_or_create_daily_task_set(target_date)
 
     assigned = []
     created_count = 0
-    for task in tasks:
+    for task in daily_set.tasks.all():
         user_task, created = UserTask.objects.get_or_create(
             user=user,
             task=task,
@@ -117,6 +160,27 @@ def assign_daily_tasks(user, date=None):
             created_count += 1
 
     return assigned, created_count
+
+
+def get_daily_tasks(user, date=None):
+    """
+    Get tasks for a user on a given date.
+    If tasks don't exist, assign them first.
+    """
+    target_date = date or timezone.localdate()
+    
+    user_tasks = UserTask.objects.filter(
+        user=user,
+        date=target_date,
+    ).select_related("task")
+
+    if not user_tasks.exists():
+        assigned, _ = assign_daily_tasks(user, target_date)
+        user_tasks = assigned
+    else:
+        user_tasks = list(user_tasks)
+
+    return user_tasks
 
 
 def get_leaderboard(current_user, limit=20):

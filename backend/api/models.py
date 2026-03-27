@@ -23,6 +23,19 @@ class Task(models.Model):
 		return self.title
 
 
+class DailyTaskSet(models.Model):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	date = models.DateField(unique=True)
+	tasks = models.ManyToManyField(Task, related_name="daily_sets")
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		ordering = ["-date"]
+
+	def __str__(self):
+		return f"Daily tasks for {self.date}"
+
+
 class UserTask(models.Model):
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_tasks")
