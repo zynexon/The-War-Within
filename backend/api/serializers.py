@@ -17,6 +17,11 @@ class CompleteTaskInputSerializer(serializers.Serializer):
 
 class GameXPInputSerializer(serializers.Serializer):
     xpEarned = serializers.IntegerField(min_value=1)
+    game_type = serializers.ChoiceField(
+        choices=["quick_math", "focus_tap"],
+        required=False,
+        default="quick_math",
+    )
 
 
 class GameSubmitInputSerializer(serializers.Serializer):

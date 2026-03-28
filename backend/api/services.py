@@ -11,6 +11,10 @@ from .models import DailyTaskSet, GameSession, Task, User, UserTask, XPLog
 
 
 MAX_DAILY_GAME_XP = 50
+MAX_DAILY_GAME_XP_BY_TYPE = {
+    "quick_math": 50,
+    "focus_tap": 50,
+}
 DAILY_TASK_COUNT = 5
 GAME_MIN_DURATION_SECONDS = 20
 GAME_MAX_DURATION_SECONDS = 120
@@ -120,14 +124,21 @@ def update_streak(user):
     return user
 
 
-def get_today_game_xp(user):
+def get_daily_game_xp_cap(game_type):
+    cap = MAX_DAILY_GAME_XP_BY_TYPE.get(game_type)
+    if cap is None:
+        raise ValidationError("Invalid game type.")
+    return cap
+
+
+def get_today_game_xp(user, game_type):
     today = timezone.localdate()
     result = (
-        XPLog.objects.filter(
+        GameSession.objects.filter(
             user=user,
-            source=XPLog.SOURCE_GAME,
-            created_at__date=today,
-        ).aggregate(total=Sum("amount"))
+            game_type=game_type,
+            ended_at__date=today,
+        ).aggregate(total=Sum("xp_awarded"))
     )
     return result["total"] or 0
 

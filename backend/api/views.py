@@ -22,10 +22,10 @@ from .serializers import (
 	UserTaskSerializer,
 )
 from .services import (
-	MAX_DAILY_GAME_XP,
 	assign_daily_tasks,
 	calculate_game_session_xp_for_type,
 	create_xp_log,
+	get_daily_game_xp_cap,
 	get_daily_tasks,
 	get_game_session,
 	get_leaderboard,
@@ -217,8 +217,9 @@ class GameSubmitView(APIView):
 
 		user = User.objects.select_for_update().get(id=request.user.id)
 		xp = calculate_game_session_xp_for_type(session.game_type, score)
-		game_xp_today = get_today_game_xp(user)
-		remaining = MAX_DAILY_GAME_XP - game_xp_today
+		daily_cap = get_daily_game_xp_cap(session.game_type)
+		game_xp_today = get_today_game_xp(user, session.game_type)
+		remaining = daily_cap - game_xp_today
 		xp_awarded = 0 if remaining <= 0 else min(xp, remaining)
 		capped_by_daily_limit = xp_awarded < xp
 
@@ -239,7 +240,7 @@ class GameSubmitView(APIView):
 				"score": score,
 				"xp_calculated": xp,
 				"xp_awarded": xp_awarded,
-				"daily_cap": MAX_DAILY_GAME_XP,
+				"daily_cap": daily_cap,
 				"today_game_xp_before": game_xp_today,
 				"remaining_today": max(0, remaining - xp_awarded),
 				"capped_by_daily_limit": capped_by_daily_limit,
@@ -320,12 +321,14 @@ class AddGameXPView(APIView):
 
 		user = User.objects.select_for_update().get(id=request.user.id)
 		requested_xp = serializer.validated_data["xpEarned"]
+		game_type = serializer.validated_data["game_type"]
 
-		game_xp_today = get_today_game_xp(user)
-		remaining = MAX_DAILY_GAME_XP - game_xp_today
+		daily_cap = get_daily_game_xp_cap(game_type)
+		game_xp_today = get_today_game_xp(user, game_type)
+		remaining = daily_cap - game_xp_today
 		if remaining <= 0:
 			return Response(
-				{"error": "Daily game XP cap reached.", "daily_cap": MAX_DAILY_GAME_XP},
+				{"error": "Daily game XP cap reached.", "daily_cap": daily_cap, "game_type": game_type},
 				status=status.HTTP_400_BAD_REQUEST,
 			)
 
@@ -341,9 +344,10 @@ class AddGameXPView(APIView):
 		return Response(
 			{
 				"success": True,
+				"game_type": game_type,
 				"xp_granted": granted,
 				"requested_xp": requested_xp,
-				"daily_cap": MAX_DAILY_GAME_XP,
+				"daily_cap": daily_cap,
 				"remaining_today": max(0, remaining - granted),
 				"level": user.level,
 				"total_xp": user.xp,

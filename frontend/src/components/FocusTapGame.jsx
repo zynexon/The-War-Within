@@ -61,7 +61,7 @@ function circleColorClass(color) {
   return 'border-zinc-300 bg-white'
 }
 
-function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awardedXp, errorText }) {
+function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awardedXp, resultMeta, errorText }) {
   const initialState = useMemo(() => generateGrid(1), [])
 
   const [round, setRound] = useState(1)
@@ -172,10 +172,15 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
       {gameWon ? (
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center space-y-3">
           <h3 className="text-2xl font-black text-zinc-950">You completed all 15 rounds</h3>
-          <p className="text-sm font-semibold text-zinc-600">+10 XP earned</p>
+          <p className="text-sm font-semibold text-zinc-600">Focus Tap clear reward: up to +10 XP</p>
           {submitting ? <p className="text-xs font-semibold text-zinc-500">Submitting result...</p> : null}
           {typeof awardedXp === 'number' ? (
             <p className="text-xs font-semibold text-zinc-500">Server XP awarded: +{awardedXp}</p>
+          ) : null}
+          {resultMeta?.cappedByDailyLimit ? (
+            <p className="text-xs font-semibold text-amber-600">
+              Daily game cap reached ({resultMeta.dailyCap} XP/day). Remaining today: {resultMeta.remainingToday}
+            </p>
           ) : null}
           {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
           <div className="flex gap-3 pt-2">

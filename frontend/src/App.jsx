@@ -91,6 +91,7 @@ function App() {
   const [focusTapSessionId, setFocusTapSessionId] = useState('')
   const [focusTapSubmitting, setFocusTapSubmitting] = useState(false)
   const [focusTapXpAwarded, setFocusTapXpAwarded] = useState(null)
+  const [focusTapResult, setFocusTapResult] = useState(null)
   const [focusTapError, setFocusTapError] = useState('')
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallPopup, setShowInstallPopup] = useState(false)
@@ -473,6 +474,7 @@ function App() {
     setFocusTapSessionId('')
     setFocusTapSubmitting(false)
     setFocusTapXpAwarded(null)
+    setFocusTapResult(null)
     setFocusTapError('')
   }
 
@@ -631,6 +633,7 @@ function App() {
     try {
       setFocusTapError('')
       setFocusTapXpAwarded(null)
+      setFocusTapResult(null)
       const data = await authedFetch('/api/game/start/', {
         method: 'POST',
         body: JSON.stringify({ game_type: 'focus_tap' }),
@@ -666,6 +669,12 @@ function App() {
       setUser(refreshedUser)
       setStreakDays(refreshedUser.streak)
       setFocusTapXpAwarded(data.xp_awarded)
+      setFocusTapResult({
+        xpAwarded: data.xp_awarded,
+        dailyCap: data.daily_cap,
+        remainingToday: data.remaining_today,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+      })
       setFocusTapSessionId('')
     } catch (error) {
       setFocusTapError(error.message || 'Could not submit Focus Tap result.')
@@ -940,6 +949,7 @@ function App() {
             onGameFinished={handleFocusTapFinish}
             submitting={focusTapSubmitting}
             awardedXp={focusTapXpAwarded}
+            resultMeta={focusTapResult}
             errorText={focusTapError}
           />
         ) : (
