@@ -13,6 +13,7 @@ from .views import (
     RefreshTokenView,
     RegisterView,
     SeedTasksView,
+    UpdateNameView,
     UserView,
 )
 
@@ -26,6 +27,7 @@ urlpatterns = [
     path("game/submit/", GameSubmitView.as_view(), name="game-submit"),
     path("complete-task/", CompleteTaskView.as_view(), name="complete-task"),
     path("user/", UserView.as_view(), name="user"),
+    path("user/update-name/", UpdateNameView.as_view(), name="user-update-name"),
     path("seed-tasks/", SeedTasksView.as_view(), name="seed-tasks"),
     path("assign-daily-tasks/", AssignDailyTasksView.as_view(), name="assign-daily-tasks"),
     path("daily-tasks/", DailyTasksView.as_view(), name="daily-tasks"),

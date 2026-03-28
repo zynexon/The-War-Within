@@ -15,6 +15,7 @@ from .serializers import (
 	GameXPInputSerializer,
 	LeaderboardQuerySerializer,
 	RegisterInputSerializer,
+	UpdateNameInputSerializer,
 	UserSerializer,
 	UserTaskSerializer,
 )
@@ -57,6 +58,7 @@ class RegisterView(APIView):
 		serializer = RegisterInputSerializer(data=request.data)
 		serializer.is_valid(raise_exception=True)
 
+		name = serializer.validated_data["name"]
 		email = serializer.validated_data["email"].lower().strip()
 		password = serializer.validated_data["password"]
 
@@ -67,6 +69,7 @@ class RegisterView(APIView):
 			)
 
 		user = User.objects.create_user(
+			name=name,
 			username=email,
 			email=email,
 			password=password,
@@ -97,6 +100,18 @@ class UserView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request):
+		return Response(UserSerializer(request.user).data)
+
+
+class UpdateNameView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def patch(self, request):
+		serializer = UpdateNameInputSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		request.user.name = serializer.validated_data["name"]
+		request.user.save(update_fields=["name"])
 		return Response(UserSerializer(request.user).data)
 
 

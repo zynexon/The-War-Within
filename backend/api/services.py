@@ -217,6 +217,7 @@ def get_leaderboard(current_user, limit=20):
         entry = {
             "rank": index,
             "user_id": str(user.id),
+            "name": user.name,
             "email": user.email,
             "xp": user.xp,
             "level": user.level,

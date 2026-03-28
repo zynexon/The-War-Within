@@ -34,14 +34,31 @@ class BootstrapUserInputSerializer(serializers.Serializer):
 
 
 class RegisterInputSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=30)
     email = serializers.EmailField()
     password = serializers.CharField(min_length=8, write_only=True)
+
+    def validate_name(self, value):
+        cleaned = value.strip()
+        if not cleaned:
+            raise serializers.ValidationError("Name cannot be empty.")
+        return cleaned
+
+
+class UpdateNameInputSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=30)
+
+    def validate_name(self, value):
+        cleaned = value.strip()
+        if not cleaned:
+            raise serializers.ValidationError("Name cannot be empty.")
+        return cleaned
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "email", "xp", "level", "streak", "last_active_date", "created_at"]
+        fields = ["id", "name", "email", "xp", "level", "streak", "last_active_date", "created_at"]
 
 
 class UserTaskSerializer(serializers.ModelSerializer):

@@ -6,7 +6,9 @@ import XPBar from './components/XPBar'
 
 const ACCESS_TOKEN_KEY = 'zynexon_access_token'
 const REFRESH_TOKEN_KEY = 'zynexon_refresh_token'
+const BEST_GAME_SCORE_KEY = 'zynexon_best_quick_math_score'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+const GAME_DAILY_MAX_XP = 50
 
 function apiUrl(path) {
   if (!API_BASE_URL) {
@@ -41,6 +43,7 @@ function App() {
   const [userEmail, setUserEmail] = useState('')
   const [accessToken, setAccessToken] = useState(localStorage.getItem(ACCESS_TOKEN_KEY) || '')
   const [authMode, setAuthMode] = useState('login')
+  const [nameInput, setNameInput] = useState('')
   const [emailInput, setEmailInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -52,14 +55,21 @@ function App() {
   const [activeTab, setActiveTab] = useState('Home')
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
   const [currentUserRank, setCurrentUserRank] = useState(null)
+  const [userName, setUserName] = useState('')
+  const [nameUpdating, setNameUpdating] = useState(false)
   const [gameSessionId, setGameSessionId] = useState('')
   const [gameStarted, setGameStarted] = useState(false)
   const [timeLeft, setTimeLeft] = useState(30)
   const [score, setScore] = useState(0)
+  const [bestGameScore, setBestGameScore] = useState(() => {
+    const stored = Number.parseInt(localStorage.getItem(BEST_GAME_SCORE_KEY) || '0', 10)
+    return Number.isNaN(stored) ? 0 : stored
+  })
   const [currentQuestion, setCurrentQuestion] = useState(null)
   const [userAnswer, setUserAnswer] = useState('')
   const [gameSubmitting, setGameSubmitting] = useState(false)
   const [gameResult, setGameResult] = useState(null)
+  const [animatedGameXp, setAnimatedGameXp] = useState(0)
 
   const levelStartXp = useMemo(() => {
     if (level <= 1) {
@@ -87,6 +97,7 @@ function App() {
 
     return "You showed up. That's power."
   }, [completedCount, tasks.length])
+  const requiresNameSetup = Boolean(accessToken && !userName)
 
   function rankMeta(rank) {
     if (rank === 1) {
@@ -191,6 +202,7 @@ function App() {
 
       try {
         const user = await authedFetch('/api/auth/me/')
+        setUserName(user.name || '')
         setUserEmail(user.email)
         setLevel(user.level)
         setXp(user.xp)
@@ -240,6 +252,33 @@ function App() {
     }
   }, [gameStarted, timeLeft, score])
 
+  useEffect(() => {
+    const targetXp = gameResult?.xp_awarded || 0
+    if (targetXp <= 0) {
+      setAnimatedGameXp(0)
+      return
+    }
+
+    setAnimatedGameXp(0)
+    const durationMs = 500
+    const stepMs = 30
+    const steps = Math.max(1, Math.floor(durationMs / stepMs))
+    const increment = targetXp / steps
+    let current = 0
+
+    const interval = setInterval(() => {
+      current += increment
+      if (current >= targetXp) {
+        setAnimatedGameXp(targetXp)
+        clearInterval(interval)
+        return
+      }
+      setAnimatedGameXp(Math.floor(current))
+    }, stepMs)
+
+    return () => clearInterval(interval)
+  }, [gameResult])
+
   async function handleAuthSubmit(event) {
     event.preventDefault()
     setAuthLoading(true)
@@ -250,11 +289,11 @@ function App() {
         const registerResponse = await fetch(apiUrl('/api/auth/register/'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: emailInput, password: passwordInput }),
+          body: JSON.stringify({ name: nameInput, email: emailInput, password: passwordInput }),
         })
         const registerData = await readApiPayload(registerResponse)
         if (!registerResponse.ok) {
-          throw new Error(registerData.error || 'Registration failed.')
+          throw new Error(registerData.name?.[0] || registerData.error || 'Registration failed.')
         }
       }
 
@@ -270,10 +309,35 @@ function App() {
 
       persistTokens(loginData.access, loginData.refresh)
       setPasswordInput('')
+      if (authMode === 'register') {
+        setNameInput('')
+      }
     } catch (error) {
       setErrorText(error.message || 'Authentication failed.')
     } finally {
       setAuthLoading(false)
+    }
+  }
+
+  async function handleUpdateName(event) {
+    event.preventDefault()
+    if (!accessToken) {
+      return
+    }
+
+    setNameUpdating(true)
+    try {
+      setErrorText('')
+      const data = await authedFetch('/api/user/update-name/', {
+        method: 'PATCH',
+        body: JSON.stringify({ name: nameInput }),
+      })
+      setUserName(data.name || '')
+      setNameInput('')
+    } catch (error) {
+      setErrorText(error.message || 'Could not update name.')
+    } finally {
+      setNameUpdating(false)
     }
   }
 
@@ -282,6 +346,7 @@ function App() {
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     setAccessToken('')
     setTasks([])
+    setUserName('')
     setUserEmail('')
     setLevel(1)
     setXp(0)
@@ -378,6 +443,10 @@ function App() {
       setLevel(data.level)
       const user = await authedFetch('/api/auth/me/')
       setStreakDays(user.streak)
+      if (data.score > bestGameScore) {
+        setBestGameScore(data.score)
+        localStorage.setItem(BEST_GAME_SCORE_KEY, String(data.score))
+      }
       setGameResult({
         score: data.score,
         xp_awarded: data.xp_awarded,
@@ -439,9 +508,13 @@ function App() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col px-5 pt-8 pb-6 space-y-9 relative">
+      <div className="text-center text-2xl font-black tracking-[0.12em] text-zinc-900 mb-1">
+        ZYNEXON
+      </div>
+
       <header className="rounded-3xl border border-zinc-200/60 bg-white px-5 py-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-black tracking-tight text-zinc-900">ZYNEXON</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-900">{userName || 'Challenger'}</h1>
           <p className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-black tracking-widest text-white shadow-md">
             LV.{level}
           </p>
@@ -469,6 +542,17 @@ function App() {
           </div>
 
           <form className="space-y-3" onSubmit={handleAuthSubmit}>
+            {authMode === 'register' ? (
+              <input
+                type="text"
+                required
+                maxLength={30}
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
+                placeholder="Name"
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              />
+            ) : null}
             <input
               type="email"
               required
@@ -497,14 +581,45 @@ function App() {
         </section>
       ) : (
         <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-3 shadow-sm flex items-center justify-between">
-          <p className="text-xs font-semibold text-zinc-500">Signed in as {userEmail}</p>
+          <p className="text-xs font-semibold text-zinc-500">Signed in as {userName || userEmail}</p>
           <button type="button" className="text-xs font-bold text-zinc-900" onClick={handleLogout}>
             Logout
           </button>
         </section>
       )}
 
-      {activeTab === 'Leaderboard' ? (
+      {requiresNameSetup ? (
+        <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-sm space-y-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-black tracking-tight text-zinc-900">Set Your Name</h2>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+              Add your name to continue and appear on the leaderboard.
+            </p>
+          </div>
+          <form className="space-y-3" onSubmit={handleUpdateName}>
+            <input
+              type="text"
+              required
+              maxLength={30}
+              value={nameInput}
+              onChange={(event) => setNameInput(event.target.value)}
+              placeholder="Enter your name"
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            />
+            <button
+              type="submit"
+              disabled={nameUpdating}
+              className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-60"
+            >
+              {nameUpdating ? 'Saving...' : 'Save Name'}
+            </button>
+          </form>
+          {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+        </section>
+      ) : null}
+
+      {!requiresNameSetup && (
+      activeTab === 'Leaderboard' ? (
         <section className="space-y-4">
           <div className="text-center pt-2">
             <h2 className="text-4xl font-black leading-tight tracking-tighter text-zinc-950">Leaderboard</h2>
@@ -541,7 +656,7 @@ function App() {
                     </span>
                     <div>
                       <p className="text-sm font-bold text-zinc-900">
-                        {entry.email}
+                        {entry.name || 'Player'}
                         {entry.is_current_user ? ' (You)' : ''}
                       </p>
                       <p className="text-[11px] font-semibold text-zinc-500">LV.{entry.level} • 🔥 {entry.streak}</p>
@@ -570,6 +685,9 @@ function App() {
             <p className="mt-2 text-sm font-black text-zinc-900">Score: {score}</p>
             <p className="mt-2 text-xs font-semibold text-zinc-500">
               {gameStarted ? 'Solve as many as you can.' : 'Start when you are ready.'}
+            </p>
+            <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+              Max game XP per day: {GAME_DAILY_MAX_XP}
             </p>
           </section>
 
@@ -608,13 +726,27 @@ function App() {
             {gameResult ? (
               <div className="rounded-xl bg-zinc-100 px-4 py-3 text-left">
                 <p className="text-sm font-bold text-zinc-900">Score: {gameResult.score}</p>
-                <p className="text-sm font-bold text-zinc-900">XP Awarded: {gameResult.xp_awarded}</p>
+                <p className="text-sm font-bold text-zinc-900">XP Awarded: {animatedGameXp}</p>
+                <p className="mt-1 text-xs font-semibold text-zinc-600">
+                  {gameResult.score > bestGameScore ? 'New best score. Beat it again.' : `Beat your score: ${bestGameScore}`}
+                </p>
                 {gameResult.capped_by_daily_limit ? (
                   <p className="mt-1 text-xs font-semibold text-zinc-600">
                     Daily game XP cap reached. Remaining today: {gameResult.remaining_today}
                   </p>
                 ) : null}
               </div>
+            ) : null}
+
+            {!gameStarted && gameResult ? (
+              <button
+                type="button"
+                onClick={handleStartGame}
+                disabled={gameSubmitting}
+                className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100 disabled:opacity-60"
+              >
+                Play Again
+              </button>
             ) : null}
 
             {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
@@ -667,11 +799,13 @@ function App() {
             {errorText ? <p className="mt-2 text-xs font-semibold text-red-600">{errorText}</p> : null}
           </div>
         </>
-      )}
+      ))}
 
-      <div className="mt-auto pt-6">
-        <Navbar activeTab={activeTab} onChange={setActiveTab} />
-      </div>
+      {!requiresNameSetup ? (
+        <div className="mt-auto pt-6">
+          <Navbar activeTab={activeTab} onChange={setActiveTab} />
+        </div>
+      ) : null}
 
       <ConfirmationModal
         open={Boolean(selectedTask)}
