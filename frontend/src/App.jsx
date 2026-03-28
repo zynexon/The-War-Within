@@ -10,6 +10,10 @@ const BEST_GAME_SCORE_KEY = 'zynexon_best_quick_math_score'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const GAME_DAILY_MAX_XP = 50
 
+function isStandaloneMode() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+}
+
 function apiUrl(path) {
   if (!API_BASE_URL) {
     return path
@@ -70,6 +74,10 @@ function App() {
   const [gameSubmitting, setGameSubmitting] = useState(false)
   const [gameResult, setGameResult] = useState(null)
   const [animatedGameXp, setAnimatedGameXp] = useState(0)
+  const [deferredPrompt, setDeferredPrompt] = useState(null)
+  const [showInstallPopup, setShowInstallPopup] = useState(false)
+  const [installEligible, setInstallEligible] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(false)
 
   const levelStartXp = useMemo(() => {
     if (level <= 1) {
@@ -279,6 +287,35 @@ function App() {
     return () => clearInterval(interval)
   }, [gameResult])
 
+  useEffect(() => {
+    setIsInstalled(isStandaloneMode())
+
+    const onBeforeInstallPrompt = (event) => {
+      event.preventDefault()
+      setDeferredPrompt(event)
+    }
+
+    const onAppInstalled = () => {
+      setIsInstalled(true)
+      setDeferredPrompt(null)
+      setShowInstallPopup(false)
+    }
+
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+    window.addEventListener('appinstalled', onAppInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', onAppInstalled)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (installEligible && deferredPrompt && !isInstalled) {
+      setShowInstallPopup(true)
+    }
+  }, [installEligible, deferredPrompt, isInstalled])
+
   async function handleAuthSubmit(event) {
     event.preventDefault()
     setAuthLoading(true)
@@ -339,6 +376,21 @@ function App() {
     } finally {
       setNameUpdating(false)
     }
+  }
+
+  async function handleInstallClick() {
+    if (!deferredPrompt) {
+      return
+    }
+
+    deferredPrompt.prompt()
+    const choice = await deferredPrompt.userChoice
+    if (choice.outcome === 'accepted') {
+      console.log('PWA install accepted')
+    }
+
+    setDeferredPrompt(null)
+    setShowInstallPopup(false)
   }
 
   function handleLogout() {
@@ -454,6 +506,7 @@ function App() {
         remaining_today: data.remaining_today,
         capped_by_daily_limit: data.capped_by_daily_limit,
       })
+      setInstallEligible(true)
       setGameSessionId('')
       setTimeLeft(30)
     } catch (error) {
@@ -495,6 +548,7 @@ function App() {
       setJustCompletedId(taskId)
       setTimeout(() => setJustCompletedId(null), 1200)
       setErrorText('')
+      setInstallEligible(true)
     } catch (error) {
       setErrorText(error.message || 'Task could not be completed.')
     } finally {
@@ -814,6 +868,28 @@ function App() {
         onNo={handleConfirmNo}
         onClose={() => setSelectedTask(null)}
       />
+
+      {showInstallPopup ? (
+        <div className="fixed bottom-6 left-1/2 z-50 w-[88%] max-w-[360px] -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl">
+          <h3 className="text-lg font-semibold text-zinc-900">Install Zynexon</h3>
+          <p className="mt-1 text-sm text-zinc-500">Train your mind daily. Stay consistent.</p>
+
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className="mt-4 w-full rounded-lg bg-zinc-900 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+          >
+            Install
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowInstallPopup(false)}
+            className="mt-2 w-full rounded-lg py-2 text-sm font-semibold text-zinc-500 transition hover:bg-zinc-100"
+          >
+            Not now
+          </button>
+        </div>
+      ) : null}
     </main>
   )
 }
