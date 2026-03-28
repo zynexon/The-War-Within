@@ -60,7 +60,8 @@ function App() {
   const [tasks, setTasks] = useState([])
   const [activeTab, setActiveTab] = useState('Home')
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
-  const [currentUserRank, setCurrentUserRank] = useState(null)
+  const [totalPlayers, setTotalPlayers] = useState(0)
+  const [yourRank, setYourRank] = useState(null)
   const [userName, setUserName] = useState('')
   const [nameUpdating, setNameUpdating] = useState(false)
   const [gameSessionId, setGameSessionId] = useState('')
@@ -231,9 +232,10 @@ function App() {
           })),
         )
 
-        const leaderboard = await authedFetch('/api/leaderboard/?limit=25')
-        setLeaderboardEntries(leaderboard.entries || [])
-        setCurrentUserRank(leaderboard.current_user_rank || null)
+        const leaderboard = await authedFetch('/api/leaderboard/?limit=30')
+        setLeaderboardEntries(leaderboard.top_users || leaderboard.entries || [])
+        setTotalPlayers(leaderboard.total_users || 0)
+        setYourRank(leaderboard.your_rank || leaderboard.current_user_rank?.rank || null)
       } catch (error) {
         setErrorText(error.message || 'Could not connect to backend.')
         handleLogout()
@@ -412,7 +414,8 @@ function App() {
     setXp(0)
     setStreakDays(0)
     setLeaderboardEntries([])
-    setCurrentUserRank(null)
+    setTotalPlayers(0)
+    setYourRank(null)
     setGameSessionId('')
     setGameStarted(false)
     setTimeLeft(30)
@@ -695,23 +698,25 @@ function App() {
           <div className="text-center pt-2">
             <h2 className="text-4xl font-black leading-tight tracking-tighter text-zinc-950">Leaderboard</h2>
             <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">You vs your weaker self.</p>
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
-              {currentUserRank?.rank === 1 ? 'Climb or stay average.' : 'Someone is ahead of you.'}
-            </p>
           </div>
 
-          {currentUserRank ? (
-            <div className="rounded-2xl border border-zinc-900 bg-zinc-900 p-4 text-white shadow-md">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">Your Position</p>
-              <div className="mt-2 flex items-center justify-between">
-                <p className="text-lg font-black">#{currentUserRank.rank}</p>
-                <p className="text-sm font-semibold">{currentUserRank.xp} XP • {currentUserRank.streak} streak</p>
+          <div className="rounded-2xl border border-zinc-900 bg-zinc-900 p-4 text-white shadow-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-300">Total Players</p>
+                <h3 className="mt-1 text-2xl font-black">{totalPlayers}</h3>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-300">Your Rank</p>
+                <h3 className="mt-1 text-2xl font-black">{yourRank ? `#${yourRank}` : '—'}</h3>
               </div>
             </div>
-          ) : null}
+          </div>
+
+          <h3 className="text-lg font-semibold text-zinc-900">Top 30 Players</h3>
 
           <div className="space-y-2.5">
-            {leaderboardEntries.map((entry) => {
+            {leaderboardEntries.map((entry, index) => {
               const badge = rankMeta(entry.rank)
 
               return (
@@ -722,7 +727,7 @@ function App() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <span className={`inline-flex min-w-[68px] items-center justify-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${badge.className}`}>
-                      <span>#{entry.rank}</span>
+                      <span>#{entry.rank || index + 1}</span>
                       {badge.icon ? <span>{badge.icon}</span> : null}
                     </span>
                     <div>

@@ -211,6 +211,8 @@ def get_leaderboard(current_user, limit=20):
         .order_by("-xp", "-streak", "-recent_activity", "created_at")
     )
 
+    total_users = len(users)
+
     entries = []
     current_user_rank = None
     for index, user in enumerate(users, start=1):
@@ -232,4 +234,4 @@ def get_leaderboard(current_user, limit=20):
         if len(entries) < limit:
             entries.append(entry)
 
-    return entries, current_user_rank
+    return entries, current_user_rank, total_users
