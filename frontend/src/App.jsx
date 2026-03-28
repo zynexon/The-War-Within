@@ -41,6 +41,8 @@ async function readApiPayload(response) {
 }
 
 function App() {
+  const [user, setUser] = useState(null)
+  const [loadingUser, setLoadingUser] = useState(Boolean(localStorage.getItem(ACCESS_TOKEN_KEY)))
   const [level, setLevel] = useState(1)
   const [xp, setXp] = useState(0)
   const [streakDays, setStreakDays] = useState(0)
@@ -105,7 +107,7 @@ function App() {
 
     return "You showed up. That's power."
   }, [completedCount, tasks.length])
-  const requiresNameSetup = Boolean(accessToken && !userName)
+  const requiresNameSetup = Boolean(accessToken && user && !user.name)
 
   function rankMeta(rank) {
     if (rank === 1) {
@@ -202,14 +204,17 @@ function App() {
     async function loadDashboard() {
       if (!accessToken) {
         setIsLoading(false)
+        setLoadingUser(false)
         return
       }
 
       setIsLoading(true)
+      setLoadingUser(true)
       setErrorText('')
 
       try {
         const user = await authedFetch('/api/auth/me/')
+        setUser(user)
         setUserName(user.name || '')
         setUserEmail(user.email)
         setLevel(user.level)
@@ -234,6 +239,7 @@ function App() {
         handleLogout()
       } finally {
         setIsLoading(false)
+        setLoadingUser(false)
       }
     }
 
@@ -369,6 +375,7 @@ function App() {
         method: 'PATCH',
         body: JSON.stringify({ name: nameInput }),
       })
+      setUser(data)
       setUserName(data.name || '')
       setNameInput('')
     } catch (error) {
@@ -397,6 +404,7 @@ function App() {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     setAccessToken('')
+    setUser(null)
     setTasks([])
     setUserName('')
     setUserEmail('')
@@ -494,6 +502,7 @@ function App() {
       setXp(data.total_xp)
       setLevel(data.level)
       const user = await authedFetch('/api/auth/me/')
+      setUser(user)
       setStreakDays(user.streak)
       if (data.score > bestGameScore) {
         setBestGameScore(data.score)
@@ -558,6 +567,14 @@ function App() {
 
   function handleConfirmNo() {
     setSelectedTask(null)
+  }
+
+  if (accessToken && loadingUser) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col items-center justify-center px-5 py-8">
+        <p className="text-sm font-semibold text-zinc-500">Loading...</p>
+      </main>
+    )
   }
 
   return (
