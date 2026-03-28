@@ -70,8 +70,16 @@ class XPLog(models.Model):
 
 
 class GameSession(models.Model):
+	TYPE_QUICK_MATH = "quick_math"
+	TYPE_FOCUS_TAP = "focus_tap"
+	TYPE_CHOICES = [
+		(TYPE_QUICK_MATH, "Quick Math"),
+		(TYPE_FOCUS_TAP, "Focus Tap"),
+	]
+
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="game_sessions")
+	game_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_QUICK_MATH)
 	started_at = models.DateTimeField(auto_now_add=True)
 	ended_at = models.DateTimeField(null=True, blank=True)
 	score = models.IntegerField(default=0)

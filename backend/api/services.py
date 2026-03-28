@@ -14,7 +14,19 @@ MAX_DAILY_GAME_XP = 50
 DAILY_TASK_COUNT = 5
 GAME_MIN_DURATION_SECONDS = 20
 GAME_MAX_DURATION_SECONDS = 120
-GAME_MAX_SCORE = 60
+GAME_MIN_DURATION_SECONDS_BY_TYPE = {
+    "quick_math": 20,
+    "focus_tap": 5,
+}
+GAME_MAX_DURATION_SECONDS_BY_TYPE = {
+    "quick_math": 120,
+    "focus_tap": 180,
+}
+GAME_MAX_SCORE_BY_TYPE = {
+    "quick_math": 60,
+    "focus_tap": 15,
+}
+FOCUS_TAP_WIN_SCORE = 15
 GAME_XP_PER_SCORE = 2
 GAME_XP_PER_SESSION_CAP = 30
 DEFAULT_TASK_TEMPLATES = [
@@ -122,6 +134,36 @@ def get_today_game_xp(user):
 
 def calculate_game_session_xp(score):
     return min(score * GAME_XP_PER_SCORE, GAME_XP_PER_SESSION_CAP)
+
+
+def validate_game_score(game_type, score):
+    max_score = GAME_MAX_SCORE_BY_TYPE.get(game_type)
+    if max_score is None:
+        raise ValidationError("Invalid game type.")
+
+    if score < 0 or score > max_score:
+        raise ValidationError("Invalid score submitted.")
+
+
+def validate_game_duration(game_type, duration_seconds):
+    min_duration = GAME_MIN_DURATION_SECONDS_BY_TYPE.get(game_type)
+    max_duration = GAME_MAX_DURATION_SECONDS_BY_TYPE.get(game_type)
+
+    if min_duration is None or max_duration is None:
+        raise ValidationError("Invalid game type.")
+
+    if duration_seconds < min_duration:
+        raise ValidationError("Game submitted too quickly.")
+
+    if duration_seconds > max_duration:
+        raise ValidationError("Game session expired.")
+
+
+def calculate_game_session_xp_for_type(game_type, score):
+    if game_type == "focus_tap":
+        return 10 if score >= FOCUS_TAP_WIN_SCORE else 0
+
+    return calculate_game_session_xp(score)
 
 
 def seed_task_templates():

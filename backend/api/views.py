@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,6 +12,7 @@ from .serializers import (
 	AssignDailyTasksInputSerializer,
 	CompleteTaskInputSerializer,
 	DailyTasksQuerySerializer,
+	GameStartInputSerializer,
 	GameSubmitInputSerializer,
 	GameXPInputSerializer,
 	LeaderboardQuerySerializer,
@@ -21,11 +23,8 @@ from .serializers import (
 )
 from .services import (
 	MAX_DAILY_GAME_XP,
-	GAME_MAX_DURATION_SECONDS,
-	GAME_MAX_SCORE,
-	GAME_MIN_DURATION_SECONDS,
 	assign_daily_tasks,
-	calculate_game_session_xp,
+	calculate_game_session_xp_for_type,
 	create_xp_log,
 	get_daily_tasks,
 	get_game_session,
@@ -35,6 +34,8 @@ from .services import (
 	increment_user_xp,
 	seed_task_templates,
 	update_streak,
+	validate_game_duration,
+	validate_game_score,
 )
 
 
@@ -173,8 +174,15 @@ class GameStartView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def post(self, request):
-		session = GameSession.objects.create(user=request.user)
-		return Response({"session_id": str(session.id)}, status=status.HTTP_201_CREATED)
+		serializer = GameStartInputSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		game_type = serializer.validated_data["game_type"]
+		session = GameSession.objects.create(user=request.user, game_type=game_type)
+		return Response(
+			{"session_id": str(session.id), "game_type": session.game_type},
+			status=status.HTTP_201_CREATED,
+		)
 
 
 class GameSubmitView(APIView):
@@ -201,26 +209,14 @@ class GameSubmitView(APIView):
 		duration_seconds = (now - session.started_at).total_seconds()
 		score = serializer.validated_data["score"]
 
-		if duration_seconds < GAME_MIN_DURATION_SECONDS:
-			return Response(
-				{"error": "Game submitted too quickly."},
-				status=status.HTTP_400_BAD_REQUEST,
-			)
-
-		if duration_seconds > GAME_MAX_DURATION_SECONDS:
-			return Response(
-				{"error": "Game session expired."},
-				status=status.HTTP_400_BAD_REQUEST,
-			)
-
-		if score < 0 or score > GAME_MAX_SCORE:
-			return Response(
-				{"error": "Invalid score submitted."},
-				status=status.HTTP_400_BAD_REQUEST,
-			)
+		try:
+			validate_game_duration(session.game_type, duration_seconds)
+			validate_game_score(session.game_type, score)
+		except ValidationError as exc:
+			return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 		user = User.objects.select_for_update().get(id=request.user.id)
-		xp = calculate_game_session_xp(score)
+		xp = calculate_game_session_xp_for_type(session.game_type, score)
 		game_xp_today = get_today_game_xp(user)
 		remaining = MAX_DAILY_GAME_XP - game_xp_today
 		xp_awarded = 0 if remaining <= 0 else min(xp, remaining)
@@ -239,6 +235,7 @@ class GameSubmitView(APIView):
 
 		return Response(
 			{
+				"game_type": session.game_type,
 				"score": score,
 				"xp_calculated": xp,
 				"xp_awarded": xp_awarded,

@@ -3,6 +3,14 @@ from rest_framework import serializers
 from .models import User, UserTask
 
 
+class GameStartInputSerializer(serializers.Serializer):
+    game_type = serializers.ChoiceField(
+        choices=["quick_math", "focus_tap"],
+        required=False,
+        default="quick_math",
+    )
+
+
 class CompleteTaskInputSerializer(serializers.Serializer):
     userTaskId = serializers.UUIDField()
 
@@ -13,7 +21,7 @@ class GameXPInputSerializer(serializers.Serializer):
 
 class GameSubmitInputSerializer(serializers.Serializer):
     session_id = serializers.UUIDField()
-    score = serializers.IntegerField(min_value=0, max_value=60)
+    score = serializers.IntegerField(min_value=0, max_value=100)
 
 
 class AssignDailyTasksInputSerializer(serializers.Serializer):

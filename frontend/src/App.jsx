@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import ConfirmationModal from './components/ConfirmationModal'
+import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
 import TaskCard from './components/TaskCard'
 import XPBar from './components/XPBar'
@@ -34,7 +35,16 @@ async function readApiPayload(response) {
 
   try {
     const text = await response.text()
-    return text ? { detail: text } : null
+    if (!text) {
+      return null
+    }
+
+    const looksLikeHtml = /<\s*!doctype\s+html|<\s*html/i.test(text)
+    if (looksLikeHtml) {
+      return { detail: 'Server error. Please try again.' }
+    }
+
+    return { detail: text }
   } catch {
     return null
   }
@@ -59,6 +69,7 @@ function App() {
   const [justCompletedId, setJustCompletedId] = useState(null)
   const [tasks, setTasks] = useState([])
   const [activeTab, setActiveTab] = useState('Home')
+  const [gameRoute, setGameRoute] = useState('/game')
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
   const [totalPlayers, setTotalPlayers] = useState(0)
   const [yourRank, setYourRank] = useState(null)
@@ -77,6 +88,10 @@ function App() {
   const [gameSubmitting, setGameSubmitting] = useState(false)
   const [gameResult, setGameResult] = useState(null)
   const [animatedGameXp, setAnimatedGameXp] = useState(0)
+  const [focusTapSessionId, setFocusTapSessionId] = useState('')
+  const [focusTapSubmitting, setFocusTapSubmitting] = useState(false)
+  const [focusTapXpAwarded, setFocusTapXpAwarded] = useState(null)
+  const [focusTapError, setFocusTapError] = useState('')
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallPopup, setShowInstallPopup] = useState(false)
   const [installEligible, setInstallEligible] = useState(false)
@@ -109,6 +124,12 @@ function App() {
     return "You showed up. That's power."
   }, [completedCount, tasks.length])
   const requiresNameSetup = Boolean(accessToken && user && !user.name)
+
+  function navigate(path) {
+    window.history.pushState({}, '', path)
+    setGameRoute(path)
+    setActiveTab('Game')
+  }
 
   function rankMeta(rank) {
     if (rank === 1) {
@@ -324,6 +345,30 @@ function App() {
     }
   }, [installEligible, deferredPrompt, isInstalled])
 
+  useEffect(() => {
+    function syncRouteFromPath() {
+      const path = window.location.pathname.toLowerCase()
+      if (path === '/game/quick-math') {
+        setActiveTab('Game')
+        setGameRoute('/game/quick-math')
+        return
+      }
+      if (path === '/game/focus-tap') {
+        setActiveTab('Game')
+        setGameRoute('/game/focus-tap')
+        return
+      }
+      if (path === '/game') {
+        setActiveTab('Game')
+        setGameRoute('/game')
+      }
+    }
+
+    syncRouteFromPath()
+    window.addEventListener('popstate', syncRouteFromPath)
+    return () => window.removeEventListener('popstate', syncRouteFromPath)
+  }, [])
+
   async function handleAuthSubmit(event) {
     event.preventDefault()
     setAuthLoading(true)
@@ -416,6 +461,7 @@ function App() {
     setLeaderboardEntries([])
     setTotalPlayers(0)
     setYourRank(null)
+    setGameRoute('/game')
     setGameSessionId('')
     setGameStarted(false)
     setTimeLeft(30)
@@ -424,6 +470,10 @@ function App() {
     setUserAnswer('')
     setGameSubmitting(false)
     setGameResult(null)
+    setFocusTapSessionId('')
+    setFocusTapSubmitting(false)
+    setFocusTapXpAwarded(null)
+    setFocusTapError('')
   }
 
   function generateQuestion() {
@@ -459,7 +509,10 @@ function App() {
 
     try {
       setErrorText('')
-      const data = await authedFetch('/api/game/start/', { method: 'POST' })
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'quick_math' }),
+      })
       setGameSessionId(data.session_id)
     } catch (error) {
       setGameStarted(false)
@@ -485,8 +538,8 @@ function App() {
     setCurrentQuestion(generateQuestion())
   }
 
-  async function submitGameResult(finalScore) {
-    if (!gameSessionId) {
+  async function submitGameResult(finalScore, sessionId = gameSessionId) {
+    if (!sessionId) {
       setErrorText('Game session was not created. Please start again.')
       return
     }
@@ -497,7 +550,7 @@ function App() {
       const data = await authedFetch('/api/game/submit/', {
         method: 'POST',
         body: JSON.stringify({
-          session_id: gameSessionId,
+          session_id: sessionId,
           score: finalScore,
         }),
       })
@@ -519,7 +572,9 @@ function App() {
         capped_by_daily_limit: data.capped_by_daily_limit,
       })
       setInstallEligible(true)
-      setGameSessionId('')
+      if (sessionId === gameSessionId) {
+        setGameSessionId('')
+      }
       setTimeLeft(30)
     } catch (error) {
       setErrorText(error.message || 'Could not submit game result.')
@@ -570,6 +625,53 @@ function App() {
 
   function handleConfirmNo() {
     setSelectedTask(null)
+  }
+
+  async function handleFocusTapStart() {
+    try {
+      setFocusTapError('')
+      setFocusTapXpAwarded(null)
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'focus_tap' }),
+      })
+      setFocusTapSessionId(data.session_id)
+    } catch (error) {
+      setFocusTapSessionId('')
+      setFocusTapError(error.message || 'Could not start Focus Tap session.')
+    }
+  }
+
+  async function handleFocusTapFinish(result) {
+    setInstallEligible(true)
+
+    if (!result || !focusTapSessionId) {
+      return
+    }
+
+    setFocusTapSubmitting(true)
+    try {
+      setFocusTapError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: focusTapSessionId,
+          score: result.score,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const refreshedUser = await authedFetch('/api/auth/me/')
+      setUser(refreshedUser)
+      setStreakDays(refreshedUser.streak)
+      setFocusTapXpAwarded(data.xp_awarded)
+      setFocusTapSessionId('')
+    } catch (error) {
+      setFocusTapError(error.message || 'Could not submit Focus Tap result.')
+    } finally {
+      setFocusTapSubmitting(false)
+    }
   }
 
   if (accessToken && loadingUser) {
@@ -749,85 +851,134 @@ function App() {
           </div>
         </section>
       ) : activeTab === 'Game' ? (
-        <section className="space-y-5">
-          <div className="text-center pt-2">
-            <h2 className="text-4xl font-black leading-tight tracking-tighter text-zinc-950">Quick Math</h2>
-            <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">30 seconds. No excuses.</p>
-          </div>
-
-          <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center">
-            <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Time Left</p>
-            <p className="mt-2 text-5xl font-black tracking-tight text-zinc-950">{timeLeft}s</p>
-            <p className="mt-2 text-sm font-black text-zinc-900">Score: {score}</p>
-            <p className="mt-2 text-xs font-semibold text-zinc-500">
-              {gameStarted ? 'Solve as many as you can.' : 'Start when you are ready.'}
-            </p>
-            <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-              Max game XP per day: {GAME_DAILY_MAX_XP}
-            </p>
-          </section>
-
-          <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4">
+        gameRoute === '/game/quick-math' ? (
+          <section className="space-y-4">
             <button
               type="button"
-              onClick={handleStartGame}
-              disabled={gameStarted || gameSubmitting}
-              className="w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-60"
+              onClick={() => navigate('/game')}
+              className="text-xs font-bold uppercase tracking-widest text-zinc-500"
             >
-              {gameStarted ? 'Game Running...' : 'Start 30s Game'}
+              Back to Games
             </button>
 
-            {gameStarted && currentQuestion ? (
-              <form className="space-y-3" onSubmit={handleSubmitAnswer}>
-                <p className="text-center text-3xl font-black tracking-tight text-zinc-950">
-                  {currentQuestion.num1} {currentQuestion.operator} {currentQuestion.num2}
-                </p>
-                <input
-                  type="number"
-                  value={userAnswer}
-                  onChange={(event) => setUserAnswer(event.target.value)}
-                  placeholder="Your answer"
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100"
-                >
-                  Submit Answer
-                </button>
-              </form>
-            ) : null}
+            <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center">
+              <h2 className="text-2xl font-black tracking-tight text-zinc-950">Quick Math</h2>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                Solve as many as you can in 30 seconds
+              </p>
+            </div>
 
-            {gameResult ? (
-              <div className="rounded-xl bg-zinc-100 px-4 py-3 text-left">
-                <p className="text-sm font-bold text-zinc-900">Score: {gameResult.score}</p>
-                <p className="text-sm font-bold text-zinc-900">XP Awarded: {animatedGameXp}</p>
-                <p className="mt-1 text-xs font-semibold text-zinc-600">
-                  {gameResult.score > bestGameScore ? 'New best score. Beat it again.' : `Beat your score: ${bestGameScore}`}
-                </p>
-                {gameResult.capped_by_daily_limit ? (
-                  <p className="mt-1 text-xs font-semibold text-zinc-600">
-                    Daily game XP cap reached. Remaining today: {gameResult.remaining_today}
-                  </p>
-                ) : null}
+            {!gameStarted && !gameResult ? (
+              <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center space-y-4">
+                <p className="text-sm font-semibold text-zinc-600">Beat your high score and farm clean XP.</p>
+                <button
+                  type="button"
+                  onClick={handleStartGame}
+                  className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+                >
+                  Start Quick Math
+                </button>
               </div>
             ) : null}
 
-            {!gameStarted && gameResult ? (
-              <button
-                type="button"
-                onClick={handleStartGame}
-                disabled={gameSubmitting}
-                className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100 disabled:opacity-60"
-              >
-                Play Again
-              </button>
+            {gameStarted && currentQuestion ? (
+              <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-zinc-700">Time: {timeLeft}s</p>
+                  <p className="text-sm font-bold text-zinc-700">Score: {score}</p>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-3xl font-black tracking-tight text-zinc-950">
+                    {currentQuestion.num1} {currentQuestion.operator} {currentQuestion.num2}
+                  </p>
+                </div>
+
+                <form onSubmit={handleSubmitAnswer} className="space-y-3">
+                  <input
+                    type="number"
+                    value={userAnswer}
+                    onChange={(event) => setUserAnswer(event.target.value)}
+                    autoFocus
+                    className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                    placeholder="Your answer"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+                  >
+                    Submit
+                  </button>
+                </form>
+              </div>
             ) : null}
 
-            {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+            {gameResult ? (
+              <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center space-y-3">
+                <h3 className="text-2xl font-black text-zinc-950">Round Complete</h3>
+                <p className="text-sm font-semibold text-zinc-600">Score: {gameResult.score}</p>
+                <p className="text-sm font-semibold text-zinc-600">XP earned: +{Math.floor(animatedGameXp)}</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Best: {bestGameScore}</p>
+                {gameResult.capped_by_daily_limit ? (
+                  <p className="text-xs font-semibold text-amber-600">Daily game XP cap reached.</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleStartGame}
+                  disabled={gameSubmitting}
+                  className="mt-2 w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-60"
+                >
+                  {gameSubmitting ? 'Submitting...' : 'Play Again'}
+                </button>
+              </div>
+            ) : null}
           </section>
-        </section>
+        ) : gameRoute === '/game/focus-tap' ? (
+          <FocusTapGame
+            onMainMenu={() => navigate('/game')}
+            onGameStart={handleFocusTapStart}
+            onGameFinished={handleFocusTapFinish}
+            submitting={focusTapSubmitting}
+            awardedXp={focusTapXpAwarded}
+            errorText={focusTapError}
+          />
+        ) : (
+          <section className="space-y-4">
+            <div
+              className="p-4 rounded-2xl border mb-4 cursor-pointer"
+              onClick={() => navigate('/game/quick-math')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  navigate('/game/quick-math')
+                }
+              }}
+            >
+              <h2 className="text-lg font-semibold">Quick Math</h2>
+              <p className="text-sm text-gray-500">
+                Solve as many as you can in 30 seconds
+              </p>
+            </div>
+
+            <div
+              className="p-4 rounded-2xl border cursor-pointer"
+              onClick={() => navigate('/game/focus-tap')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  navigate('/game/focus-tap')
+                }
+              }}
+            >
+              <h2 className="text-lg font-semibold">Focus Tap</h2>
+              <p className="text-sm text-gray-500">
+                Tap the right color. Avoid distractions.
+              </p>
+            </div>
+          </section>
+        )
       ) : (
         <>
           <section className="text-center pt-2">
