@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import confetti from 'canvas-confetti'
 
 const ROWS = 4
 const COLS = 7
@@ -61,6 +62,22 @@ function circleColorClass(color) {
   return 'border-zinc-300 bg-white'
 }
 
+function fireConfetti() {
+  confetti({
+    particleCount: 80,
+    spread: 60,
+    origin: { y: 0.6 },
+  })
+
+  setTimeout(() => {
+    confetti({
+      particleCount: 60,
+      spread: 100,
+      origin: { y: 0.4 },
+    })
+  }, 300)
+}
+
 function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awardedXp, resultMeta, errorText }) {
   const initialState = useMemo(() => generateGrid(1), [])
 
@@ -98,6 +115,7 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
     if (cell.color === targetColor) {
       if (round === TOTAL_ROUNDS) {
         setGameWon(true)
+        fireConfetti()
         if (onGameFinished) {
           onGameFinished({ outcome: 'won', score: TOTAL_ROUNDS })
         }

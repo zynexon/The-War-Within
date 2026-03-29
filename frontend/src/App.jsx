@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import confetti from 'canvas-confetti'
 import ConfirmationModal from './components/ConfirmationModal'
 import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
@@ -102,6 +103,22 @@ function OptionGrid({ title, options, value, onSelect }) {
       </div>
     </div>
   )
+}
+
+function fireConfetti() {
+  confetti({
+    particleCount: 80,
+    spread: 60,
+    origin: { y: 0.6 },
+  })
+
+  setTimeout(() => {
+    confetti({
+      particleCount: 60,
+      spread: 100,
+      origin: { y: 0.4 },
+    })
+  }, 300)
 }
 
 function formatRelativeTime(isoTime) {
@@ -244,6 +261,7 @@ function App() {
   const profileNeededXp = Math.max(1, profileNextLevelXp - profileCurrentLevelXp)
   const profileProgressPercent = Math.min(100, Math.max(0, (profileProgressXp / profileNeededXp) * 100))
   const earnedBadges = getBadges({ level, streak: streakDays, xp })
+  const hasJournalEntryToday = Boolean(savedEntry)
   const dailyWisdom = useMemo(() => {
     const dayNumber = Math.floor(Date.now() / 86400000)
     return DAILY_WISDOM[dayNumber % DAILY_WISDOM.length]
@@ -436,6 +454,12 @@ function App() {
   }, [gameStarted])
 
   useEffect(() => {
+    if (completedCount === 5) {
+      fireConfetti()
+    }
+  }, [completedCount])
+
+  useEffect(() => {
     if (gameStarted && timeLeft === 0) {
       setGameStarted(false)
       setCurrentQuestion(null)
@@ -468,6 +492,12 @@ function App() {
     }, stepMs)
 
     return () => clearInterval(interval)
+  }, [gameResult])
+
+  useEffect(() => {
+    if (gameResult && gameResult.score > 0) {
+      fireConfetti()
+    }
   }, [gameResult])
 
   useEffect(() => {
@@ -1058,7 +1088,7 @@ function App() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col px-5 pt-8 pb-6 space-y-9 relative">
+    <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col px-5 pt-8 pb-24 space-y-9 relative">
       <div className="text-center mt-4">
         <h1 className="text-2xl font-bold tracking-wide text-zinc-900">ZYNEXON</h1>
         <p className="text-xs text-gray-500 mt-1">The War Within</p>
@@ -1204,7 +1234,7 @@ function App() {
             type="button"
             disabled={journalSaving}
           >
-            {journalSaving ? 'Saving...' : 'Update Entry'}
+            {journalSaving ? 'Saving...' : hasJournalEntryToday ? 'Update Entry' : 'Save Entry'}
           </button>
 
           {journalSavedText ? <p className="text-xs text-center text-zinc-500">{journalSavedText}</p> : null}
@@ -1381,12 +1411,15 @@ function App() {
           <div className="text-center">
             <h2 className="text-xl font-semibold text-center mt-3">{profileDisplayName}</h2>
             {equippedBadge ? (
-              <div className="text-sm text-gray-500 mt-1">{equippedBadge}</div>
+              <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700 shadow-sm">
+                <span>🏅</span>
+                <span>{equippedBadge}</span>
+              </div>
             ) : null}
             {!isProfileEditingName ? (
               <button
                 type="button"
-                className="text-sm text-gray-500 mt-1"
+                className="mt-3 inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-100"
                 onClick={() => {
                   setNameInput(profileDisplayName)
                   setIsProfileEditingName(true)
@@ -1596,28 +1629,26 @@ function App() {
       ))}
 
       {!requiresNameSetup ? (
-        <div className="mt-auto pt-6">
-          <Navbar
-            activeTab={activeTab}
-            onChange={(tab) => {
-              if (tab === 'Home') {
-                navigate('/')
-                return
-              }
-              if (tab === 'Journal') {
-                navigate('/journal')
-                return
-              }
-              if (tab === 'Leaderboard') {
-                navigate('/leaderboard')
-                return
-              }
-              if (tab === 'Profile') {
-                navigate('/profile')
-              }
-            }}
-          />
-        </div>
+        <Navbar
+          activeTab={activeTab}
+          onChange={(tab) => {
+            if (tab === 'Home') {
+              navigate('/')
+              return
+            }
+            if (tab === 'Journal') {
+              navigate('/journal')
+              return
+            }
+            if (tab === 'Leaderboard') {
+              navigate('/leaderboard')
+              return
+            }
+            if (tab === 'Profile') {
+              navigate('/profile')
+            }
+          }}
+        />
       ) : null}
 
       <ConfirmationModal
