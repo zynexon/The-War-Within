@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import User, UserTask
+from .models import JournalEntry, User, UserTask
 
 
 class GameStartInputSerializer(serializers.Serializer):
@@ -27,6 +27,30 @@ class GameXPInputSerializer(serializers.Serializer):
 class GameSubmitInputSerializer(serializers.Serializer):
     session_id = serializers.UUIDField()
     score = serializers.IntegerField(min_value=0, max_value=100)
+
+
+class JournalEntryInputSerializer(serializers.Serializer):
+    mood = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    weather = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    activity = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    productivity = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    social = serializers.CharField(required=False, allow_blank=True, max_length=50)
+
+
+class JournalEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JournalEntry
+        fields = [
+            "id",
+            "date",
+            "mood",
+            "weather",
+            "activity",
+            "productivity",
+            "social",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class AssignDailyTasksInputSerializer(serializers.Serializer):

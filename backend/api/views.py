@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .models import GameSession, User, XPLog
+from .models import GameSession, JournalEntry, User, XPLog
 from .serializers import (
 	AssignDailyTasksInputSerializer,
 	CompleteTaskInputSerializer,
@@ -15,6 +15,8 @@ from .serializers import (
 	GameStartInputSerializer,
 	GameSubmitInputSerializer,
 	GameXPInputSerializer,
+	JournalEntryInputSerializer,
+	JournalEntrySerializer,
 	LeaderboardQuerySerializer,
 	RegisterInputSerializer,
 	UpdateNameInputSerializer,
@@ -37,6 +39,9 @@ from .services import (
 	validate_game_duration,
 	validate_game_score,
 )
+
+
+JOURNAL_DAILY_XP = 5
 
 
 class HelloView(APIView):
@@ -266,6 +271,63 @@ class LeaderboardView(APIView):
 				"top_users": entries,
 				"entries": entries,
 				"current_user_rank": current_user_rank,
+			}
+		)
+
+
+class JournalView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		today = timezone.localdate()
+		entry = JournalEntry.objects.filter(user=request.user, date=today).first()
+
+		if not entry:
+			return Response({"entry": None})
+
+		return Response({"entry": JournalEntrySerializer(entry).data})
+
+	@transaction.atomic
+	def post(self, request):
+		serializer = JournalEntryInputSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		today = timezone.localdate()
+		entry, created = JournalEntry.objects.get_or_create(
+			user=request.user,
+			date=today,
+			defaults={
+				"mood": "",
+				"weather": "",
+				"activity": "",
+				"productivity": "",
+				"social": "",
+			},
+		)
+
+		for field in ["mood", "weather", "activity", "productivity", "social"]:
+			if field in serializer.validated_data:
+				setattr(entry, field, serializer.validated_data[field])
+
+		entry.save()
+
+		user = User.objects.select_for_update().get(id=request.user.id)
+		xp_awarded = 0
+		if created:
+			xp_awarded = JOURNAL_DAILY_XP
+			increment_user_xp(user, xp_awarded)
+			create_xp_log(user, XPLog.SOURCE_JOURNAL, xp_awarded)
+			update_streak(user)
+
+		return Response(
+			{
+				"entry": JournalEntrySerializer(entry).data,
+				"xp_awarded": xp_awarded,
+				"daily_cap": JOURNAL_DAILY_XP,
+				"already_awarded_today": not created,
+				"total_xp": user.xp,
+				"level": user.level,
+				"streak": user.streak,
 			}
 		)
 

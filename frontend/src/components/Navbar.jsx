@@ -1,4 +1,4 @@
-const items = ['Home', 'Tasks', 'Game', 'Leaderboard', 'Profile']
+const items = ['Home', 'Journal', 'Leaderboard', 'Profile']
 
 function Navbar({ activeTab, onChange }) {
   return (

@@ -57,9 +57,11 @@ class UserTask(models.Model):
 class XPLog(models.Model):
 	SOURCE_TASK = "task"
 	SOURCE_GAME = "game"
+	SOURCE_JOURNAL = "journal"
 	SOURCE_CHOICES = [
 		(SOURCE_TASK, "Task"),
 		(SOURCE_GAME, "Game"),
+		(SOURCE_JOURNAL, "Journal"),
 	]
 
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -87,3 +89,25 @@ class GameSession(models.Model):
 
 	class Meta:
 		ordering = ["-started_at"]
+
+
+class JournalEntry(models.Model):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="journal_entries")
+	date = models.DateField()
+	mood = models.CharField(max_length=50, blank=True, default="")
+	weather = models.CharField(max_length=50, blank=True, default="")
+	activity = models.CharField(max_length=50, blank=True, default="")
+	productivity = models.CharField(max_length=50, blank=True, default="")
+	social = models.CharField(max_length=50, blank=True, default="")
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		constraints = [
+			models.UniqueConstraint(
+				fields=["user", "date"],
+				name="unique_user_journal_entry_per_day",
+			)
+		]
+		ordering = ["-date", "-updated_at"]

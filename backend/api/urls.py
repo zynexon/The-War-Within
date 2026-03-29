@@ -8,6 +8,7 @@ from .views import (
     GameStartView,
     GameSubmitView,
     HelloView,
+    JournalView,
     LeaderboardView,
     LoginView,
     RefreshTokenView,
@@ -31,5 +32,6 @@ urlpatterns = [
     path("seed-tasks/", SeedTasksView.as_view(), name="seed-tasks"),
     path("assign-daily-tasks/", AssignDailyTasksView.as_view(), name="assign-daily-tasks"),
     path("daily-tasks/", DailyTasksView.as_view(), name="daily-tasks"),
+    path("journal/", JournalView.as_view(), name="journal"),
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
 ]

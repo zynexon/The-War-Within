@@ -3,13 +3,18 @@ import ConfirmationModal from './components/ConfirmationModal'
 import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
 import TaskCard from './components/TaskCard'
-import XPBar from './components/XPBar'
 
 const ACCESS_TOKEN_KEY = 'zynexon_access_token'
 const REFRESH_TOKEN_KEY = 'zynexon_refresh_token'
 const BEST_GAME_SCORE_KEY = 'zynexon_best_quick_math_score'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const GAME_DAILY_MAX_XP = 50
+const DAILY_WISDOM = [
+  'You are what you repeat.',
+  'Discipline beats motivation.',
+  'Win the day.',
+  'Small wins compound.',
+]
 
 function isStandaloneMode() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
@@ -20,6 +25,112 @@ function apiUrl(path) {
     return path
   }
   return `${API_BASE_URL}${path}`
+}
+
+function getAvatarColor(name) {
+  const colors = [
+    'bg-indigo-500',
+    'bg-purple-500',
+    'bg-blue-500',
+    'bg-pink-500',
+    'bg-green-500',
+  ]
+
+  const safeName = (name || '').trim()
+  if (!safeName) {
+    return colors[0]
+  }
+
+  let hash = 0
+  for (let i = 0; i < safeName.length; i += 1) {
+    hash = safeName.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  return colors[Math.abs(hash) % colors.length]
+}
+
+function getBadges(user) {
+  const badges = []
+
+  if (user.level >= 1) {
+    badges.push({ title: 'Beginner', icon: '⭐' })
+  }
+
+  if (user.streak >= 3) {
+    badges.push({ title: 'Consistent', icon: '🔥' })
+  }
+
+  if (user.streak >= 7) {
+    badges.push({ title: 'Focused', icon: '⚡' })
+  }
+
+  if (user.xp >= 500) {
+    badges.push({ title: 'Elite', icon: '🧠' })
+  }
+
+  if (user.level >= 5) {
+    badges.push({ title: 'Warrior', icon: '🏆' })
+  }
+
+  return badges
+}
+
+function OptionGrid({ title, options, value, onSelect }) {
+  return (
+    <div className="p-4 rounded-2xl border mb-4 bg-white">
+      <h3 className="font-semibold mb-3">{title}</h3>
+
+      <div className="grid grid-cols-2 gap-3">
+        {options.map((opt) => (
+          <div
+            key={opt}
+            onClick={() => onSelect(opt)}
+            className={`p-4 rounded-xl border text-center cursor-pointer transition ${
+              value === opt ? 'border-black bg-gray-100' : 'border-zinc-200'
+            }`}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                onSelect(opt)
+              }
+            }}
+          >
+            {opt}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function formatRelativeTime(isoTime) {
+  if (!isoTime) {
+    return ''
+  }
+
+  const then = new Date(isoTime).getTime()
+  if (Number.isNaN(then)) {
+    return ''
+  }
+
+  const diffMs = Date.now() - then
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000))
+
+  if (diffMinutes < 1) {
+    return 'just now'
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  }
+
+  const diffDays = Math.floor(diffHours / 24)
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
 }
 
 async function readApiPayload(response) {
@@ -52,7 +163,7 @@ async function readApiPayload(response) {
 
 function App() {
   const [user, setUser] = useState(null)
-  const [loadingUser, setLoadingUser] = useState(Boolean(localStorage.getItem(ACCESS_TOKEN_KEY)))
+  const [loading, setLoading] = useState(true)
   const [level, setLevel] = useState(1)
   const [xp, setXp] = useState(0)
   const [streakDays, setStreakDays] = useState(0)
@@ -75,6 +186,7 @@ function App() {
   const [yourRank, setYourRank] = useState(null)
   const [userName, setUserName] = useState('')
   const [nameUpdating, setNameUpdating] = useState(false)
+  const [isProfileEditingName, setIsProfileEditingName] = useState(false)
   const [gameSessionId, setGameSessionId] = useState('')
   const [gameStarted, setGameStarted] = useState(false)
   const [timeLeft, setTimeLeft] = useState(30)
@@ -93,25 +205,24 @@ function App() {
   const [focusTapXpAwarded, setFocusTapXpAwarded] = useState(null)
   const [focusTapResult, setFocusTapResult] = useState(null)
   const [focusTapError, setFocusTapError] = useState('')
+  const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
+  const [entry, setEntry] = useState({
+    mood: '',
+    weather: '',
+    activity: '',
+    productivity: '',
+    social: '',
+  })
+  const [journalLoading, setJournalLoading] = useState(true)
+  const [journalSaving, setJournalSaving] = useState(false)
+  const [journalSavedText, setJournalSavedText] = useState('')
+  const [journalLastUpdatedAt, setJournalLastUpdatedAt] = useState('')
+  const [savedEntry, setSavedEntry] = useState(null)
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallPopup, setShowInstallPopup] = useState(false)
   const [installEligible, setInstallEligible] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
 
-  const levelStartXp = useMemo(() => {
-    if (level <= 1) {
-      return 0
-    }
-    return level * level * 50
-  }, [level])
-  const levelEndXp = useMemo(() => {
-    if (level <= 1) {
-      return 200
-    }
-    return (level + 1) * (level + 1) * 50
-  }, [level])
-  const currentLevelXp = useMemo(() => Math.max(0, xp - levelStartXp), [xp, levelStartXp])
-  const xpTarget = useMemo(() => Math.max(1, levelEndXp - levelStartXp), [levelEndXp, levelStartXp])
   const completedCount = useMemo(() => tasks.filter((t) => t.completed).length, [tasks])
   const dailyStatusMessage = useMemo(() => {
     if (completedCount === 0) {
@@ -124,12 +235,54 @@ function App() {
 
     return "You showed up. That's power."
   }, [completedCount, tasks.length])
-  const requiresNameSetup = Boolean(accessToken && user && !user.name)
+  const requiresNameSetup = Boolean(user && !user.name)
+  const profileDisplayName = userName || user?.name || 'User'
+  const profileAvatarLetter = profileDisplayName.charAt(0).toUpperCase()
+  const profileCurrentLevelXp = level * level * 50
+  const profileNextLevelXp = (level + 1) * (level + 1) * 50
+  const profileProgressXp = Math.max(0, xp - profileCurrentLevelXp)
+  const profileNeededXp = Math.max(1, profileNextLevelXp - profileCurrentLevelXp)
+  const profileProgressPercent = Math.min(100, Math.max(0, (profileProgressXp / profileNeededXp) * 100))
+  const earnedBadges = getBadges({ level, streak: streakDays, xp })
+  const dailyWisdom = useMemo(() => {
+    const dayNumber = Math.floor(Date.now() / 86400000)
+    return DAILY_WISDOM[dayNumber % DAILY_WISDOM.length]
+  }, [])
 
   function navigate(path) {
     window.history.pushState({}, '', path)
-    setGameRoute(path)
-    setActiveTab('Game')
+    if (path === '/' || path === '') {
+      setActiveTab('Home')
+      return
+    }
+
+    if (path === '/journal') {
+      setActiveTab('Journal')
+      return
+    }
+
+    if (path === '/leaderboard') {
+      setActiveTab('Leaderboard')
+      return
+    }
+
+    if (path === '/profile') {
+      setActiveTab('Profile')
+      return
+    }
+
+    if (path === '/tasks') {
+      setActiveTab('Tasks')
+      return
+    }
+
+    if (path.startsWith('/game')) {
+      setGameRoute(path)
+      setActiveTab('Game')
+      return
+    }
+
+    setActiveTab('Home')
   }
 
   function rankMeta(rank) {
@@ -227,12 +380,12 @@ function App() {
     async function loadDashboard() {
       if (!accessToken) {
         setIsLoading(false)
-        setLoadingUser(false)
+        setLoading(false)
         return
       }
 
       setIsLoading(true)
-      setLoadingUser(true)
+      setLoading(true)
       setErrorText('')
 
       try {
@@ -263,7 +416,7 @@ function App() {
         handleLogout()
       } finally {
         setIsLoading(false)
-        setLoadingUser(false)
+        setLoading(false)
       }
     }
 
@@ -347,8 +500,81 @@ function App() {
   }, [installEligible, deferredPrompt, isInstalled])
 
   useEffect(() => {
+    if (!equippedBadge) {
+      return
+    }
+
+    const stillEarned = earnedBadges.some((badge) => badge.title === equippedBadge)
+    if (!stillEarned) {
+      setEquippedBadge(null)
+      localStorage.removeItem('badge')
+    }
+  }, [equippedBadge, earnedBadges])
+
+  useEffect(() => {
+    async function fetchJournalEntry() {
+      if (!user || activeTab !== 'Journal') {
+        return
+      }
+
+      setJournalLoading(true)
+      try {
+        const data = await authedFetch('/api/journal/')
+        if (data.entry) {
+          setEntry({
+            mood: data.entry.mood || '',
+            weather: data.entry.weather || '',
+            activity: data.entry.activity || '',
+            productivity: data.entry.productivity || '',
+            social: data.entry.social || '',
+          })
+          setSavedEntry(data.entry)
+          setJournalLastUpdatedAt(data.entry.updated_at || '')
+        } else {
+          setEntry({
+            mood: '',
+            weather: '',
+            activity: '',
+            productivity: '',
+            social: '',
+          })
+          setSavedEntry(null)
+          setJournalLastUpdatedAt('')
+        }
+        setJournalSavedText('')
+      } catch (error) {
+        setJournalSavedText(error.message || 'Could not load journal entry.')
+      } finally {
+        setJournalLoading(false)
+      }
+    }
+
+    void fetchJournalEntry()
+  }, [activeTab, user])
+
+  useEffect(() => {
     function syncRouteFromPath() {
       const path = window.location.pathname.toLowerCase()
+      if (path === '/' || path === '') {
+        setActiveTab('Home')
+        return
+      }
+      if (path === '/journal') {
+        setActiveTab('Journal')
+        return
+      }
+      if (path === '/leaderboard') {
+        setActiveTab('Leaderboard')
+        return
+      }
+      if (path === '/profile') {
+        setActiveTab('Profile')
+        return
+      }
+      if (path === '/tasks') {
+        setActiveTab('Tasks')
+        return
+      }
       if (path === '/game/quick-math') {
         setActiveTab('Game')
         setGameRoute('/game/quick-math')
@@ -399,6 +625,8 @@ function App() {
       }
 
       persistTokens(loginData.access, loginData.refresh)
+      setActiveTab('Home')
+      setGameRoute('/game')
       setPasswordInput('')
       if (authMode === 'register') {
         setNameInput('')
@@ -433,6 +661,67 @@ function App() {
     }
   }
 
+  async function handleProfileSaveName(event) {
+    event.preventDefault()
+    if (!accessToken) {
+      return
+    }
+
+    setNameUpdating(true)
+    try {
+      setErrorText('')
+      const data = await authedFetch('/api/user/update-name/', {
+        method: 'PATCH',
+        body: JSON.stringify({ name: nameInput }),
+      })
+      setUser(data)
+      setUserName(data.name || '')
+      setNameInput('')
+      setIsProfileEditingName(false)
+    } catch (error) {
+      setErrorText(error.message || 'Could not update name.')
+    } finally {
+      setNameUpdating(false)
+    }
+  }
+
+  async function saveJournalEntry() {
+    setJournalSaving(true)
+    setJournalSavedText('')
+
+    try {
+      const data = await authedFetch('/api/journal/', {
+        method: 'POST',
+        body: JSON.stringify(entry),
+      })
+
+      if (data.entry) {
+        setSavedEntry(data.entry)
+        setJournalLastUpdatedAt(data.entry.updated_at || '')
+      }
+
+      if (typeof data.total_xp === 'number') {
+        setXp(data.total_xp)
+      }
+      if (typeof data.level === 'number') {
+        setLevel(data.level)
+      }
+      if (typeof data.streak === 'number') {
+        setStreakDays(data.streak)
+      }
+
+      if ((data.xp_awarded || 0) > 0) {
+        setJournalSavedText(`Saved ✅ +${data.xp_awarded} XP`)
+      } else {
+        setJournalSavedText('Entry updated. XP already claimed today.')
+      }
+    } catch (error) {
+      setJournalSavedText(error.message || 'Could not save journal entry.')
+    } finally {
+      setJournalSaving(false)
+    }
+  }
+
   async function handleInstallClick() {
     if (!deferredPrompt) {
       return
@@ -462,6 +751,7 @@ function App() {
     setLeaderboardEntries([])
     setTotalPlayers(0)
     setYourRank(null)
+    setActiveTab('Home')
     setGameRoute('/game')
     setGameSessionId('')
     setGameStarted(false)
@@ -476,6 +766,13 @@ function App() {
     setFocusTapXpAwarded(null)
     setFocusTapResult(null)
     setFocusTapError('')
+    setEntry({ mood: '', weather: '', activity: '', productivity: '', social: '' })
+    setSavedEntry(null)
+    setJournalLoading(true)
+    setJournalSaving(false)
+    setJournalSavedText('')
+    setJournalLastUpdatedAt('')
+    setLoading(false)
   }
 
   function generateQuestion() {
@@ -683,7 +980,7 @@ function App() {
     }
   }
 
-  if (accessToken && loadingUser) {
+  if (loading) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col items-center justify-center px-5 py-8">
         <p className="text-sm font-semibold text-zinc-500">Loading...</p>
@@ -691,23 +988,13 @@ function App() {
     )
   }
 
-  return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col px-5 pt-8 pb-6 space-y-9 relative">
-      <div className="text-center text-2xl font-black tracking-[0.12em] text-zinc-900 mb-1">
-        ZYNEXON
-      </div>
-
-      <header className="rounded-3xl border border-zinc-200/60 bg-white px-5 py-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-semibold tracking-tight text-zinc-900">{userName || 'Challenger'}</h1>
-          <p className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-black tracking-widest text-white shadow-md">
-            LV.{level}
-          </p>
+  if (!user) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col px-5 pt-8 pb-6">
+        <div className="text-center text-2xl font-black tracking-[0.12em] text-zinc-900 mb-8">
+          ZYNEXON
         </div>
-        <XPBar currentXp={currentLevelXp} targetXp={xpTarget} />
-      </header>
 
-      {!accessToken ? (
         <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-sm">
           <div className="mb-4 flex gap-2 text-xs font-bold uppercase tracking-wider">
             <button
@@ -763,15 +1050,19 @@ function App() {
               {authLoading ? 'Please wait...' : authMode === 'register' ? 'Create Account' : 'Sign In'}
             </button>
           </form>
+
+          {errorText ? <p className="mt-3 text-xs font-semibold text-red-600">{errorText}</p> : null}
         </section>
-      ) : (
-        <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-3 shadow-sm flex items-center justify-between">
-          <p className="text-xs font-semibold text-zinc-500">Signed in as {userName || userEmail}</p>
-          <button type="button" className="text-xs font-bold text-zinc-900" onClick={handleLogout}>
-            Logout
-          </button>
-        </section>
-      )}
+      </main>
+    )
+  }
+
+  return (
+    <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col px-5 pt-8 pb-6 space-y-9 relative">
+      <div className="text-center mt-4">
+        <h1 className="text-2xl font-bold tracking-wide text-zinc-900">ZYNEXON</h1>
+        <p className="text-xs text-gray-500 mt-1">The War Within</p>
+      </div>
 
       {requiresNameSetup ? (
         <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-sm space-y-4">
@@ -858,6 +1149,87 @@ function App() {
               <p className="text-sm text-zinc-500">No leaderboard data yet.</p>
             ) : null}
           </div>
+        </section>
+      ) : activeTab === 'Journal' ? (
+        <section className="space-y-5">
+          {journalLoading ? (
+            <div className="py-6 text-center text-sm font-semibold text-zinc-500">Loading journal...</div>
+          ) : null}
+
+          {!journalLoading ? (
+            <>
+          <div className="pt-2">
+            <h1 className="text-xl font-bold">Daily Journal</h1>
+            <p className="text-sm text-gray-500 mb-4">Quick reflection for today</p>
+          </div>
+
+          <OptionGrid
+            title="How are you feeling?"
+            options={['Happy', 'Calm', 'Neutral', 'Sad', 'Stressed', 'Tired']}
+            value={entry.mood}
+            onSelect={(val) => setEntry({ ...entry, mood: val })}
+          />
+
+          <OptionGrid
+            title="What's the weather like?"
+            options={['Sunny', 'Partly Cloudy', 'Cloudy', 'Rainy', 'Cold', 'Beautiful']}
+            value={entry.weather}
+            onSelect={(val) => setEntry({ ...entry, weather: val })}
+          />
+
+          <OptionGrid
+            title="What activity describes your day?"
+            options={['Exercise', 'Study/Work', 'Gaming', 'Music', 'Cooking', 'Rest']}
+            value={entry.activity}
+            onSelect={(val) => setEntry({ ...entry, activity: val })}
+          />
+
+          <OptionGrid
+            title="How productive were you?"
+            options={['Super Productive', 'Very Productive', 'Productive', 'Average', 'Not Very', 'Not At All']}
+            value={entry.productivity}
+            onSelect={(val) => setEntry({ ...entry, productivity: val })}
+          />
+
+          <OptionGrid
+            title="How social did you feel?"
+            options={['Very Social', 'Social', 'Neutral', 'Quiet', 'Very Quiet', 'Alone Time']}
+            value={entry.social}
+            onSelect={(val) => setEntry({ ...entry, social: val })}
+          />
+
+          <button
+            className="w-full mt-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-3 rounded-xl"
+            onClick={saveJournalEntry}
+            type="button"
+            disabled={journalSaving}
+          >
+            {journalSaving ? 'Saving...' : 'Update Entry'}
+          </button>
+
+          {journalSavedText ? <p className="text-xs text-center text-zinc-500">{journalSavedText}</p> : null}
+
+          {journalLastUpdatedAt ? (
+            <p className="text-xs text-center text-zinc-500">
+              Last updated: {new Date(journalLastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({formatRelativeTime(journalLastUpdatedAt)})
+            </p>
+          ) : null}
+
+          {savedEntry ? (
+            <div className="mt-6 p-4 border rounded-xl bg-white">
+              <h3 className="font-semibold mb-2">Today's Entry</h3>
+              <p>😊 Mood: {savedEntry.mood}</p>
+              <p>⚡ Productivity: {savedEntry.productivity}</p>
+              <p>🔥 Social: {savedEntry.social}</p>
+              <p>🌤 Weather: {savedEntry.weather}</p>
+              <p>🎯 Activity: {savedEntry.activity}</p>
+            </div>
+          ) : null}
+
+          {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+          <div className="h-2" />
+            </>
+          ) : null}
         </section>
       ) : activeTab === 'Game' ? (
         gameRoute === '/game/quick-math' ? (
@@ -989,7 +1361,128 @@ function App() {
             </div>
           </section>
         )
-      ) : (
+      ) : activeTab === 'Profile' ? (
+        <section className="space-y-5">
+          <div className="relative flex items-center justify-center pt-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('Home')}
+              className="absolute left-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
+            >
+              Back
+            </button>
+            <h2 className="text-xl font-black tracking-tight text-zinc-900">Profile</h2>
+          </div>
+
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mx-auto ${getAvatarColor(profileDisplayName)}`}>
+            {profileAvatarLetter}
+          </div>
+
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-center mt-3">{profileDisplayName}</h2>
+            {equippedBadge ? (
+              <div className="text-sm text-gray-500 mt-1">{equippedBadge}</div>
+            ) : null}
+            {!isProfileEditingName ? (
+              <button
+                type="button"
+                className="text-sm text-gray-500 mt-1"
+                onClick={() => {
+                  setNameInput(profileDisplayName)
+                  setIsProfileEditingName(true)
+                }}
+              >
+                Edit Name
+              </button>
+            ) : null}
+          </div>
+
+          {isProfileEditingName ? (
+            <form onSubmit={handleProfileSaveName} className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
+              <input
+                type="text"
+                required
+                maxLength={30}
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
+                placeholder="Enter your name"
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={nameUpdating}
+                  className="flex-1 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-60"
+                >
+                  {nameUpdating ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileEditingName(false)
+                    setNameInput('')
+                  }}
+                  className="flex-1 rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : null}
+
+          <div className="flex justify-center items-center gap-4 mt-4">
+            <span className="font-semibold">Level {level}</span>
+            <span className="text-sm text-gray-500">🔥 {streakDays} days</span>
+          </div>
+
+          <div className="mt-3">
+            <div className="w-full bg-gray-200 h-2 rounded-full">
+              <div
+                className="bg-indigo-500 h-2 rounded-full"
+                style={{ width: `${profileProgressPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-center text-gray-500 mt-1">{xp} / {profileNextLevelXp} XP</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            <div className="p-4 rounded-xl border text-center bg-white">
+              <p className="text-lg font-bold">{xp}</p>
+              <p className="text-sm text-gray-500">Total XP</p>
+            </div>
+            <div className="p-4 rounded-xl border text-center bg-white">
+              <p className="text-lg font-bold">{streakDays}</p>
+              <p className="text-sm text-gray-500">Streak</p>
+            </div>
+          </div>
+
+          <h3 className="mt-6 font-semibold">Badges</h3>
+          <div className="mt-2 space-y-2">
+            {earnedBadges.map((badge, index) => (
+              <div
+                key={index}
+                className={`p-3 border rounded-lg flex items-center gap-3 bg-white cursor-pointer transition ${equippedBadge === badge.title ? 'border-indigo-500 bg-indigo-50' : 'border-zinc-200 hover:bg-zinc-50'}`}
+                onClick={() => {
+                  setEquippedBadge(badge.title)
+                  localStorage.setItem('badge', badge.title)
+                }}
+              >
+                <span>{badge.icon}</span>
+                <span>{badge.title}</span>
+              </div>
+            ))}
+          </div>
+
+          <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-3 shadow-sm flex items-center justify-between mt-6">
+            <p className="text-xs font-semibold text-zinc-500">Signed in as {userName || userEmail}</p>
+            <button type="button" className="text-xs font-bold text-zinc-900" onClick={handleLogout}>
+              Logout
+            </button>
+          </section>
+
+          {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+        </section>
+      ) : activeTab === 'Tasks' ? (
         <>
           <section className="text-center pt-2">
             <h2 className="text-5xl font-black leading-[1.05] tracking-tighter text-zinc-950">
@@ -1036,11 +1529,94 @@ function App() {
             {errorText ? <p className="mt-2 text-xs font-semibold text-red-600">{errorText}</p> : null}
           </div>
         </>
+      ) : (
+        <div className="max-w-md mx-auto px-4 pb-24 w-full">
+        <section className="space-y-6">
+          <div className="mt-4 p-5 rounded-2xl bg-white shadow-sm border border-zinc-200">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Level {level}</h2>
+              <span className="text-sm bg-indigo-500 text-white px-3 py-1 rounded-full flex items-center gap-1">🔥 {streakDays} days</span>
+            </div>
+
+            <div className="mt-4 w-full bg-gray-200 h-2 rounded-full">
+              <div
+                className="bg-indigo-500 h-2 rounded-full transition-all"
+                style={{ width: `${profileProgressPercent}%` }}
+              />
+            </div>
+
+            <div className="flex justify-between mt-2 text-xs text-gray-500">
+              <span>{xp} XP</span>
+              <span>{profileNextLevelXp} XP</span>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <h3 className="font-semibold flex items-center gap-2">✨ Daily Wisdom</h3>
+            <p className="text-sm text-gray-500 mt-1 italic">{dailyWisdom}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            <div
+              onClick={() => navigate('/tasks')}
+              className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-sm cursor-pointer hover:shadow-md transition"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  navigate('/tasks')
+                }
+              }}
+            >
+              <h3 className="font-semibold text-base">Daily Tasks</h3>
+              <p className="text-xs text-gray-500 mt-1">Complete your daily goals</p>
+              <p className="text-sm font-medium mt-3 text-indigo-500">{completedCount}/5 completed</p>
+            </div>
+
+            <div
+              onClick={() => navigate('/game')}
+              className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-sm cursor-pointer hover:shadow-md transition"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  navigate('/game')
+                }
+              }}
+            >
+              <h3 className="font-semibold text-base">Training Hub</h3>
+              <p className="text-xs text-gray-500 mt-1">Physical training + mental training</p>
+              <p className="text-sm font-medium mt-3 text-indigo-500">Push your limits</p>
+            </div>
+          </div>
+
+          {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+        </section>
+        </div>
       ))}
 
       {!requiresNameSetup ? (
         <div className="mt-auto pt-6">
-          <Navbar activeTab={activeTab} onChange={setActiveTab} />
+          <Navbar
+            activeTab={activeTab}
+            onChange={(tab) => {
+              if (tab === 'Home') {
+                navigate('/')
+                return
+              }
+              if (tab === 'Journal') {
+                navigate('/journal')
+                return
+              }
+              if (tab === 'Leaderboard') {
+                navigate('/leaderboard')
+                return
+              }
+              if (tab === 'Profile') {
+                navigate('/profile')
+              }
+            }}
+          />
         </div>
       ) : null}
 
