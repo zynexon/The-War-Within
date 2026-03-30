@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import confetti from 'canvas-confetti'
 import ConfirmationModal from './components/ConfirmationModal'
 import FocusTapGame from './components/FocusTapGame'
@@ -239,6 +239,9 @@ function App() {
   const [showInstallPopup, setShowInstallPopup] = useState(false)
   const [installEligible, setInstallEligible] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
+  const previousCompletedCountRef = useRef(null)
+  const shouldFireTaskConfettiRef = useRef(false)
+  const shouldFireQuickMathConfettiRef = useRef(false)
 
   const completedCount = useMemo(() => tasks.filter((t) => t.completed).length, [tasks])
   const dailyStatusMessage = useMemo(() => {
@@ -454,8 +457,17 @@ function App() {
   }, [gameStarted])
 
   useEffect(() => {
-    if (completedCount === 5) {
+    const previous = previousCompletedCountRef.current
+    previousCompletedCountRef.current = completedCount
+
+    if (
+      shouldFireTaskConfettiRef.current
+      && previous !== null
+      && previous < 5
+      && completedCount === 5
+    ) {
       fireConfetti()
+      shouldFireTaskConfettiRef.current = false
     }
   }, [completedCount])
 
@@ -495,8 +507,9 @@ function App() {
   }, [gameResult])
 
   useEffect(() => {
-    if (gameResult && gameResult.score > 0) {
+    if (shouldFireQuickMathConfettiRef.current && gameResult && gameResult.score > 0) {
       fireConfetti()
+      shouldFireQuickMathConfettiRef.current = false
     }
   }, [gameResult])
 
@@ -900,6 +913,7 @@ function App() {
         remaining_today: data.remaining_today,
         capped_by_daily_limit: data.capped_by_daily_limit,
       })
+      shouldFireQuickMathConfettiRef.current = true
       setInstallEligible(true)
       if (sessionId === gameSessionId) {
         setGameSessionId('')
@@ -940,6 +954,7 @@ function App() {
       setXp(data.total_xp)
       setLevel(data.level)
       setStreakDays(data.streak)
+      shouldFireTaskConfettiRef.current = true
 
       setJustCompletedId(taskId)
       setTimeout(() => setJustCompletedId(null), 1200)
@@ -1279,7 +1294,7 @@ function App() {
               </p>
             </div>
 
-            {!gameStarted && !gameResult ? (
+            {!gameStarted && !gameResult && !gameSubmitting ? (
               <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center space-y-4">
                 <p className="text-sm font-semibold text-zinc-600">Beat your high score and farm clean XP.</p>
                 <button
@@ -1289,6 +1304,13 @@ function App() {
                 >
                   Start Quick Math
                 </button>
+              </div>
+            ) : null}
+
+            {gameSubmitting && !gameResult ? (
+              <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center space-y-2">
+                <p className="text-base font-semibold text-zinc-900">Submitting results...</p>
+                <p className="text-sm text-zinc-500">Storing your score and XP.</p>
               </div>
             ) : null}
 
