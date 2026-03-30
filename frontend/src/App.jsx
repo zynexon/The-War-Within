@@ -241,6 +241,7 @@ function App() {
   const [isInstalled, setIsInstalled] = useState(false)
   const [prevLevel, setPrevLevel] = useState(level)
   const [showLevelUp, setShowLevelUp] = useState(false)
+  const [pendingLevelUpLevel, setPendingLevelUpLevel] = useState(null)
   const previousCompletedCountRef = useRef(null)
   const shouldFireTaskConfettiRef = useRef(false)
   const shouldFireQuickMathConfettiRef = useRef(false)
@@ -267,6 +268,7 @@ function App() {
   const profileNeededXp = Math.max(1, profileNextLevelXp - profileCurrentLevelXp)
   const profileProgressPercent = Math.min(100, Math.max(0, (profileProgressXp / profileNeededXp) * 100))
   const earnedBadges = getBadges({ level, streak: streakDays, xp })
+  const showGameResult = Boolean(gameResult) || Boolean(focusTapResult) || focusTapSubmitting
   const hasJournalEntryToday = Boolean(savedEntry)
   const dailyWisdom = useMemo(() => {
     const dayNumber = Math.floor(Date.now() / 86400000)
@@ -481,17 +483,55 @@ function App() {
   }, [completedCount])
 
   useEffect(() => {
-    // Only show level-up if this is NOT the initial load
-    if (isInitialLoadRef.current && level > prevLevel) {
+    // Only show level-up if this is NOT the initial load.
+    if (!isInitialLoadRef.current || level <= prevLevel) {
+      return
+    }
+
+    setPrevLevel(level)
+
+    if (showGameResult || Boolean(selectedTask) || showInstallPopup || showLevelUp) {
+      setPendingLevelUpLevel(level)
+      return
+    }
+
+    setShowLevelUp(true)
+    confetti({
+      particleCount: 150,
+      spread: 80,
+      origin: { y: 0.6 },
+    })
+  }, [level, prevLevel, showGameResult, selectedTask, showInstallPopup, showLevelUp])
+
+  useEffect(() => {
+    if (!pendingLevelUpLevel || showLevelUp || showGameResult || Boolean(selectedTask) || showInstallPopup) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
       setShowLevelUp(true)
-      setPrevLevel(level)
+      setPendingLevelUpLevel(null)
       confetti({
         particleCount: 150,
         spread: 80,
-        origin: { y: 0.6 }
+        origin: { y: 0.6 },
       })
+    }, 200)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [pendingLevelUpLevel, showLevelUp, showGameResult, selectedTask, showInstallPopup])
+
+  useEffect(() => {
+    if (showLevelUp || showGameResult) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'auto'
     }
-  }, [level, prevLevel])
+
+    return () => {
+      document.body.style.overflow = 'auto'
+    }
+  }, [showLevelUp, showGameResult])
 
   useEffect(() => {
     if (gameStarted && timeLeft === 0) {
@@ -1049,7 +1089,7 @@ function App() {
 
   if (loading) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col items-center justify-center px-5 py-8">
+      <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col items-center justify-center px-5 py-8">
         <p className="text-sm font-semibold text-zinc-500">Loading...</p>
       </main>
     )
@@ -1057,7 +1097,7 @@ function App() {
 
   if (!user) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col px-5 pt-8 pb-6">
+      <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-8 pb-6">
         <div className="text-center text-2xl font-black tracking-[0.12em] text-zinc-900 mb-8">
           ZYNEXON
         </div>
@@ -1125,7 +1165,7 @@ function App() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[400px] flex-col px-5 pt-8 pb-24 space-y-9 relative">
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-8 pb-24 space-y-9 relative">
       <div className="text-center mt-4">
         <h1 className="text-2xl font-bold tracking-wide text-zinc-900">ZYNEXON</h1>
         <p className="text-xs text-gray-500 mt-1">The War Within</p>
@@ -1704,7 +1744,7 @@ function App() {
       />
 
       {showLevelUp && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-6 text-center w-80 animate-[pop_0.3s_ease-out]">
             <h2 className="text-xl font-bold mb-2">
               LEVEL UP 🚀
