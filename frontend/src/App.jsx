@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti'
 import ConfirmationModal from './components/ConfirmationModal'
 import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
+import NumberRecallGame from './components/NumberRecallGame'
 import TaskCard from './components/TaskCard'
 
 const ACCESS_TOKEN_KEY = 'zynexon_access_token'
@@ -222,6 +223,11 @@ function App() {
   const [focusTapXpAwarded, setFocusTapXpAwarded] = useState(null)
   const [focusTapResult, setFocusTapResult] = useState(null)
   const [focusTapError, setFocusTapError] = useState('')
+  const [numberRecallSessionId, setNumberRecallSessionId] = useState('')
+  const [numberRecallSubmitting, setNumberRecallSubmitting] = useState(false)
+  const [numberRecallXpAwarded, setNumberRecallXpAwarded] = useState(null)
+  const [numberRecallResult, setNumberRecallResult] = useState(null)
+  const [numberRecallError, setNumberRecallError] = useState('')
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [entry, setEntry] = useState({
     mood: '',
@@ -268,7 +274,10 @@ function App() {
   const profileNeededXp = Math.max(1, profileNextLevelXp - profileCurrentLevelXp)
   const profileProgressPercent = Math.min(100, Math.max(0, (profileProgressXp / profileNeededXp) * 100))
   const earnedBadges = getBadges({ level, streak: streakDays, xp })
-  const showGameResult = Boolean(gameResult) || Boolean(focusTapResult) || focusTapSubmitting
+  const showQuickMathResult = activeTab === 'Game' && gameRoute === '/game/quick-math' && Boolean(gameResult)
+  const showFocusTapResult = activeTab === 'Game' && gameRoute === '/game/focus-tap' && (Boolean(focusTapResult) || focusTapSubmitting)
+  const showNumberRecallResult = activeTab === 'Game' && gameRoute === '/game/number-recall' && (Boolean(numberRecallResult) || numberRecallSubmitting)
+  const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult
   const hasJournalEntryToday = Boolean(savedEntry)
   const dailyWisdom = useMemo(() => {
     const dayNumber = Math.floor(Date.now() / 86400000)
@@ -871,6 +880,11 @@ function App() {
     setFocusTapXpAwarded(null)
     setFocusTapResult(null)
     setFocusTapError('')
+    setNumberRecallSessionId('')
+    setNumberRecallSubmitting(false)
+    setNumberRecallXpAwarded(null)
+    setNumberRecallResult(null)
+    setNumberRecallError('')
     setEntry({ mood: '', weather: '', activity: '', productivity: '', social: '' })
     setSavedEntry(null)
     setJournalLoading(true)
@@ -1084,6 +1098,65 @@ function App() {
       setFocusTapError(error.message || 'Could not submit Focus Tap result.')
     } finally {
       setFocusTapSubmitting(false)
+    }
+  }
+
+  async function handleNumberRecallStart() {
+    try {
+      setNumberRecallError('')
+      setNumberRecallXpAwarded(null)
+      setNumberRecallResult(null)
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'number_recall' }),
+      })
+      setNumberRecallSessionId(data.session_id)
+      return true
+    } catch (error) {
+      setNumberRecallSessionId('')
+      setNumberRecallError(error.message || 'Could not start Number Recall session.')
+      return false
+    }
+  }
+
+  async function handleNumberRecallFinish(result) {
+    setInstallEligible(true)
+
+    if (!result || !numberRecallSessionId) {
+      return
+    }
+
+    setNumberRecallSubmitting(true)
+    try {
+      setNumberRecallError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: numberRecallSessionId,
+          score: result.score,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const refreshedUser = await authedFetch('/api/auth/me/')
+      setUser(refreshedUser)
+      setStreakDays(refreshedUser.streak)
+      setNumberRecallXpAwarded(data.xp_awarded)
+      setNumberRecallResult({
+        xpAwarded: data.xp_awarded,
+        dailyCap: data.daily_cap,
+        remainingToday: data.remaining_today,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+      })
+      setNumberRecallSessionId('')
+      if (result.outcome === 'win') {
+        fireConfetti()
+      }
+    } catch (error) {
+      setNumberRecallError(error.message || 'Could not submit Number Recall result.')
+    } finally {
+      setNumberRecallSubmitting(false)
     }
   }
 
@@ -1438,6 +1511,16 @@ function App() {
             resultMeta={focusTapResult}
             errorText={focusTapError}
           />
+        ) : gameRoute === '/game/number-recall' ? (
+          <NumberRecallGame
+            onMainMenu={() => navigate('/game')}
+            onGameStart={handleNumberRecallStart}
+            onGameFinished={handleNumberRecallFinish}
+            submitting={numberRecallSubmitting}
+            awardedXp={numberRecallXpAwarded}
+            resultMeta={numberRecallResult}
+            errorText={numberRecallError}
+          />
         ) : (
           <section className="space-y-4">
             <div
@@ -1471,6 +1554,23 @@ function App() {
               <h2 className="text-lg font-semibold">Focus Tap</h2>
               <p className="text-sm text-gray-500">
                 Tap the right color. Avoid distractions.
+              </p>
+            </div>
+
+            <div
+              className="p-4 rounded-2xl border cursor-pointer"
+              onClick={() => navigate('/game/number-recall')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  navigate('/game/number-recall')
+                }
+              }}
+            >
+              <h2 className="text-lg font-semibold">Number Recall</h2>
+              <p className="text-sm text-gray-500">
+                Memorize 7 digits. Reproduce perfectly.
               </p>
             </div>
           </section>
