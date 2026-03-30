@@ -239,9 +239,12 @@ function App() {
   const [showInstallPopup, setShowInstallPopup] = useState(false)
   const [installEligible, setInstallEligible] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
+  const [prevLevel, setPrevLevel] = useState(level)
+  const [showLevelUp, setShowLevelUp] = useState(false)
   const previousCompletedCountRef = useRef(null)
   const shouldFireTaskConfettiRef = useRef(false)
   const shouldFireQuickMathConfettiRef = useRef(false)
+  const isInitialLoadRef = useRef(false)
 
   const completedCount = useMemo(() => tasks.filter((t) => t.completed).length, [tasks])
   const dailyStatusMessage = useMemo(() => {
@@ -250,7 +253,7 @@ function App() {
     }
 
     if (tasks.length > 0 && completedCount === tasks.length) {
-      return 'Day won.'
+      return 'You won today 🏆'
     }
 
     return "You showed up. That's power."
@@ -432,6 +435,12 @@ function App() {
         setLeaderboardEntries(leaderboard.top_users || leaderboard.entries || [])
         setTotalPlayers(leaderboard.total_users || 0)
         setYourRank(leaderboard.your_rank || leaderboard.current_user_rank?.rank || null)
+
+        // Only on initial load, set prevLevel to user's current level so level-up popup doesn't trigger on refresh
+        if (!isInitialLoadRef.current) {
+          setPrevLevel(user.level)
+          isInitialLoadRef.current = true
+        }
       } catch (error) {
         setErrorText(error.message || 'Could not connect to backend.')
         handleLogout()
@@ -470,6 +479,19 @@ function App() {
       shouldFireTaskConfettiRef.current = false
     }
   }, [completedCount])
+
+  useEffect(() => {
+    // Only show level-up if this is NOT the initial load
+    if (isInitialLoadRef.current && level > prevLevel) {
+      setShowLevelUp(true)
+      setPrevLevel(level)
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 }
+      })
+    }
+  }, [level, prevLevel])
 
   useEffect(() => {
     if (gameStarted && timeLeft === 0) {
@@ -1487,13 +1509,13 @@ function App() {
 
           <div className="flex justify-center items-center gap-4 mt-4">
             <span className="font-semibold">Level {level}</span>
-            <span className="text-sm text-gray-500">🔥 {streakDays} days</span>
+            <span className="text-sm text-gray-500">🔥 {streakDays} day streak</span>
           </div>
 
           <div className="mt-3">
-            <div className="w-full bg-gray-200 h-2 rounded-full">
+            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
               <div
-                className="bg-indigo-500 h-2 rounded-full"
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-700 ease-out"
                 style={{ width: `${profileProgressPercent}%` }}
               />
             </div>
@@ -1590,12 +1612,12 @@ function App() {
           <div className="mt-4 p-5 rounded-2xl bg-white shadow-sm border border-zinc-200">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Level {level}</h2>
-              <span className="text-sm bg-indigo-500 text-white px-3 py-1 rounded-full flex items-center gap-1">🔥 {streakDays} days</span>
+              <span className="text-sm bg-indigo-500 text-white px-3 py-1 rounded-full flex items-center gap-1 hover:scale-[1.02] transition-all duration-200">🔥 {streakDays} day streak</span>
             </div>
 
-            <div className="mt-4 w-full bg-gray-200 h-2 rounded-full">
+            <div className="mt-4 w-full bg-gray-200 h-2 rounded-full overflow-hidden">
               <div
-                className="bg-indigo-500 h-2 rounded-full transition-all"
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-700 ease-out"
                 style={{ width: `${profileProgressPercent}%` }}
               />
             </div>
@@ -1614,7 +1636,7 @@ function App() {
           <div className="grid grid-cols-2 gap-4 mt-6">
             <div
               onClick={() => navigate('/tasks')}
-              className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-sm cursor-pointer hover:shadow-md transition"
+              className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-[0_8px_20px_rgba(0,0,0,0.05)] cursor-pointer hover:scale-[1.02] transition-all duration-200"
               role="button"
               tabIndex={0}
               onKeyDown={(event) => {
@@ -1630,7 +1652,7 @@ function App() {
 
             <div
               onClick={() => navigate('/game')}
-              className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-sm cursor-pointer hover:shadow-md transition"
+              className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-[0_8px_20px_rgba(0,0,0,0.05)] cursor-pointer hover:scale-[1.02] transition-all duration-200"
               role="button"
               tabIndex={0}
               onKeyDown={(event) => {
@@ -1680,6 +1702,50 @@ function App() {
         onNo={handleConfirmNo}
         onClose={() => setSelectedTask(null)}
       />
+
+      {showLevelUp && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 text-center w-80 animate-[pop_0.3s_ease-out]">
+            <h2 className="text-xl font-bold mb-2">
+              LEVEL UP 🚀
+            </h2>
+            <p className="text-gray-500 mb-3">
+              You reached Level {level}
+            </p>
+            <p className="text-indigo-500 font-semibold mb-4">
+              Keep stacking wins.
+            </p>
+            <button
+              onClick={() => setShowLevelUp(false)}
+              className="w-full bg-black text-white p-3 rounded-xl font-semibold transition hover:bg-zinc-800"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showLevelUp && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 text-center w-80 animate-[pop_0.3s_ease-out]">
+            <h2 className="text-xl font-bold mb-2">
+              LEVEL UP 🚀
+            </h2>
+            <p className="text-gray-500 mb-3">
+              You reached Level {level}
+            </p>
+            <p className="text-indigo-500 font-semibold mb-4">
+              Keep stacking wins.
+            </p>
+            <button
+              onClick={() => setShowLevelUp(false)}
+              className="w-full bg-black text-white p-3 rounded-xl font-semibold transition hover:bg-zinc-800"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
 
       {showInstallPopup ? (
         <div className="fixed bottom-6 left-1/2 z-50 w-[88%] max-w-[360px] -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl">

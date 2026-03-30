@@ -37,7 +37,7 @@ function TaskCard({ task, onComplete, isJustCompleted }) {
           type="button"
           onClick={() => onComplete(task)}
           disabled={task.completed}
-          className="shrink-0 rounded-full bg-zinc-100 px-3.5 py-1.5 text-xs font-bold text-zinc-900 transition-colors hover:bg-zinc-900 hover:text-white disabled:pointer-events-none disabled:bg-transparent disabled:text-transparent"
+          className="shrink-0 rounded-full bg-zinc-100 px-3.5 py-1.5 text-xs font-bold text-zinc-900 transition-all hover:bg-zinc-900 hover:text-white disabled:pointer-events-none disabled:bg-transparent disabled:text-transparent active:scale-95"
         >
           {task.completed ? '' : 'Complete'}
         </button>
