@@ -112,6 +112,7 @@ function fireConfetti() {
     particleCount: 80,
     spread: 60,
     origin: { y: 0.6 },
+    zIndex: 11000,
   })
 
   setTimeout(() => {
@@ -119,6 +120,7 @@ function fireConfetti() {
       particleCount: 60,
       spread: 100,
       origin: { y: 0.4 },
+      zIndex: 11000,
     })
   }, 300)
 }
@@ -280,7 +282,7 @@ function App() {
   const profileNeededXp = Math.max(1, profileNextLevelXp - profileCurrentLevelXp)
   const profileProgressPercent = Math.min(100, Math.max(0, (profileProgressXp / profileNeededXp) * 100))
   const earnedBadges = getBadges({ level, streak: streakDays, xp })
-  const showQuickMathResult = activeTab === 'Game' && gameRoute === '/game/quick-math' && Boolean(gameResult)
+  const showQuickMathResult = activeTab === 'Game' && gameRoute === '/game/quick-math' && (Boolean(gameResult) || gameSubmitting)
   const showFocusTapResult = activeTab === 'Game' && gameRoute === '/game/focus-tap' && (Boolean(focusTapResult) || focusTapSubmitting)
   const showNumberRecallResult = activeTab === 'Game' && gameRoute === '/game/number-recall' && (Boolean(numberRecallResult) || numberRecallSubmitting)
   const showColorCountResult = activeTab === 'Game' && gameRoute === '/game/color-count-focus' && (Boolean(colorCountResult) || colorCountSubmitting)
@@ -516,6 +518,7 @@ function App() {
       particleCount: 150,
       spread: 80,
       origin: { y: 0.6 },
+      zIndex: 11000,
     })
   }, [level, prevLevel, showGameResult, selectedTask, showInstallPopup, showLevelUp])
 
@@ -531,6 +534,7 @@ function App() {
         particleCount: 150,
         spread: 80,
         origin: { y: 0.6 },
+        zIndex: 11000,
       })
     }, 200)
 
@@ -1570,22 +1574,33 @@ function App() {
             ) : null}
 
             {gameResult ? (
-              <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center space-y-3">
-                <h3 className="text-2xl font-black text-zinc-950">Round Complete</h3>
-                <p className="text-sm font-semibold text-zinc-600">Score: {gameResult.score}</p>
-                <p className="text-sm font-semibold text-zinc-600">XP earned: +{Math.floor(animatedGameXp)}</p>
-                <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Best: {bestGameScore}</p>
-                {gameResult.capped_by_daily_limit ? (
-                  <p className="text-xs font-semibold text-amber-600">Daily game XP cap reached.</p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleStartGame}
-                  disabled={gameSubmitting}
-                  className="mt-2 w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-60"
-                >
-                  {gameSubmitting ? 'Submitting...' : 'Play Again'}
-                </button>
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-3">
+                  <h3 className="text-2xl font-black text-zinc-950">Round Complete</h3>
+                  <p className="text-sm font-semibold text-zinc-600">Score: {gameResult.score}</p>
+                  <p className="text-sm font-semibold text-zinc-600">XP earned: +{Math.floor(animatedGameXp)}</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Best: {bestGameScore}</p>
+                  {gameResult.capped_by_daily_limit ? (
+                    <p className="text-xs font-semibold text-amber-600">Daily game XP cap reached.</p>
+                  ) : null}
+                  <div className="pt-2 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={handleStartGame}
+                      disabled={gameSubmitting}
+                      className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-60"
+                    >
+                      {gameSubmitting ? 'Submitting...' : 'Play Again'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/game')}
+                      className="rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100"
+                    >
+                      Main Menu
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : null}
           </section>

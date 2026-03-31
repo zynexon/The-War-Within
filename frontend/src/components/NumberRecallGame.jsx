@@ -159,40 +159,42 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
       ) : null}
 
       {phase === 'result' ? (
-        <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center space-y-3">
-          {result === 'win' ? (
-            <h3 className="text-2xl font-black text-green-600">You got it right 🎉</h3>
-          ) : (
-            <h3 className="text-2xl font-black text-red-600">Game Over ❌</h3>
-          )}
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-3">
+            {result === 'win' ? (
+              <h3 className="text-2xl font-black text-green-600">You got it right 🎉</h3>
+            ) : (
+              <h3 className="text-2xl font-black text-red-600">Game Over ❌</h3>
+            )}
 
-          <p className="text-sm font-semibold text-zinc-600">Sequence: {sequence.join(' ')}</p>
-          {submitting ? <p className="text-xs font-semibold text-zinc-500">Submitting result...</p> : null}
-          {typeof awardedXp === 'number' ? (
-            <p className="text-xs font-semibold text-zinc-500">Server XP awarded: +{awardedXp}</p>
-          ) : null}
-          {resultMeta?.cappedByDailyLimit ? (
-            <p className="text-xs font-semibold text-amber-600">
-              Daily game cap reached ({resultMeta.dailyCap} XP/day). Remaining today: {resultMeta.remainingToday}
-            </p>
-          ) : null}
-          {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+            <p className="text-sm font-semibold text-zinc-600">Sequence: {sequence.join(' ')}</p>
+            {submitting ? <p className="text-xs font-semibold text-zinc-500">Submitting result...</p> : null}
+            {typeof awardedXp === 'number' ? (
+              <p className="text-xs font-semibold text-zinc-500">Server XP awarded: +{awardedXp}</p>
+            ) : null}
+            {resultMeta?.cappedByDailyLimit ? (
+              <p className="text-xs font-semibold text-amber-600">
+                Daily game cap reached ({resultMeta.dailyCap} XP/day). Remaining today: {resultMeta.remainingToday}
+              </p>
+            ) : null}
+            {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
 
-          <div className="pt-2 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={startGame}
-              className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
-            >
-              Play Again
-            </button>
-            <button
-              type="button"
-              onClick={onMainMenu}
-              className="rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100"
-            >
-              Main Menu
-            </button>
+            <div className="pt-2 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={startGame}
+                className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+              >
+                Play Again
+              </button>
+              <button
+                type="button"
+                onClick={onMainMenu}
+                className="rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100"
+              >
+                Main Menu
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

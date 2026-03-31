@@ -44,6 +44,24 @@ from .services import (
 JOURNAL_DAILY_XP = 5
 
 
+def get_validation_error_message(exc, fallback="Request failed."):
+	detail = getattr(exc, "detail", None)
+
+	if isinstance(detail, list) and detail:
+		return str(detail[0])
+
+	if isinstance(detail, dict) and detail:
+		first_value = next(iter(detail.values()))
+		if isinstance(first_value, list) and first_value:
+			return str(first_value[0])
+		return str(first_value)
+
+	if detail:
+		return str(detail)
+
+	return str(exc) if str(exc) else fallback
+
+
 class HelloView(APIView):
 	permission_classes = [AllowAny]
 
@@ -218,7 +236,10 @@ class GameSubmitView(APIView):
 			validate_game_duration(session.game_type, duration_seconds)
 			validate_game_score(session.game_type, score)
 		except ValidationError as exc:
-			return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+			return Response(
+				{"error": get_validation_error_message(exc, fallback="Invalid game submission.")},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
 
 		user = User.objects.select_for_update().get(id=request.user.id)
 		xp = calculate_game_session_xp_for_type(session.game_type, score)
