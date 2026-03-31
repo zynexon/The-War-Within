@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import confetti from 'canvas-confetti'
 import ConfirmationModal from './components/ConfirmationModal'
+import ColorCountFocusGame from './components/ColorCountFocusGame'
 import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
 import NumberRecallGame from './components/NumberRecallGame'
@@ -228,6 +229,11 @@ function App() {
   const [numberRecallXpAwarded, setNumberRecallXpAwarded] = useState(null)
   const [numberRecallResult, setNumberRecallResult] = useState(null)
   const [numberRecallError, setNumberRecallError] = useState('')
+  const [colorCountSessionId, setColorCountSessionId] = useState('')
+  const [colorCountSubmitting, setColorCountSubmitting] = useState(false)
+  const [colorCountXpAwarded, setColorCountXpAwarded] = useState(null)
+  const [colorCountResult, setColorCountResult] = useState(null)
+  const [colorCountError, setColorCountError] = useState('')
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [entry, setEntry] = useState({
     mood: '',
@@ -277,7 +283,8 @@ function App() {
   const showQuickMathResult = activeTab === 'Game' && gameRoute === '/game/quick-math' && Boolean(gameResult)
   const showFocusTapResult = activeTab === 'Game' && gameRoute === '/game/focus-tap' && (Boolean(focusTapResult) || focusTapSubmitting)
   const showNumberRecallResult = activeTab === 'Game' && gameRoute === '/game/number-recall' && (Boolean(numberRecallResult) || numberRecallSubmitting)
-  const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult
+  const showColorCountResult = activeTab === 'Game' && gameRoute === '/game/color-count-focus' && (Boolean(colorCountResult) || colorCountSubmitting)
+  const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult || showColorCountResult
   const hasJournalEntryToday = Boolean(savedEntry)
   const dailyWisdom = useMemo(() => {
     const dayNumber = Math.floor(Date.now() / 86400000)
@@ -885,6 +892,11 @@ function App() {
     setNumberRecallXpAwarded(null)
     setNumberRecallResult(null)
     setNumberRecallError('')
+    setColorCountSessionId('')
+    setColorCountSubmitting(false)
+    setColorCountXpAwarded(null)
+    setColorCountResult(null)
+    setColorCountError('')
     setEntry({ mood: '', weather: '', activity: '', productivity: '', social: '' })
     setSavedEntry(null)
     setJournalLoading(true)
@@ -1160,6 +1172,65 @@ function App() {
     }
   }
 
+  async function handleColorCountStart() {
+    try {
+      setColorCountError('')
+      setColorCountXpAwarded(null)
+      setColorCountResult(null)
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'color_count_focus' }),
+      })
+      setColorCountSessionId(data.session_id)
+      return true
+    } catch (error) {
+      setColorCountSessionId('')
+      setColorCountError(error.message || 'Could not start Color Count Focus session.')
+      return false
+    }
+  }
+
+  async function handleColorCountFinish(result) {
+    setInstallEligible(true)
+
+    if (!result || !colorCountSessionId) {
+      return
+    }
+
+    setColorCountSubmitting(true)
+    try {
+      setColorCountError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: colorCountSessionId,
+          score: result.score,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const refreshedUser = await authedFetch('/api/auth/me/')
+      setUser(refreshedUser)
+      setStreakDays(refreshedUser.streak)
+      setColorCountXpAwarded(data.xp_awarded)
+      setColorCountResult({
+        xpAwarded: data.xp_awarded,
+        dailyCap: data.daily_cap,
+        remainingToday: data.remaining_today,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+      })
+      setColorCountSessionId('')
+      if (result.outcome === 'win') {
+        fireConfetti()
+      }
+    } catch (error) {
+      setColorCountError(error.message || 'Could not submit Color Count Focus result.')
+    } finally {
+      setColorCountSubmitting(false)
+    }
+  }
+
   if (loading) {
     return (
       <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col items-center justify-center px-5 py-8">
@@ -1175,7 +1246,18 @@ function App() {
           ZYNEXON
         </div>
 
-        <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-sm">
+        <section className="text-center mt-2 px-6 animate-[fadeIn_0.6s_ease]">
+          <h1 className="text-2xl font-bold text-zinc-900">Win your day.</h1>
+          <p className="text-gray-500 mt-2">Or watch yourself lose it.</p>
+
+          <div className="mt-4 text-sm text-gray-600 space-y-1">
+            <p>🔥 Build streaks</p>
+            <p>⚡ Earn XP daily</p>
+            <p>🏆 Compete with others</p>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-md transition-transform duration-200 hover:scale-[1.01] animate-[fadeIn_0.6s_ease]">
           <div className="mb-4 flex gap-2 text-xs font-bold uppercase tracking-wider">
             <button
               type="button"
@@ -1225,10 +1307,16 @@ function App() {
             <button
               type="submit"
               disabled={authLoading}
-              className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-60"
+              className="w-full rounded-xl bg-gradient-to-r from-black to-gray-800 px-4 py-3 text-sm font-bold text-white mt-4 active:scale-95 transition disabled:opacity-60"
             >
-              {authLoading ? 'Please wait...' : authMode === 'register' ? 'Create Account' : 'Sign In'}
+              {authLoading ? 'Please wait...' : authMode === 'register' ? 'Create Account' : 'Start Winning'}
             </button>
+            {authMode === 'login' ? (
+              <>
+                <p className="text-xs text-gray-400 text-center mt-3">Takes less than 10 seconds.</p>
+                <p className="text-xs text-center mt-2 text-gray-500">Join others already building discipline.</p>
+              </>
+            ) : null}
           </form>
 
           {errorText ? <p className="mt-3 text-xs font-semibold text-red-600">{errorText}</p> : null}
@@ -1521,8 +1609,28 @@ function App() {
             resultMeta={numberRecallResult}
             errorText={numberRecallError}
           />
+        ) : gameRoute === '/game/color-count-focus' ? (
+          <ColorCountFocusGame
+            onMainMenu={() => navigate('/game')}
+            onGameStart={handleColorCountStart}
+            onGameFinished={handleColorCountFinish}
+            submitting={colorCountSubmitting}
+            awardedXp={colorCountXpAwarded}
+            resultMeta={colorCountResult}
+            errorText={colorCountError}
+          />
         ) : (
           <section className="space-y-4">
+            <div className="relative flex items-center pt-1">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
+              >
+                Back
+              </button>
+            </div>
+
             <div
               className="p-4 rounded-2xl border mb-4 cursor-pointer"
               onClick={() => navigate('/game/quick-math')}
@@ -1571,6 +1679,23 @@ function App() {
               <h2 className="text-lg font-semibold">Number Recall</h2>
               <p className="text-sm text-gray-500">
                 Memorize 7 digits. Reproduce perfectly.
+              </p>
+            </div>
+
+            <div
+              className="p-4 rounded-2xl border cursor-pointer"
+              onClick={() => navigate('/game/color-count-focus')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  navigate('/game/color-count-focus')
+                }
+              }}
+            >
+              <h2 className="text-lg font-semibold">Color Count Focus</h2>
+              <p className="text-sm text-gray-500">
+                Count target color flashes across 8 rounds.
               </p>
             </div>
           </section>
@@ -1701,6 +1826,16 @@ function App() {
         </section>
       ) : activeTab === 'Tasks' ? (
         <>
+          <section className="relative flex items-center pt-1">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
+            >
+              Back
+            </button>
+          </section>
+
           <section className="text-center pt-2">
             <h2 className="text-5xl font-black leading-[1.05] tracking-tighter text-zinc-950">
               Did you win<br />today?

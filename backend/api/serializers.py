@@ -5,7 +5,7 @@ from .models import JournalEntry, User, UserTask
 
 class GameStartInputSerializer(serializers.Serializer):
     game_type = serializers.ChoiceField(
-        choices=["quick_math", "focus_tap", "number_recall"],
+        choices=["quick_math", "focus_tap", "number_recall", "color_count_focus"],
         required=False,
         default="quick_math",
     )
@@ -18,7 +18,7 @@ class CompleteTaskInputSerializer(serializers.Serializer):
 class GameXPInputSerializer(serializers.Serializer):
     xpEarned = serializers.IntegerField(min_value=1)
     game_type = serializers.ChoiceField(
-        choices=["quick_math", "focus_tap", "number_recall"],
+        choices=["quick_math", "focus_tap", "number_recall", "color_count_focus"],
         required=False,
         default="quick_math",
     )
