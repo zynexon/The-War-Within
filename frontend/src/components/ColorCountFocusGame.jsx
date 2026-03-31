@@ -83,6 +83,7 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
   const isRoundLockedRef = useRef(false)
 
   const targetUpper = useMemo(() => targetColor.toUpperCase(), [targetColor])
+  const isTransitionPhase = phase === 'transition'
 
   useEffect(() => {
     return () => {
@@ -209,12 +210,20 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
       {phase !== 'idle' ? (
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4">
           <div className="text-center">
-            <h3 className="text-xl font-bold text-zinc-900">
-              Count the <span className={`${targetColorTextClass(targetColor)} font-black`}>{targetUpper}</span>
-            </h3>
-            <p className="text-sm text-zinc-500 mt-1">
-              Watch carefully! Target color now: <span className={`${targetColorTextClass(targetColor)} font-semibold`}>{targetUpper}</span>
-            </p>
+            {isTransitionPhase ? (
+              <h3 className="text-xl font-bold text-zinc-900">Count the color</h3>
+            ) : (
+              <h3 className="text-xl font-bold text-zinc-900">
+                Count the <span className={`${targetColorTextClass(targetColor)} font-black`}>{targetUpper}</span>
+              </h3>
+            )}
+            {isTransitionPhase ? (
+              <p className="text-sm text-zinc-500 mt-1">Get ready for the next flash.</p>
+            ) : (
+              <p className="text-sm text-zinc-500 mt-1">
+                Watch carefully! Target color now: <span className={`${targetColorTextClass(targetColor)} font-semibold`}>{targetUpper}</span>
+              </p>
+            )}
             <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mt-2">
               {round} / {TOTAL_ROUNDS}
             </p>
