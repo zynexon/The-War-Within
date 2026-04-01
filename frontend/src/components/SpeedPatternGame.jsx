@@ -166,28 +166,42 @@ function SpeedPatternGame({
 
     reportInFlightRef.current = true
 
-    let submitted = true
-    if (onGameFinished) {
-      submitted = await onGameFinished({ outcome: 'win', score: 1 })
+    let submitted
+    try {
+      submitted = onGameFinished ? await onGameFinished({ outcome: 'win', score: 1 }) : false
+    } catch {
+      submitted = undefined
+    } finally {
+      reportInFlightRef.current = false
     }
 
-    reportInFlightRef.current = false
-
-    if (submitted) {
+    if (submitted === true) {
       hasReportedResultRef.current = true
       return true
     }
 
-    return false
+    if (submitted === false) {
+      return false
+    }
+
+    return undefined
   }
 
   async function submitFinalWin() {
     setPhase('submitting')
     phaseRef.current = 'submitting'
+
     const submitted = await awardXP()
-    if (submitted) {
+    if (submitted === true) {
       setPhase('success')
       phaseRef.current = 'success'
+      return
+    }
+
+    if (submitted === false) {
+      setFeedback({ type: 'error', message: 'No active session. Please restart the game.' })
+      setPhase('idle')
+      phaseRef.current = 'idle'
       return
     }
 

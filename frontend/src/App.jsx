@@ -341,6 +341,7 @@ function App() {
   const shouldFireTaskConfettiRef = useRef(false)
   const shouldFireQuickMathConfettiRef = useRef(false)
   const isInitialLoadRef = useRef(false)
+  const speedPatternSessionIdRef = useRef('')
 
   const requiresNameSetup = Boolean(user && !user.name)
   const profileDisplayName = userName || user?.name || 'User'
@@ -1373,9 +1374,11 @@ function App() {
         body: JSON.stringify({ game_type: 'speed_pattern' }),
       })
       setSpeedPatternSessionId(data.session_id)
+      speedPatternSessionIdRef.current = data.session_id
       return true
     } catch (error) {
       setSpeedPatternSessionId('')
+      speedPatternSessionIdRef.current = ''
       setSpeedPatternError(error.message || 'Could not start Speed Pattern session.')
       return false
     }
@@ -1384,7 +1387,14 @@ function App() {
   async function handleSpeedPatternFinish(result) {
     setInstallEligible(true)
 
-    if (!result || !speedPatternSessionId) {
+    const activeSessionId = speedPatternSessionIdRef.current
+
+    if (!result) {
+      return false
+    }
+
+    if (!activeSessionId) {
+      setSpeedPatternError('No active session. Please restart the game.')
       return false
     }
 
@@ -1394,7 +1404,7 @@ function App() {
       const data = await authedFetch('/api/game/submit/', {
         method: 'POST',
         body: JSON.stringify({
-          session_id: speedPatternSessionId,
+          session_id: activeSessionId,
           score: result.score,
         }),
       })
@@ -1417,13 +1427,14 @@ function App() {
       })
       recordLastTrainingResult('Speed Pattern', result.score)
       setSpeedPatternSessionId('')
+      speedPatternSessionIdRef.current = ''
       if (result.outcome === 'win') {
         fireConfetti()
       }
       return true
     } catch (error) {
       setSpeedPatternError(error.message || 'Could not submit Speed Pattern result.')
-      return false
+      return undefined
     } finally {
       setSpeedPatternSubmitting(false)
     }
