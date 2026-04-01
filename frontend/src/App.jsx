@@ -1385,7 +1385,7 @@ function App() {
     setInstallEligible(true)
 
     if (!result || !speedPatternSessionId) {
-      return
+      return false
     }
 
     setSpeedPatternSubmitting(true)
@@ -1416,8 +1416,10 @@ function App() {
       if (result.outcome === 'win') {
         fireConfetti()
       }
+      return true
     } catch (error) {
       setSpeedPatternError(error.message || 'Could not submit Speed Pattern result.')
+      return false
     } finally {
       setSpeedPatternSubmitting(false)
     }

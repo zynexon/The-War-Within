@@ -41,6 +41,7 @@ function SpeedPatternGame({
   const countdownRef = useRef(null)
   const timeoutRef = useRef(null)
   const hasReportedResultRef = useRef(false)
+  const reportInFlightRef = useRef(false)
   const phaseRef = useRef('idle')
   const roundRef = useRef(1)
   const patternRef = useRef([])
@@ -156,13 +157,28 @@ function SpeedPatternGame({
 
   async function awardXP() {
     if (hasReportedResultRef.current) {
-      return
+      return true
     }
 
-    hasReportedResultRef.current = true
-    if (onGameFinished) {
-      await onGameFinished({ outcome: 'win', score: 1 })
+    if (reportInFlightRef.current) {
+      return false
     }
+
+    reportInFlightRef.current = true
+
+    let submitted = true
+    if (onGameFinished) {
+      submitted = await onGameFinished({ outcome: 'win', score: 1 })
+    }
+
+    reportInFlightRef.current = false
+
+    if (submitted) {
+      hasReportedResultRef.current = true
+      return true
+    }
+
+    return false
   }
 
   async function validateSelection(isTimeout = false) {
@@ -185,7 +201,12 @@ function SpeedPatternGame({
       setFeedback({ type: 'success', message: `Round ${activeRound} cleared` })
 
       if (activeRound >= TOTAL_ROUNDS) {
-        await awardXP()
+        const submitted = await awardXP()
+        if (!submitted) {
+          setFeedback({ type: 'error', message: 'Could not submit win. Retrying Round 3.' })
+          startRound(TOTAL_ROUNDS)
+          return
+        }
         setPhase('success')
         phaseRef.current = 'success'
         return
