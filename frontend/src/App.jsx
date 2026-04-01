@@ -5,7 +5,12 @@ import ColorCountFocusGame from './components/ColorCountFocusGame'
 import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
 import NumberRecallGame from './components/NumberRecallGame'
-import TaskCard from './components/TaskCard'
+import AuthPage from './components/pages/AuthPage'
+import GameHubPage from './components/pages/GameHubPage'
+import TasksPage from './components/pages/TasksPage'
+import useAuth from './hooks/useAuth'
+import useGameSession from './hooks/useGameSession'
+import useTasks from './hooks/useTasks'
 
 const ACCESS_TOKEN_KEY = 'zynexon_access_token'
 const REFRESH_TOKEN_KEY = 'zynexon_refresh_token'
@@ -183,59 +188,128 @@ async function readApiPayload(response) {
 }
 
 function App() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [level, setLevel] = useState(1)
-  const [xp, setXp] = useState(0)
-  const [streakDays, setStreakDays] = useState(0)
-  const [userEmail, setUserEmail] = useState('')
-  const [accessToken, setAccessToken] = useState(localStorage.getItem(ACCESS_TOKEN_KEY) || '')
-  const [authMode, setAuthMode] = useState('login')
-  const [nameInput, setNameInput] = useState('')
-  const [emailInput, setEmailInput] = useState('')
-  const [passwordInput, setPasswordInput] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorText, setErrorText] = useState('')
-  const [authLoading, setAuthLoading] = useState(false)
-  const [selectedTask, setSelectedTask] = useState(null)
-  const [justCompletedId, setJustCompletedId] = useState(null)
-  const [tasks, setTasks] = useState([])
-  const [activeTab, setActiveTab] = useState('Home')
-  const [gameRoute, setGameRoute] = useState('/game')
+  const {
+    user,
+    setUser,
+    loading,
+    setLoading,
+    level,
+    setLevel,
+    xp,
+    setXp,
+    streakDays,
+    setStreakDays,
+    userEmail,
+    setUserEmail,
+    accessToken,
+    setAccessToken,
+    authMode,
+    setAuthMode,
+    nameInput,
+    setNameInput,
+    emailInput,
+    setEmailInput,
+    passwordInput,
+    setPasswordInput,
+    isLoading,
+    setIsLoading,
+    errorText,
+    setErrorText,
+    authLoading,
+    setAuthLoading,
+    userName,
+    setUserName,
+    nameUpdating,
+    setNameUpdating,
+    isProfileEditingName,
+    setIsProfileEditingName,
+  } = useAuth(ACCESS_TOKEN_KEY)
+
+  const {
+    selectedTask,
+    setSelectedTask,
+    justCompletedId,
+    setJustCompletedId,
+    tasks,
+    setTasks,
+    completedCount,
+    dailyStatusMessage,
+  } = useTasks()
+
+  const {
+    activeTab,
+    setActiveTab,
+    gameRoute,
+    setGameRoute,
+    gameSessionId,
+    setGameSessionId,
+    gameStarted,
+    setGameStarted,
+    timeLeft,
+    setTimeLeft,
+    score,
+    setScore,
+    bestGameScore,
+    setBestGameScore,
+    currentQuestion,
+    setCurrentQuestion,
+    userAnswer,
+    setUserAnswer,
+    gameSubmitting,
+    setGameSubmitting,
+    gameResult,
+    setGameResult,
+    animatedGameXp,
+    setAnimatedGameXp,
+    focusTapSessionId,
+    setFocusTapSessionId,
+    focusTapSubmitting,
+    setFocusTapSubmitting,
+    focusTapXpAwarded,
+    setFocusTapXpAwarded,
+    focusTapResult,
+    setFocusTapResult,
+    focusTapError,
+    setFocusTapError,
+    numberRecallSessionId,
+    setNumberRecallSessionId,
+    numberRecallSubmitting,
+    setNumberRecallSubmitting,
+    numberRecallXpAwarded,
+    setNumberRecallXpAwarded,
+    numberRecallResult,
+    setNumberRecallResult,
+    numberRecallError,
+    setNumberRecallError,
+    colorCountSessionId,
+    setColorCountSessionId,
+    colorCountSubmitting,
+    setColorCountSubmitting,
+    colorCountXpAwarded,
+    setColorCountXpAwarded,
+    colorCountResult,
+    setColorCountResult,
+    colorCountError,
+    setColorCountError,
+    deferredPrompt,
+    setDeferredPrompt,
+    showInstallPopup,
+    setShowInstallPopup,
+    installEligible,
+    setInstallEligible,
+    isInstalled,
+    setIsInstalled,
+    prevLevel,
+    setPrevLevel,
+    showLevelUp,
+    setShowLevelUp,
+    pendingLevelUpLevel,
+    setPendingLevelUpLevel,
+  } = useGameSession(BEST_GAME_SCORE_KEY)
+
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
   const [totalPlayers, setTotalPlayers] = useState(0)
   const [yourRank, setYourRank] = useState(null)
-  const [userName, setUserName] = useState('')
-  const [nameUpdating, setNameUpdating] = useState(false)
-  const [isProfileEditingName, setIsProfileEditingName] = useState(false)
-  const [gameSessionId, setGameSessionId] = useState('')
-  const [gameStarted, setGameStarted] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(30)
-  const [score, setScore] = useState(0)
-  const [bestGameScore, setBestGameScore] = useState(() => {
-    const stored = Number.parseInt(localStorage.getItem(BEST_GAME_SCORE_KEY) || '0', 10)
-    return Number.isNaN(stored) ? 0 : stored
-  })
-  const [currentQuestion, setCurrentQuestion] = useState(null)
-  const [userAnswer, setUserAnswer] = useState('')
-  const [gameSubmitting, setGameSubmitting] = useState(false)
-  const [gameResult, setGameResult] = useState(null)
-  const [animatedGameXp, setAnimatedGameXp] = useState(0)
-  const [focusTapSessionId, setFocusTapSessionId] = useState('')
-  const [focusTapSubmitting, setFocusTapSubmitting] = useState(false)
-  const [focusTapXpAwarded, setFocusTapXpAwarded] = useState(null)
-  const [focusTapResult, setFocusTapResult] = useState(null)
-  const [focusTapError, setFocusTapError] = useState('')
-  const [numberRecallSessionId, setNumberRecallSessionId] = useState('')
-  const [numberRecallSubmitting, setNumberRecallSubmitting] = useState(false)
-  const [numberRecallXpAwarded, setNumberRecallXpAwarded] = useState(null)
-  const [numberRecallResult, setNumberRecallResult] = useState(null)
-  const [numberRecallError, setNumberRecallError] = useState('')
-  const [colorCountSessionId, setColorCountSessionId] = useState('')
-  const [colorCountSubmitting, setColorCountSubmitting] = useState(false)
-  const [colorCountXpAwarded, setColorCountXpAwarded] = useState(null)
-  const [colorCountResult, setColorCountResult] = useState(null)
-  const [colorCountError, setColorCountError] = useState('')
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [entry, setEntry] = useState({
     mood: '',
@@ -249,30 +323,11 @@ function App() {
   const [journalSavedText, setJournalSavedText] = useState('')
   const [journalLastUpdatedAt, setJournalLastUpdatedAt] = useState('')
   const [savedEntry, setSavedEntry] = useState(null)
-  const [deferredPrompt, setDeferredPrompt] = useState(null)
-  const [showInstallPopup, setShowInstallPopup] = useState(false)
-  const [installEligible, setInstallEligible] = useState(false)
-  const [isInstalled, setIsInstalled] = useState(false)
-  const [prevLevel, setPrevLevel] = useState(level)
-  const [showLevelUp, setShowLevelUp] = useState(false)
-  const [pendingLevelUpLevel, setPendingLevelUpLevel] = useState(null)
   const previousCompletedCountRef = useRef(null)
   const shouldFireTaskConfettiRef = useRef(false)
   const shouldFireQuickMathConfettiRef = useRef(false)
   const isInitialLoadRef = useRef(false)
 
-  const completedCount = useMemo(() => tasks.filter((t) => t.completed).length, [tasks])
-  const dailyStatusMessage = useMemo(() => {
-    if (completedCount === 0) {
-      return 'Win the first battle of the day.'
-    }
-
-    if (tasks.length > 0 && completedCount === tasks.length) {
-      return 'You won today 🏆'
-    }
-
-    return "You showed up. That's power."
-  }, [completedCount, tasks.length])
   const requiresNameSetup = Boolean(user && !user.name)
   const profileDisplayName = userName || user?.name || 'User'
   const profileAvatarLetter = profileDisplayName.charAt(0).toUpperCase()
@@ -1245,87 +1300,19 @@ function App() {
 
   if (!user) {
     return (
-      <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-8 pb-6">
-        <div className="text-center text-2xl font-black tracking-[0.12em] text-zinc-900 mb-8">
-          ZYNEXON
-        </div>
-
-        <section className="text-center mt-2 px-6 animate-[fadeIn_0.6s_ease]">
-          <h1 className="text-2xl font-bold text-zinc-900">Win your day.</h1>
-          <p className="text-gray-500 mt-2">Or watch yourself lose it.</p>
-
-          <div className="mt-4 text-sm text-gray-600 space-y-1">
-            <p>🔥 Build streaks</p>
-            <p>⚡ Earn XP daily</p>
-            <p>🏆 Compete with others</p>
-          </div>
-        </section>
-
-        <section className="mt-6 rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-md transition-transform duration-200 hover:scale-[1.01] animate-[fadeIn_0.6s_ease]">
-          <div className="mb-4 flex gap-2 text-xs font-bold uppercase tracking-wider">
-            <button
-              type="button"
-              className={`rounded-full px-3 py-1.5 transition ${authMode === 'login' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600'}`}
-              onClick={() => setAuthMode('login')}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              className={`rounded-full px-3 py-1.5 transition ${authMode === 'register' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600'}`}
-              onClick={() => setAuthMode('register')}
-            >
-              Register
-            </button>
-          </div>
-
-          <form className="space-y-3" onSubmit={handleAuthSubmit}>
-            {authMode === 'register' ? (
-              <input
-                type="text"
-                required
-                maxLength={30}
-                value={nameInput}
-                onChange={(event) => setNameInput(event.target.value)}
-                placeholder="Name"
-                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-              />
-            ) : null}
-            <input
-              type="email"
-              required
-              value={emailInput}
-              onChange={(event) => setEmailInput(event.target.value)}
-              placeholder="Email"
-              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-            />
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={passwordInput}
-              onChange={(event) => setPasswordInput(event.target.value)}
-              placeholder="Password"
-              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-            />
-            <button
-              type="submit"
-              disabled={authLoading}
-              className="w-full rounded-xl bg-gradient-to-r from-black to-gray-800 px-4 py-3 text-sm font-bold text-white mt-4 active:scale-95 transition disabled:opacity-60"
-            >
-              {authLoading ? 'Please wait...' : authMode === 'register' ? 'Create Account' : 'Start Winning'}
-            </button>
-            {authMode === 'login' ? (
-              <>
-                <p className="text-xs text-gray-400 text-center mt-3">Takes less than 10 seconds.</p>
-                <p className="text-xs text-center mt-2 text-gray-500">Join others already building discipline.</p>
-              </>
-            ) : null}
-          </form>
-
-          {errorText ? <p className="mt-3 text-xs font-semibold text-red-600">{errorText}</p> : null}
-        </section>
-      </main>
+      <AuthPage
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        handleAuthSubmit={handleAuthSubmit}
+        authLoading={authLoading}
+        nameInput={nameInput}
+        setNameInput={setNameInput}
+        emailInput={emailInput}
+        setEmailInput={setEmailInput}
+        passwordInput={passwordInput}
+        setPasswordInput={setPasswordInput}
+        errorText={errorText}
+      />
     )
   }
 
@@ -1635,85 +1622,7 @@ function App() {
             errorText={colorCountError}
           />
         ) : (
-          <section className="space-y-4">
-            <div className="relative flex items-center pt-1">
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
-              >
-                Back
-              </button>
-            </div>
-
-            <div
-              className="p-4 rounded-2xl border mb-4 cursor-pointer"
-              onClick={() => navigate('/game/quick-math')}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  navigate('/game/quick-math')
-                }
-              }}
-            >
-              <h2 className="text-lg font-semibold">Quick Math</h2>
-              <p className="text-sm text-gray-500">
-                Solve as many as you can in 30 seconds
-              </p>
-            </div>
-
-            <div
-              className="p-4 rounded-2xl border cursor-pointer"
-              onClick={() => navigate('/game/focus-tap')}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  navigate('/game/focus-tap')
-                }
-              }}
-            >
-              <h2 className="text-lg font-semibold">Focus Tap</h2>
-              <p className="text-sm text-gray-500">
-                Tap the right color. Avoid distractions.
-              </p>
-            </div>
-
-            <div
-              className="p-4 rounded-2xl border cursor-pointer"
-              onClick={() => navigate('/game/number-recall')}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  navigate('/game/number-recall')
-                }
-              }}
-            >
-              <h2 className="text-lg font-semibold">Number Recall</h2>
-              <p className="text-sm text-gray-500">
-                Memorize 7 digits. Reproduce perfectly.
-              </p>
-            </div>
-
-            <div
-              className="p-4 rounded-2xl border cursor-pointer"
-              onClick={() => navigate('/game/color-count-focus')}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  navigate('/game/color-count-focus')
-                }
-              }}
-            >
-              <h2 className="text-lg font-semibold">Color Count Focus</h2>
-              <p className="text-sm text-gray-500">
-                Count target color flashes across 8 rounds.
-              </p>
-            </div>
-          </section>
+          <GameHubPage onBack={() => navigate('/')} onNavigate={navigate} />
         )
       ) : activeTab === 'Profile' ? (
         <section className="space-y-5">
@@ -1840,62 +1749,17 @@ function App() {
           {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
         </section>
       ) : activeTab === 'Tasks' ? (
-        <>
-          <section className="relative flex items-center pt-1">
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
-            >
-              Back
-            </button>
-          </section>
-
-          <section className="text-center pt-2">
-            <h2 className="text-5xl font-black leading-[1.05] tracking-tighter text-zinc-950">
-              Did you win<br />today?
-            </h2>
-            <p className="mt-4 text-xs font-bold uppercase tracking-widest text-zinc-400">
-              Every action builds your identity.
-            </p>
-          </section>
-
-          <section>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[11px] font-black uppercase tracking-widest text-zinc-800">Daily Tasks</h2>
-              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-black tracking-widest text-zinc-600">
-                {completedCount}/{tasks.length}
-              </span>
-            </div>
-
-            <div className="space-y-3.5 relative">
-              {tasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onComplete={handleAskComplete}
-                  isJustCompleted={task.id === justCompletedId}
-                />
-              ))}
-              {isLoading ? <p className="text-sm text-zinc-500">Loading daily tasks...</p> : null}
-            </div>
-          </section>
-
-          <section className="flex flex-col items-center justify-center rounded-3xl border border-zinc-200 bg-white py-8 px-4 text-center shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-            <span className="text-4xl drop-shadow-sm">🔥</span>
-            <h3 className="mt-3 text-xl font-black tracking-tight text-zinc-900">{streakDays} Day Streak</h3>
-            <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400">Don't break the chain.</p>
-          </section>
-
-          <div className="text-center pt-2 min-h-12">
-            <p className={`text-[13px] font-bold uppercase tracking-wide transition-all duration-500 ${
-              completedCount > 0 ? 'text-zinc-900' : 'text-zinc-400'
-            }`}>
-              {dailyStatusMessage}
-            </p>
-            {errorText ? <p className="mt-2 text-xs font-semibold text-red-600">{errorText}</p> : null}
-          </div>
-        </>
+        <TasksPage
+          onBack={() => navigate('/')}
+          completedCount={completedCount}
+          tasks={tasks}
+          isLoading={isLoading}
+          onCompleteTask={handleAskComplete}
+          justCompletedId={justCompletedId}
+          streakDays={streakDays}
+          dailyStatusMessage={dailyStatusMessage}
+          errorText={errorText}
+        />
       ) : (
         <div className="max-w-md mx-auto px-4 pb-24 w-full">
         <section className="space-y-6">
@@ -1995,28 +1859,6 @@ function App() {
 
       {showLevelUp && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 text-center w-80 animate-[pop_0.3s_ease-out]">
-            <h2 className="text-xl font-bold mb-2">
-              LEVEL UP 🚀
-            </h2>
-            <p className="text-gray-500 mb-3">
-              You reached Level {level}
-            </p>
-            <p className="text-indigo-500 font-semibold mb-4">
-              Keep stacking wins.
-            </p>
-            <button
-              onClick={() => setShowLevelUp(false)}
-              className="w-full bg-black text-white p-3 rounded-xl font-semibold transition hover:bg-zinc-800"
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showLevelUp && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 text-center w-80 animate-[pop_0.3s_ease-out]">
             <h2 className="text-xl font-bold mb-2">
               LEVEL UP 🚀
