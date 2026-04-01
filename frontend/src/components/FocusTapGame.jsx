@@ -88,6 +88,7 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
   const [targetColor, setTargetColor] = useState(initialState.targetColor)
   const [gameOver, setGameOver] = useState(false)
   const [gameWon, setGameWon] = useState(false)
+  const [isSubmittingResult, setIsSubmittingResult] = useState(false)
 
   const remainingRounds = TOTAL_ROUNDS - round + 1
 
@@ -104,23 +105,26 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
     setTargetColor(fresh.targetColor)
     setGameOver(false)
     setGameWon(false)
+    setIsSubmittingResult(false)
     if (onGameStart) {
       void onGameStart()
     }
   }
 
-  function handleTap(cell) {
-    if (gameOver || gameWon) {
+  async function handleTap(cell) {
+    if (gameOver || gameWon || isSubmittingResult) {
       return
     }
 
     if (cell.color === targetColor) {
       if (round === TOTAL_ROUNDS) {
+        setIsSubmittingResult(true)
+        if (onGameFinished) {
+          await onGameFinished({ outcome: 'won', score: TOTAL_ROUNDS })
+        }
+        setIsSubmittingResult(false)
         setGameWon(true)
         fireConfetti()
-        if (onGameFinished) {
-          onGameFinished({ outcome: 'won', score: TOTAL_ROUNDS })
-        }
         return
       }
 
@@ -132,10 +136,12 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
       return
     }
 
-    setGameOver(true)
+    setIsSubmittingResult(true)
     if (onGameFinished) {
-      onGameFinished({ outcome: 'lost', score: Math.max(0, round - 1) })
+      await onGameFinished({ outcome: 'lost', score: Math.max(0, round - 1) })
     }
+    setIsSubmittingResult(false)
+    setGameOver(true)
   }
 
   return (
@@ -164,6 +170,15 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
             </div>
           </div>
         </>
+      ) : null}
+
+      {isSubmittingResult ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-2">
+            <h3 className="text-xl font-black text-zinc-950">Submitting..</h3>
+            <p className="text-sm font-semibold text-zinc-500">Validating your result and XP.</p>
+          </div>
+        </div>
       ) : null}
 
       {gameOver ? (

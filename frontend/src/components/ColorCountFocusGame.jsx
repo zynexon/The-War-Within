@@ -140,8 +140,7 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
   }
 
   async function finalizeGame(nextResult, finalScore) {
-    setResult(nextResult)
-    setPhase('result')
+    setPhase('submitting')
 
     if (onGameFinished) {
       await onGameFinished({
@@ -149,6 +148,9 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
         score: finalScore,
       })
     }
+
+    setResult(nextResult)
+    setPhase('result')
   }
 
   function handleAnswer(value) {
@@ -252,6 +254,15 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
               ))}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {phase === 'submitting' ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-2">
+            <h3 className="text-xl font-black text-zinc-950">Submitting..</h3>
+            <p className="text-sm font-semibold text-zinc-500">Validating your result and XP.</p>
+          </div>
         </div>
       ) : null}
 

@@ -1401,9 +1401,13 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const refreshedUser = await authedFetch('/api/auth/me/')
-      setUser(refreshedUser)
-      setStreakDays(refreshedUser.streak)
+      try {
+        const refreshedUser = await authedFetch('/api/auth/me/')
+        setUser(refreshedUser)
+        setStreakDays(refreshedUser.streak)
+      } catch {
+        // Submission already succeeded; profile refresh can recover later.
+      }
       setSpeedPatternXpAwarded(data.xp_awarded)
       setSpeedPatternResult({
         xpAwarded: data.xp_awarded,

@@ -57,8 +57,7 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
       return
     }
 
-    setResult(nextResult)
-    setPhase('result')
+    setPhase('submitting')
     setHasReportedResult(true)
 
     if (onGameFinished) {
@@ -67,6 +66,9 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
         score: nextResult === 'win' ? 1 : 0,
       })
     }
+
+    setResult(nextResult)
+    setPhase('result')
   }
 
   function handleInput(digit) {
@@ -154,6 +156,15 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
                 {num}
               </button>
             ))}
+          </div>
+        </div>
+      ) : null}
+
+      {phase === 'submitting' ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-2">
+            <h3 className="text-xl font-black text-zinc-950">Submitting..</h3>
+            <p className="text-sm font-semibold text-zinc-500">Validating your result and XP.</p>
           </div>
         </div>
       ) : null}
