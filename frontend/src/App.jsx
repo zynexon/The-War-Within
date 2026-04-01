@@ -15,6 +15,7 @@ import useTasks from './hooks/useTasks'
 const ACCESS_TOKEN_KEY = 'zynexon_access_token'
 const REFRESH_TOKEN_KEY = 'zynexon_refresh_token'
 const BEST_GAME_SCORE_KEY = 'zynexon_best_quick_math_score'
+const LAST_TRAINING_RESULT_KEY = 'zynexon_last_training_result'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const GAME_DAILY_MAX_XP = 50
 const DAILY_WISDOM = [
@@ -251,6 +252,8 @@ function App() {
     setScore,
     bestGameScore,
     setBestGameScore,
+    lastTrainingResult,
+    setLastTrainingResult,
     currentQuestion,
     setCurrentQuestion,
     userAnswer,
@@ -305,7 +308,7 @@ function App() {
     setShowLevelUp,
     pendingLevelUpLevel,
     setPendingLevelUpLevel,
-  } = useGameSession(BEST_GAME_SCORE_KEY)
+  } = useGameSession(BEST_GAME_SCORE_KEY, LAST_TRAINING_RESULT_KEY)
 
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
   const [totalPlayers, setTotalPlayers] = useState(0)
@@ -343,10 +346,36 @@ function App() {
   const showColorCountResult = activeTab === 'Game' && gameRoute === '/game/color-count-focus' && (Boolean(colorCountResult) || colorCountSubmitting)
   const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult || showColorCountResult
   const hasJournalEntryToday = Boolean(savedEntry)
+  const taskCounterColorClass = completedCount === 0
+    ? 'text-zinc-500'
+    : completedCount >= 5
+      ? 'text-emerald-600'
+      : 'text-blue-600'
+  const tasksLeft = Math.max(0, 5 - completedCount)
+  const homeProgressContext = !lastTrainingResult
+    ? "You haven't trained yet."
+    : tasksLeft > 0
+      ? `${tasksLeft} task${tasksLeft === 1 ? '' : 's'} left to win today.`
+      : 'All tasks cleared. Win secured for today.'
   const dailyWisdom = useMemo(() => {
     const dayNumber = Math.floor(Date.now() / 86400000)
     return DAILY_WISDOM[dayNumber % DAILY_WISDOM.length]
   }, [])
+
+  function recordLastTrainingResult(label, scoreValue) {
+    const parsedScore = Number(scoreValue)
+    if (!label || Number.isNaN(parsedScore)) {
+      return
+    }
+
+    const payload = {
+      label,
+      score: parsedScore,
+    }
+
+    setLastTrainingResult(payload)
+    localStorage.setItem(LAST_TRAINING_RESULT_KEY, JSON.stringify(payload))
+  }
 
   function navigate(path) {
     window.history.pushState({}, '', path)
@@ -1060,6 +1089,7 @@ function App() {
         remaining_today: data.remaining_today,
         capped_by_daily_limit: data.capped_by_daily_limit,
       })
+      recordLastTrainingResult('Quick Math', data.score)
       shouldFireQuickMathConfettiRef.current = true
       setInstallEligible(true)
       if (sessionId === gameSessionId) {
@@ -1164,6 +1194,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
+      recordLastTrainingResult('Focus Tap', result.score)
       setFocusTapSessionId('')
     } catch (error) {
       setFocusTapError(error.message || 'Could not submit Focus Tap result.')
@@ -1220,6 +1251,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
+      recordLastTrainingResult('Number Recall', result.score)
       setNumberRecallSessionId('')
       if (result.outcome === 'win') {
         fireConfetti()
@@ -1279,6 +1311,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
+      recordLastTrainingResult('Color Count Focus', result.score)
       setColorCountSessionId('')
       if (result.outcome === 'win') {
         fireConfetti()
@@ -1317,10 +1350,9 @@ function App() {
   }
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-8 pb-24 space-y-9 relative">
-      <div className="text-center mt-4">
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-3 pb-24 space-y-7 relative bg-[#f8f6f1]">
+      <div className="mt-0 px-1 py-1 text-center">
         <h1 className="text-2xl font-bold tracking-wide text-zinc-900">ZYNEXON</h1>
-        <p className="text-xs text-gray-500 mt-1">The War Within</p>
       </div>
 
       {requiresNameSetup ? (
@@ -1763,34 +1795,36 @@ function App() {
       ) : (
         <div className="max-w-md mx-auto px-4 pb-24 w-full">
         <section className="space-y-6">
-          <div className="mt-4 p-5 rounded-2xl bg-white shadow-sm border border-zinc-200">
+          <div className="mt-4 p-5 rounded-2xl bg-zinc-900 shadow-xl border border-zinc-800">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">War Room Status</p>
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Level {level}</h2>
-              <span className="text-sm bg-indigo-500 text-white px-3 py-1 rounded-full flex items-center gap-1 hover:scale-[1.02] transition-all duration-200">🔥 {streakDays} day streak</span>
+              <h2 className="text-xl font-semibold text-white">Level {level}</h2>
+              <span className="text-sm bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full flex items-center gap-1 hover:scale-[1.02] transition-all duration-200">🔥 {streakDays} day streak</span>
             </div>
 
-            <div className="mt-4 w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+            <div className="mt-4 w-full bg-zinc-700 h-2 rounded-full overflow-hidden">
               <div
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-700 ease-out"
+                className="bg-white h-2 rounded-full transition-all duration-700 ease-out"
                 style={{ width: `${profileProgressPercent}%` }}
               />
             </div>
 
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
+            <div className="flex justify-between mt-2 text-xs text-zinc-300">
               <span>{xp} XP</span>
               <span>{profileNextLevelXp} XP</span>
             </div>
           </div>
 
-          <div className="mt-6">
-            <h3 className="font-semibold flex items-center gap-2">✨ Daily Wisdom</h3>
-            <p className="text-sm text-gray-500 mt-1 italic">{dailyWisdom}</p>
-          </div>
+          <section className="mt-6 w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-5 py-5 shadow-xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">War Doctrine</p>
+            <p className="mt-3 text-lg font-black leading-snug text-white">{dailyWisdom}</p>
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">ZYNEXON / The War Within</p>
+          </section>
 
           <div className="grid grid-cols-2 gap-4 mt-6">
             <div
               onClick={() => navigate('/tasks')}
-              className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-[0_8px_20px_rgba(0,0,0,0.05)] cursor-pointer hover:scale-[1.02] transition-all duration-200"
+              className="px-4 pt-4 pb-5 rounded-2xl bg-white border border-zinc-200 shadow-[0_8px_20px_rgba(0,0,0,0.05)] cursor-pointer hover:scale-[1.02] transition-all duration-200"
               role="button"
               tabIndex={0}
               onKeyDown={(event) => {
@@ -1801,12 +1835,12 @@ function App() {
             >
               <h3 className="font-semibold text-base">Daily Tasks</h3>
               <p className="text-xs text-gray-500 mt-1">Complete your daily goals</p>
-              <p className="text-sm font-medium mt-3 text-indigo-500">{completedCount}/5 completed</p>
+              <p className={`text-sm font-semibold mt-3 ${taskCounterColorClass}`}>{completedCount}/5 completed</p>
             </div>
 
             <div
               onClick={() => navigate('/game')}
-              className="p-4 rounded-2xl bg-white border border-zinc-200 shadow-[0_8px_20px_rgba(0,0,0,0.05)] cursor-pointer hover:scale-[1.02] transition-all duration-200"
+              className="px-4 pt-4 pb-5 rounded-2xl bg-white border border-zinc-200 shadow-[0_8px_20px_rgba(0,0,0,0.05)] cursor-pointer hover:scale-[1.02] transition-all duration-200"
               role="button"
               tabIndex={0}
               onKeyDown={(event) => {
@@ -1817,9 +1851,15 @@ function App() {
             >
               <h3 className="font-semibold text-base">Training Hub</h3>
               <p className="text-xs text-gray-500 mt-1">Physical training + mental training</p>
-              <p className="text-sm font-medium mt-3 text-indigo-500">Push your limits</p>
+              <p className="text-[13px] font-semibold mt-3 text-blue-600 whitespace-nowrap">
+                {lastTrainingResult
+                  ? `${lastTrainingResult.label} · ${lastTrainingResult.score}pts`
+                  : 'No sessions yet'}
+              </p>
             </div>
           </div>
+
+          <p className="text-sm font-bold text-zinc-800">{homeProgressContext}</p>
 
           {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
         </section>

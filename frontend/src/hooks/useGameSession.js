@@ -1,6 +1,32 @@
 import { useState } from 'react'
 
-function useGameSession(bestGameScoreKey) {
+function readLastTrainingResult(lastTrainingResultKey) {
+  const raw = localStorage.getItem(lastTrainingResultKey)
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (
+      parsed
+      && typeof parsed.label === 'string'
+      && parsed.label
+      && Number.isFinite(Number(parsed.score))
+    ) {
+      return {
+        label: parsed.label,
+        score: Number(parsed.score),
+      }
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+function useGameSession(bestGameScoreKey, lastTrainingResultKey) {
   const [activeTab, setActiveTab] = useState('Home')
   const [gameRoute, setGameRoute] = useState('/game')
 
@@ -12,6 +38,7 @@ function useGameSession(bestGameScoreKey) {
     const stored = Number.parseInt(localStorage.getItem(bestGameScoreKey) || '0', 10)
     return Number.isNaN(stored) ? 0 : stored
   })
+  const [lastTrainingResult, setLastTrainingResult] = useState(() => readLastTrainingResult(lastTrainingResultKey))
   const [currentQuestion, setCurrentQuestion] = useState(null)
   const [userAnswer, setUserAnswer] = useState('')
   const [gameSubmitting, setGameSubmitting] = useState(false)
@@ -59,6 +86,8 @@ function useGameSession(bestGameScoreKey) {
     setScore,
     bestGameScore,
     setBestGameScore,
+    lastTrainingResult,
+    setLastTrainingResult,
     currentQuestion,
     setCurrentQuestion,
     userAnswer,
