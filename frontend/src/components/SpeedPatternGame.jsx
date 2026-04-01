@@ -181,6 +181,21 @@ function SpeedPatternGame({
     return false
   }
 
+  async function submitFinalWin() {
+    setPhase('submitting')
+    phaseRef.current = 'submitting'
+    const submitted = await awardXP()
+    if (submitted) {
+      setPhase('success')
+      phaseRef.current = 'success'
+      return
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
+      void submitFinalWin()
+    }, 350)
+  }
+
   async function validateSelection(isTimeout = false) {
     if (phaseRef.current !== 'active' && !isTimeout) {
       return
@@ -201,14 +216,7 @@ function SpeedPatternGame({
       setFeedback({ type: 'success', message: `Round ${activeRound} cleared` })
 
       if (activeRound >= TOTAL_ROUNDS) {
-        const submitted = await awardXP()
-        if (!submitted) {
-          setFeedback({ type: 'error', message: 'Could not submit win. Retrying Round 3.' })
-          startRound(TOTAL_ROUNDS)
-          return
-        }
-        setPhase('success')
-        phaseRef.current = 'success'
+        void submitFinalWin()
         return
       }
 
@@ -361,6 +369,14 @@ function SpeedPatternGame({
             <p className="text-xs font-semibold text-zinc-500 text-center">
               XP today: {xpEarnedToday}/{resultMeta.dailyCap}
             </p>
+          ) : null}
+          {phase === 'submitting' ? (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-2">
+                <h3 className="text-xl font-black text-zinc-950">Submitting..</h3>
+                <p className="text-sm font-semibold text-zinc-500">Validating your result and XP.</p>
+              </div>
+            </div>
           ) : null}
         </div>
       ) : null}
