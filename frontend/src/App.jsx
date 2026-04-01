@@ -352,6 +352,13 @@ function App() {
       ? 'text-emerald-600'
       : 'text-blue-600'
   const tasksLeft = Math.max(0, 5 - completedCount)
+  const gameDisplayNames = {
+    'Color Count Focus': 'Color Count',
+    'Quick Math': 'quick math',
+    'Focus Tap': 'focus tap',
+    'Number Recall': 'number recall',
+  }
+  const displayGameLabel = lastTrainingResult ? (gameDisplayNames[lastTrainingResult.label] || lastTrainingResult.label) : ''
   const homeProgressContext = !lastTrainingResult
     ? "You haven't trained yet."
     : tasksLeft > 0
@@ -1853,7 +1860,7 @@ function App() {
               <p className="text-xs text-gray-500 mt-1">Physical training + mental training</p>
               <p className="text-[13px] font-semibold mt-3 text-blue-600 whitespace-nowrap">
                 {lastTrainingResult
-                  ? `${lastTrainingResult.label} · ${lastTrainingResult.score}pts`
+                  ? `${displayGameLabel} · ${lastTrainingResult.score}pts`
                   : 'No sessions yet'}
               </p>
             </div>
