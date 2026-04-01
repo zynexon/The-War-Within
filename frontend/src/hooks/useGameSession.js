@@ -63,6 +63,12 @@ function useGameSession(bestGameScoreKey, lastTrainingResultKey) {
   const [colorCountResult, setColorCountResult] = useState(null)
   const [colorCountError, setColorCountError] = useState('')
 
+  const [speedPatternSessionId, setSpeedPatternSessionId] = useState('')
+  const [speedPatternSubmitting, setSpeedPatternSubmitting] = useState(false)
+  const [speedPatternXpAwarded, setSpeedPatternXpAwarded] = useState(null)
+  const [speedPatternResult, setSpeedPatternResult] = useState(null)
+  const [speedPatternError, setSpeedPatternError] = useState('')
+
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallPopup, setShowInstallPopup] = useState(false)
   const [installEligible, setInstallEligible] = useState(false)
@@ -128,6 +134,16 @@ function useGameSession(bestGameScoreKey, lastTrainingResultKey) {
     setColorCountResult,
     colorCountError,
     setColorCountError,
+    speedPatternSessionId,
+    setSpeedPatternSessionId,
+    speedPatternSubmitting,
+    setSpeedPatternSubmitting,
+    speedPatternXpAwarded,
+    setSpeedPatternXpAwarded,
+    speedPatternResult,
+    setSpeedPatternResult,
+    speedPatternError,
+    setSpeedPatternError,
     deferredPrompt,
     setDeferredPrompt,
     showInstallPopup,

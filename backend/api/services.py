@@ -16,6 +16,7 @@ MAX_DAILY_GAME_XP_BY_TYPE = {
     "focus_tap": 50,
     "number_recall": 50,
     "color_count_focus": 60,
+    "speed_pattern": 100,
 }
 DAILY_TASK_COUNT = 5
 GAME_MIN_DURATION_SECONDS = 20
@@ -25,22 +26,26 @@ GAME_MIN_DURATION_SECONDS_BY_TYPE = {
     "focus_tap": 5,
     "number_recall": 2,
     "color_count_focus": 6,
+    "speed_pattern": 2,
 }
 GAME_MAX_DURATION_SECONDS_BY_TYPE = {
     "quick_math": 120,
     "focus_tap": 180,
     "number_recall": 180,
     "color_count_focus": 180,
+    "speed_pattern": 300,
 }
 GAME_MAX_SCORE_BY_TYPE = {
     "quick_math": 60,
     "focus_tap": 15,
     "number_recall": 1,
     "color_count_focus": 8,
+    "speed_pattern": 1,
 }
 FOCUS_TAP_WIN_SCORE = 15
 NUMBER_RECALL_WIN_SCORE = 1
 COLOR_COUNT_FOCUS_WIN_SCORE = 8
+SPEED_PATTERN_WIN_SCORE = 1
 GAME_XP_PER_SCORE = 2
 GAME_XP_PER_SESSION_CAP = 30
 DEFAULT_TASK_TEMPLATES = [
@@ -189,6 +194,9 @@ def calculate_game_session_xp_for_type(game_type, score):
 
     if game_type == "color_count_focus":
         return 12 if score >= COLOR_COUNT_FOCUS_WIN_SCORE else 0
+
+    if game_type == "speed_pattern":
+        return 25 if score >= SPEED_PATTERN_WIN_SCORE else 0
 
     return calculate_game_session_xp(score)
 

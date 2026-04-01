@@ -76,11 +76,13 @@ class GameSession(models.Model):
 	TYPE_FOCUS_TAP = "focus_tap"
 	TYPE_NUMBER_RECALL = "number_recall"
 	TYPE_COLOR_COUNT_FOCUS = "color_count_focus"
+	TYPE_SPEED_PATTERN = "speed_pattern"
 	TYPE_CHOICES = [
 		(TYPE_QUICK_MATH, "Quick Math"),
 		(TYPE_FOCUS_TAP, "Focus Tap"),
 		(TYPE_NUMBER_RECALL, "Number Recall"),
 		(TYPE_COLOR_COUNT_FOCUS, "Color Count Focus"),
+		(TYPE_SPEED_PATTERN, "Speed Pattern"),
 	]
 
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

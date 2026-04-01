@@ -78,6 +78,23 @@ function GameHubPage({ onBack, onNavigate }) {
           Count target color flashes across 8 rounds.
         </p>
       </div>
+
+      <div
+        className="p-4 rounded-2xl border cursor-pointer"
+        onClick={() => onNavigate('/game/speed-pattern')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            onNavigate('/game/speed-pattern')
+          }
+        }}
+      >
+        <h2 className="text-lg font-semibold">Speed Pattern</h2>
+        <p className="text-sm text-gray-500">
+          Memorize 5x5 patterns across 3 rounds.
+        </p>
+      </div>
     </section>
   )
 }

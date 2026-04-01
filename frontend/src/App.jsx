@@ -5,6 +5,7 @@ import ColorCountFocusGame from './components/ColorCountFocusGame'
 import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
 import NumberRecallGame from './components/NumberRecallGame'
+import SpeedPatternGame from './components/SpeedPatternGame'
 import AuthPage from './components/pages/AuthPage'
 import GameHubPage from './components/pages/GameHubPage'
 import TasksPage from './components/pages/TasksPage'
@@ -294,6 +295,16 @@ function App() {
     setColorCountResult,
     colorCountError,
     setColorCountError,
+    speedPatternSessionId,
+    setSpeedPatternSessionId,
+    speedPatternSubmitting,
+    setSpeedPatternSubmitting,
+    speedPatternXpAwarded,
+    setSpeedPatternXpAwarded,
+    speedPatternResult,
+    setSpeedPatternResult,
+    speedPatternError,
+    setSpeedPatternError,
     deferredPrompt,
     setDeferredPrompt,
     showInstallPopup,
@@ -344,7 +355,8 @@ function App() {
   const showFocusTapResult = activeTab === 'Game' && gameRoute === '/game/focus-tap' && (Boolean(focusTapResult) || focusTapSubmitting)
   const showNumberRecallResult = activeTab === 'Game' && gameRoute === '/game/number-recall' && (Boolean(numberRecallResult) || numberRecallSubmitting)
   const showColorCountResult = activeTab === 'Game' && gameRoute === '/game/color-count-focus' && (Boolean(colorCountResult) || colorCountSubmitting)
-  const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult || showColorCountResult
+  const showSpeedPatternResult = activeTab === 'Game' && gameRoute === '/game/speed-pattern' && (Boolean(speedPatternResult) || speedPatternSubmitting)
+  const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult || showColorCountResult || showSpeedPatternResult
   const hasJournalEntryToday = Boolean(savedEntry)
   const taskCounterColorClass = completedCount === 0
     ? 'text-zinc-500'
@@ -357,6 +369,7 @@ function App() {
     'Quick Math': 'quick math',
     'Focus Tap': 'focus tap',
     'Number Recall': 'number recall',
+    'Speed Pattern': 'speed pattern',
   }
   const displayGameLabel = lastTrainingResult ? (gameDisplayNames[lastTrainingResult.label] || lastTrainingResult.label) : ''
   const homeProgressContext = !lastTrainingResult
@@ -801,6 +814,21 @@ function App() {
         setGameRoute('/game/focus-tap')
         return
       }
+      if (path === '/game/number-recall') {
+        setActiveTab('Game')
+        setGameRoute('/game/number-recall')
+        return
+      }
+      if (path === '/game/color-count-focus') {
+        setActiveTab('Game')
+        setGameRoute('/game/color-count-focus')
+        return
+      }
+      if (path === '/game/speed-pattern') {
+        setActiveTab('Game')
+        setGameRoute('/game/speed-pattern')
+        return
+      }
       if (path === '/game') {
         setActiveTab('Game')
         setGameRoute('/game')
@@ -992,6 +1020,11 @@ function App() {
     setColorCountXpAwarded(null)
     setColorCountResult(null)
     setColorCountError('')
+    setSpeedPatternSessionId('')
+    setSpeedPatternSubmitting(false)
+    setSpeedPatternXpAwarded(null)
+    setSpeedPatternResult(null)
+    setSpeedPatternError('')
     setEntry({ mood: '', weather: '', activity: '', productivity: '', social: '' })
     setSavedEntry(null)
     setJournalLoading(true)
@@ -1330,6 +1363,66 @@ function App() {
     }
   }
 
+  async function handleSpeedPatternStart() {
+    try {
+      setSpeedPatternError('')
+      setSpeedPatternXpAwarded(null)
+      setSpeedPatternResult(null)
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'speed_pattern' }),
+      })
+      setSpeedPatternSessionId(data.session_id)
+      return true
+    } catch (error) {
+      setSpeedPatternSessionId('')
+      setSpeedPatternError(error.message || 'Could not start Speed Pattern session.')
+      return false
+    }
+  }
+
+  async function handleSpeedPatternFinish(result) {
+    setInstallEligible(true)
+
+    if (!result || !speedPatternSessionId) {
+      return
+    }
+
+    setSpeedPatternSubmitting(true)
+    try {
+      setSpeedPatternError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: speedPatternSessionId,
+          score: result.score,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const refreshedUser = await authedFetch('/api/auth/me/')
+      setUser(refreshedUser)
+      setStreakDays(refreshedUser.streak)
+      setSpeedPatternXpAwarded(data.xp_awarded)
+      setSpeedPatternResult({
+        xpAwarded: data.xp_awarded,
+        dailyCap: data.daily_cap,
+        remainingToday: data.remaining_today,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+      })
+      recordLastTrainingResult('Speed Pattern', result.score)
+      setSpeedPatternSessionId('')
+      if (result.outcome === 'win') {
+        fireConfetti()
+      }
+    } catch (error) {
+      setSpeedPatternError(error.message || 'Could not submit Speed Pattern result.')
+    } finally {
+      setSpeedPatternSubmitting(false)
+    }
+  }
+
   if (loading) {
     return (
       <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col items-center justify-center px-5 py-8">
@@ -1659,6 +1752,16 @@ function App() {
             awardedXp={colorCountXpAwarded}
             resultMeta={colorCountResult}
             errorText={colorCountError}
+          />
+        ) : gameRoute === '/game/speed-pattern' ? (
+          <SpeedPatternGame
+            onMainMenu={() => navigate('/game')}
+            onGameStart={handleSpeedPatternStart}
+            onGameFinished={handleSpeedPatternFinish}
+            submitting={speedPatternSubmitting}
+            awardedXp={speedPatternXpAwarded}
+            resultMeta={speedPatternResult}
+            errorText={speedPatternError}
           />
         ) : (
           <GameHubPage onBack={() => navigate('/')} onNavigate={navigate} />
