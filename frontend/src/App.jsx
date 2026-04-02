@@ -25,6 +25,13 @@ const DAILY_WISDOM = [
   'Win the day.',
   'Small wins compound.',
 ]
+const DAILY_TRAINING_GAMES = [
+  'Quick Math',
+  'Focus Tap',
+  'Number Recall',
+  'Color Count',
+  'Speed Pattern',
+]
 
 function isStandaloneMode() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
@@ -96,7 +103,7 @@ function OptionGrid({ title, options, value, onSelect }) {
             key={opt}
             onClick={() => onSelect(opt)}
             className={`p-4 rounded-xl border text-center cursor-pointer transition ${
-              value === opt ? 'border-black bg-gray-100' : 'border-zinc-200'
+              value === opt ? 'border-black bg-black text-white shadow-md' : 'border-zinc-200 bg-white text-zinc-900 hover:border-zinc-400'
             }`}
             role="button"
             tabIndex={0}
@@ -326,11 +333,9 @@ function App() {
   const [yourRank, setYourRank] = useState(null)
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [entry, setEntry] = useState({
-    mood: '',
-    weather: '',
-    activity: '',
-    productivity: '',
-    social: '',
+    did_you_win_today: '',
+    where_did_you_fail_yourself: '',
+    mental_state: '',
   })
   const [journalLoading, setJournalLoading] = useState(true)
   const [journalSaving, setJournalSaving] = useState(false)
@@ -365,14 +370,6 @@ function App() {
       ? 'text-emerald-600'
       : 'text-blue-600'
   const tasksLeft = Math.max(0, 5 - completedCount)
-  const gameDisplayNames = {
-    'Color Count Focus': 'Color Count',
-    'Quick Math': 'quick math',
-    'Focus Tap': 'focus tap',
-    'Number Recall': 'number recall',
-    'Speed Pattern': 'speed pattern',
-  }
-  const displayGameLabel = lastTrainingResult ? (gameDisplayNames[lastTrainingResult.label] || lastTrainingResult.label) : ''
   const homeProgressContext = !lastTrainingResult
     ? "You haven't trained yet."
     : tasksLeft > 0
@@ -381,6 +378,10 @@ function App() {
   const dailyWisdom = useMemo(() => {
     const dayNumber = Math.floor(Date.now() / 86400000)
     return DAILY_WISDOM[dayNumber % DAILY_WISDOM.length]
+  }, [])
+  const dailyTrainingGameLabel = useMemo(() => {
+    const dayNumber = Math.floor(Date.now() / 86400000)
+    return DAILY_TRAINING_GAMES[dayNumber % DAILY_TRAINING_GAMES.length]
   }, [])
 
   function recordLastTrainingResult(label, scoreValue) {
@@ -752,21 +753,17 @@ function App() {
         const data = await authedFetch('/api/journal/')
         if (data.entry) {
           setEntry({
-            mood: data.entry.mood || '',
-            weather: data.entry.weather || '',
-            activity: data.entry.activity || '',
-            productivity: data.entry.productivity || '',
-            social: data.entry.social || '',
+            did_you_win_today: data.entry.did_you_win_today || '',
+            where_did_you_fail_yourself: data.entry.where_did_you_fail_yourself || '',
+            mental_state: data.entry.mental_state || '',
           })
           setSavedEntry(data.entry)
           setJournalLastUpdatedAt(data.entry.updated_at || '')
         } else {
           setEntry({
-            mood: '',
-            weather: '',
-            activity: '',
-            productivity: '',
-            social: '',
+            did_you_win_today: '',
+            where_did_you_fail_yourself: '',
+            mental_state: '',
           })
           setSavedEntry(null)
           setJournalLastUpdatedAt('')
@@ -1026,7 +1023,7 @@ function App() {
     setSpeedPatternXpAwarded(null)
     setSpeedPatternResult(null)
     setSpeedPatternError('')
-    setEntry({ mood: '', weather: '', activity: '', productivity: '', social: '' })
+    setEntry({ did_you_win_today: '', where_did_you_fail_yourself: '', mental_state: '' })
     setSavedEntry(null)
     setJournalLoading(true)
     setJournalSaving(false)
@@ -1566,48 +1563,35 @@ function App() {
 
           {!journalLoading ? (
             <>
-          <div className="pt-2">
-            <h1 className="text-xl font-bold">Daily Journal</h1>
-            <p className="text-sm text-gray-500 mb-4">Quick reflection for today</p>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Daily Debrief</p>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-zinc-950">Honest answers only.</h1>
+            <p className="mt-1 text-sm font-semibold text-zinc-500">No lying to yourself here.</p>
           </div>
 
           <OptionGrid
-            title="How are you feeling?"
-            options={['Happy', 'Calm', 'Neutral', 'Sad', 'Stressed', 'Tired']}
-            value={entry.mood}
-            onSelect={(val) => setEntry({ ...entry, mood: val })}
+            title="Did you win today?"
+            options={['Crushed It', 'Solid Day', 'Average', 'Lost The Day', 'Wasted It', 'Barely Survived']}
+            value={entry.did_you_win_today}
+            onSelect={(val) => setEntry({ ...entry, did_you_win_today: val })}
           />
 
           <OptionGrid
-            title="What's the weather like?"
-            options={['Sunny', 'Partly Cloudy', 'Cloudy', 'Rainy', 'Cold', 'Beautiful']}
-            value={entry.weather}
-            onSelect={(val) => setEntry({ ...entry, weather: val })}
+            title="Where did you fail yourself?"
+            options={['Procrastinated', 'Poor Focus', 'Bad Diet', 'No Training', 'Bad Mindset', 'None']}
+            value={entry.where_did_you_fail_yourself}
+            onSelect={(val) => setEntry({ ...entry, where_did_you_fail_yourself: val })}
           />
 
           <OptionGrid
-            title="What activity describes your day?"
-            options={['Exercise', 'Study/Work', 'Gaming', 'Music', 'Cooking', 'Rest']}
-            value={entry.activity}
-            onSelect={(val) => setEntry({ ...entry, activity: val })}
-          />
-
-          <OptionGrid
-            title="How productive were you?"
-            options={['Super Productive', 'Very Productive', 'Productive', 'Average', 'Not Very', 'Not At All']}
-            value={entry.productivity}
-            onSelect={(val) => setEntry({ ...entry, productivity: val })}
-          />
-
-          <OptionGrid
-            title="How social did you feel?"
-            options={['Very Social', 'Social', 'Neutral', 'Quiet', 'Very Quiet', 'Alone Time']}
-            value={entry.social}
-            onSelect={(val) => setEntry({ ...entry, social: val })}
+            title="What's your mental state right now?"
+            options={['Locked In', 'Motivated', 'Drained', 'Anxious', 'Numb', 'At Peace']}
+            value={entry.mental_state}
+            onSelect={(val) => setEntry({ ...entry, mental_state: val })}
           />
 
           <button
-            className="w-full mt-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-3 rounded-xl"
+            className="w-full mt-4 bg-zinc-900 text-white p-3 rounded-xl font-bold transition hover:bg-zinc-800"
             onClick={saveJournalEntry}
             type="button"
             disabled={journalSaving}
@@ -1624,13 +1608,20 @@ function App() {
           ) : null}
 
           {savedEntry ? (
-            <div className="mt-6 p-4 border rounded-xl bg-white">
-              <h3 className="font-semibold mb-2">Today's Entry</h3>
-              <p>😊 Mood: {savedEntry.mood}</p>
-              <p>⚡ Productivity: {savedEntry.productivity}</p>
-              <p>🔥 Social: {savedEntry.social}</p>
-              <p>🌤 Weather: {savedEntry.weather}</p>
-              <p>🎯 Activity: {savedEntry.activity}</p>
+            <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
+              <h3 className="mb-3 font-semibold text-zinc-900">Today's Entry</h3>
+              <div className="grid gap-3">
+                {[
+                  ['Did you win today?', savedEntry.did_you_win_today],
+                  ['Where did you fail yourself?', savedEntry.where_did_you_fail_yourself],
+                  ["What's your mental state right now?", savedEntry.mental_state],
+                ].map(([label, value]) => (
+                  <div key={label} className="grid grid-cols-[1.4fr_1fr] gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">{label}</p>
+                    <p className="text-sm font-semibold text-right text-zinc-900">{value || '—'}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
 
@@ -1978,11 +1969,7 @@ function App() {
             >
               <h3 className="font-semibold text-base">Training Hub</h3>
               <p className="text-xs text-gray-500 mt-1">Physical training + mental training</p>
-              <p className="text-[13px] font-semibold mt-3 text-blue-600 whitespace-nowrap">
-                {lastTrainingResult
-                  ? `${displayGameLabel} · ${lastTrainingResult.score}pts`
-                  : 'No sessions yet'}
-              </p>
+              <p className="text-[13px] font-semibold mt-3 text-blue-600 whitespace-nowrap">{dailyTrainingGameLabel}</p>
             </div>
           </div>
 

@@ -298,6 +298,11 @@ class LeaderboardView(APIView):
 
 class JournalView(APIView):
 	permission_classes = [IsAuthenticated]
+	JOURNAL_FIELD_MAP = {
+		"did_you_win_today": "mood",
+		"where_did_you_fail_yourself": "weather",
+		"mental_state": "activity",
+	}
 
 	def get(self, request):
 		today = timezone.localdate()
@@ -321,14 +326,12 @@ class JournalView(APIView):
 				"mood": "",
 				"weather": "",
 				"activity": "",
-				"productivity": "",
-				"social": "",
 			},
 		)
 
-		for field in ["mood", "weather", "activity", "productivity", "social"]:
-			if field in serializer.validated_data:
-				setattr(entry, field, serializer.validated_data[field])
+		for input_field, model_field in self.JOURNAL_FIELD_MAP.items():
+			if input_field in serializer.validated_data:
+				setattr(entry, model_field, serializer.validated_data[input_field])
 
 		entry.save()
 
