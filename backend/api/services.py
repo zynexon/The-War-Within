@@ -287,7 +287,7 @@ def get_daily_tasks(user, date=None):
     return user_tasks
 
 
-def get_leaderboard(current_user, limit=20):
+def get_leaderboard(current_user=None, limit=20):
     users = list(
         User.objects.annotate(
             recent_activity=Coalesce("last_active_date", date(1970, 1, 1), output_field=DateField()),
@@ -309,7 +309,7 @@ def get_leaderboard(current_user, limit=20):
             "level": user.level,
             "streak": user.streak,
             "last_active_date": user.last_active_date,
-            "is_current_user": user.id == current_user.id,
+            "is_current_user": bool(current_user) and user.id == current_user.id,
         }
 
         if entry["is_current_user"]:

@@ -45,25 +45,7 @@ function apiUrl(path) {
 }
 
 function getAvatarColor(name) {
-  const colors = [
-    'bg-indigo-500',
-    'bg-purple-500',
-    'bg-blue-500',
-    'bg-pink-500',
-    'bg-green-500',
-  ]
-
-  const safeName = (name || '').trim()
-  if (!safeName) {
-    return colors[0]
-  }
-
-  let hash = 0
-  for (let i = 0; i < safeName.length; i += 1) {
-    hash = safeName.charCodeAt(i) + ((hash << 5) - hash)
-  }
-
-  return colors[Math.abs(hash) % colors.length]
+  return 'bg-zinc-900'
 }
 
 function getBadges(user) {
@@ -332,6 +314,7 @@ function App() {
   const [totalPlayers, setTotalPlayers] = useState(0)
   const [yourRank, setYourRank] = useState(null)
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
+  const [bestStreak, setBestStreak] = useState(0)
   const [entry, setEntry] = useState({
     did_you_win_today: '',
     where_did_you_fail_yourself: '',
@@ -351,6 +334,7 @@ function App() {
   const requiresNameSetup = Boolean(user && !user.name)
   const profileDisplayName = userName || user?.name || 'User'
   const profileAvatarLetter = profileDisplayName.charAt(0).toUpperCase()
+  const bestStreakStorageKey = user?.id ? `zynexon_best_streak_${user.id}` : 'zynexon_best_streak'
   const profileCurrentLevelXp = level * level * 50
   const profileNextLevelXp = (level + 1) * (level + 1) * 50
   const profileProgressXp = Math.max(0, xp - profileCurrentLevelXp)
@@ -383,6 +367,18 @@ function App() {
     const dayNumber = Math.floor(Date.now() / 86400000)
     return DAILY_TRAINING_GAMES[dayNumber % DAILY_TRAINING_GAMES.length]
   }, [])
+
+  useEffect(() => {
+    const parsedStoredBest = Number(localStorage.getItem(bestStreakStorageKey) || '0')
+    const storedBest = Number.isFinite(parsedStoredBest) && parsedStoredBest > 0 ? parsedStoredBest : 0
+    const nextBest = Math.max(storedBest, streakDays)
+
+    setBestStreak((prev) => (prev === nextBest ? prev : nextBest))
+
+    if (nextBest !== storedBest) {
+      localStorage.setItem(bestStreakStorageKey, String(nextBest))
+    }
+  }, [bestStreakStorageKey, streakDays])
 
   function recordLastTrainingResult(label, scoreValue) {
     const parsedScore = Number(scoreValue)
@@ -578,6 +574,24 @@ function App() {
 
     loadDashboard()
   }, [accessToken])
+
+  useEffect(() => {
+    async function loadPublicSocialProof() {
+      try {
+        const leaderboard = await fetch(apiUrl('/api/leaderboard/?limit=1'))
+        const data = await readApiPayload(leaderboard)
+        if (!leaderboard.ok) {
+          return
+        }
+
+        setTotalPlayers(data?.total_users || 0)
+      } catch {
+        // Leave social proof hidden if the request fails.
+      }
+    }
+
+    loadPublicSocialProof()
+  }, [])
 
   useEffect(() => {
     if (!gameStarted) {
@@ -1459,6 +1473,7 @@ function App() {
         passwordInput={passwordInput}
         setPasswordInput={setPasswordInput}
         errorText={errorText}
+        activeWarriorsCount={totalPlayers}
       />
     )
   }
@@ -1793,12 +1808,6 @@ function App() {
 
           <div className="text-center">
             <h2 className="text-xl font-semibold text-center mt-3">{profileDisplayName}</h2>
-            {equippedBadge ? (
-              <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700 shadow-sm">
-                <span>🏅</span>
-                <span>{equippedBadge}</span>
-              </div>
-            ) : null}
             {!isProfileEditingName ? (
               <button
                 type="button"
@@ -1808,7 +1817,7 @@ function App() {
                   setIsProfileEditingName(true)
                 }}
               >
-                Edit Name
+                Change Name
               </button>
             ) : null}
           </div>
@@ -1846,33 +1855,49 @@ function App() {
             </form>
           ) : null}
 
-          <div className="flex justify-center items-center gap-4 mt-4">
-            <span className="font-semibold">Level {level}</span>
-            <span className="text-sm text-gray-500">🔥 {streakDays} day streak</span>
-          </div>
+          <section className="mt-4 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-4 text-white shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">War Room Status</p>
 
-          <div className="mt-3">
-            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-700 ease-out"
-                style={{ width: `${profileProgressPercent}%` }}
-              />
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Level</p>
+                <p className="mt-1 text-2xl font-black leading-none">{level}</p>
+              </div>
+              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">STREAK</p>
+                <p className="mt-1 text-2xl font-black leading-none">{streakDays}</p>
+              </div>
             </div>
-            <p className="text-xs text-center text-gray-500 mt-1">{xp} / {profileNextLevelXp} XP</p>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4 mt-6">
-            <div className="p-4 rounded-xl border text-center bg-white">
-              <p className="text-lg font-bold">{xp}</p>
-              <p className="text-sm text-gray-500">Total XP</p>
+            <div className="mt-3">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-white/15">
+                <div
+                  className="h-2 rounded-full bg-white transition-all duration-700 ease-out"
+                  style={{ width: `${profileProgressPercent}%` }}
+                />
+              </div>
+              <p className="mt-2 text-center text-xs font-semibold text-zinc-200">{xp} / {profileNextLevelXp} XP to next level</p>
             </div>
-            <div className="p-4 rounded-xl border text-center bg-white">
-              <p className="text-lg font-bold">{streakDays}</p>
-              <p className="text-sm text-gray-500">Streak</p>
-            </div>
-          </div>
 
-          <h3 className="mt-6 font-semibold">Badges</h3>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Total XP</p>
+                <p className="mt-1 text-xl font-black leading-none">{xp}</p>
+              </div>
+              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Best Streak</p>
+                <p className="mt-1 text-xl font-black leading-none">{bestStreak}</p>
+              </div>
+            </div>
+          </section>
+
+          <h3 className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">ACHIEVEMENTS</h3>
+          {equippedBadge ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+              <span>🏅</span>
+              <span>Equipped: {equippedBadge}</span>
+            </div>
+          ) : null}
           <div className="mt-2 space-y-2">
             {earnedBadges.map((badge, index) => (
               <div

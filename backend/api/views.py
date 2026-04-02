@@ -277,14 +277,15 @@ class GameSubmitView(APIView):
 
 
 class LeaderboardView(APIView):
-	permission_classes = [IsAuthenticated]
+	permission_classes = [AllowAny]
 
 	def get(self, request):
 		serializer = LeaderboardQuerySerializer(data=request.query_params)
 		serializer.is_valid(raise_exception=True)
 
 		limit = serializer.validated_data.get("limit", 20)
-		entries, current_user_rank, total_users = get_leaderboard(request.user, limit)
+		current_user = request.user if request.user.is_authenticated else None
+		entries, current_user_rank, total_users = get_leaderboard(current_user, limit)
 		return Response(
 			{
 				"total_users": total_users,

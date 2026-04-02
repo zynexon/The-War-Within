@@ -10,36 +10,37 @@ function AuthPage({
   passwordInput,
   setPasswordInput,
   errorText,
+  activeWarriorsCount,
 }) {
   return (
-    <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-8 pb-6">
-      <div className="text-center text-2xl font-black tracking-[0.12em] text-zinc-900 mb-8">
-        ZYNEXON
-      </div>
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-5 pb-6">
+      <section className="rounded-[2rem] border border-zinc-800 bg-zinc-950 px-5 py-6 text-center text-white shadow-[0_18px_40px_rgba(0,0,0,0.35)] animate-[fadeIn_0.6s_ease]">
+        <div className="text-4xl font-black tracking-[0.18em] text-white">ZYNEXON</div>
+        <p className="mt-2 text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400">The War Within</p>
 
-      <section className="text-center mt-2 px-6 animate-[fadeIn_0.6s_ease]">
-        <h1 className="text-2xl font-bold text-zinc-900">Win your day.</h1>
-        <p className="text-gray-500 mt-2">Or watch yourself lose it.</p>
+        <h1 className="mt-5 text-2xl font-bold text-white">Win your day.</h1>
+        <p className="mt-2 text-zinc-300">Or watch yourself lose it.</p>
 
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p>🔥 Build streaks</p>
-          <p>⚡ Earn XP daily</p>
-          <p>🏆 Compete with others</p>
-        </div>
+        <p className="mt-5 text-base font-semibold leading-relaxed text-zinc-200">
+          Most people talk about discipline. You're about to practice it.
+        </p>
+        <p className="mt-4 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">
+          {activeWarriorsCount ? `${activeWarriorsCount} warriors active this week` : 'Warriors active this week'}
+        </p>
       </section>
 
-      <section className="mt-6 rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-md transition-transform duration-200 hover:scale-[1.01] animate-[fadeIn_0.6s_ease]">
-        <div className="mb-4 flex gap-2 text-xs font-bold uppercase tracking-wider">
+      <section className="mt-5 rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-md transition-transform duration-200 hover:scale-[1.01] animate-[fadeIn_0.6s_ease]">
+        <div className="mb-4 grid grid-cols-2 rounded-2xl border border-zinc-200 bg-zinc-100 p-1 text-xs font-bold uppercase tracking-wider">
           <button
             type="button"
-            className={`rounded-full px-3 py-1.5 transition ${authMode === 'login' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600'}`}
+            className={`rounded-xl px-3 py-2 transition ${authMode === 'login' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
             onClick={() => setAuthMode('login')}
           >
             Login
           </button>
           <button
             type="button"
-            className={`rounded-full px-3 py-1.5 transition ${authMode === 'register' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600'}`}
+            className={`rounded-xl px-3 py-2 transition ${authMode === 'register' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
             onClick={() => setAuthMode('register')}
           >
             Register
@@ -48,33 +49,42 @@ function AuthPage({
 
         <form className="space-y-3" onSubmit={handleAuthSubmit}>
           {authMode === 'register' ? (
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Name</label>
+              <input
+                type="text"
+                required
+                maxLength={30}
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
+                placeholder="Name"
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              />
+            </div>
+          ) : null}
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Email</label>
             <input
-              type="text"
+              type="email"
               required
-              maxLength={30}
-              value={nameInput}
-              onChange={(event) => setNameInput(event.target.value)}
-              placeholder="Name"
+              value={emailInput}
+              onChange={(event) => setEmailInput(event.target.value)}
+              placeholder="Email"
               className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
             />
-          ) : null}
-          <input
-            type="email"
-            required
-            value={emailInput}
-            onChange={(event) => setEmailInput(event.target.value)}
-            placeholder="Email"
-            className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-          />
-          <input
-            type="password"
-            required
-            minLength={8}
-            value={passwordInput}
-            onChange={(event) => setPasswordInput(event.target.value)}
-            placeholder="Password"
-            className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-          />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Password</label>
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={passwordInput}
+              onChange={(event) => setPasswordInput(event.target.value)}
+              placeholder="Password"
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            />
+          </div>
           <button
             type="submit"
             disabled={authLoading}
@@ -85,7 +95,7 @@ function AuthPage({
           {authMode === 'login' ? (
             <>
               <p className="text-xs text-gray-400 text-center mt-3">Takes less than 10 seconds.</p>
-              <p className="text-xs text-center mt-2 text-gray-500">Join others already building discipline.</p>
+              <p className="text-xs text-center mt-2 text-gray-500">Join others who chose discipline.</p>
             </>
           ) : null}
         </form>
