@@ -49,29 +49,29 @@ SPEED_PATTERN_WIN_SCORE = 1
 GAME_XP_PER_SCORE = 2
 GAME_XP_PER_SESSION_CAP = 30
 DEFAULT_TASK_TEMPLATES = [
-    {"title": "Deep work: 45 minutes", "xp": 20},
-    {"title": "No social scroll before noon", "xp": 15},
-    {"title": "Workout or walk", "xp": 25},
-    {"title": "Read 10 pages", "xp": 10},
-    {"title": "Plan tomorrow in 5 mins", "xp": 10},
-    
-    {"title": "Wake up before 7 AM", "xp": 15},
-    {"title": "No phone for first 30 mins", "xp": 15},
-    {"title": "Drink 2L of water", "xp": 10},
-    {"title": "Meditate for 10 minutes", "xp": 15},
-    {"title": "Write 5 key learnings today", "xp": 10},
+    {"legacy_title": "Deep work: 45 minutes", "title": "Lock in. 45 minutes. No excuses.", "xp": 20},
+    {"legacy_title": "No social scroll before noon", "title": "Don't let the feed steal your morning.", "xp": 15},
+    {"legacy_title": "Workout or walk", "title": "Train the body. The mind follows.", "xp": 25},
+    {"legacy_title": "Read 10 pages", "title": "Feed your mind. 10 pages minimum.", "xp": 10},
+    {"legacy_title": "Plan tomorrow in 5 mins", "title": "Winners plan tonight. Losers react tomorrow.", "xp": 10},
 
-    {"title": "Study/work 60 minutes distraction-free", "xp": 20},
-    {"title": "Avoid junk food today", "xp": 15},
-    {"title": "Do 50 push-ups (or equivalent)", "xp": 20},
-    {"title": "Spend 15 mins learning something new", "xp": 10},
-    {"title": "Clean your workspace", "xp": 10},
+    {"legacy_title": "Wake up before 7 AM", "title": "Own the morning before the world wakes up.", "xp": 15},
+    {"legacy_title": "No phone for first 30 mins", "title": "Your first 30 mins belong to you. Not the algorithm.", "xp": 15},
+    {"legacy_title": "Drink 2L of water", "title": "Fuel the machine. 2L. No negotiation.", "xp": 10},
+    {"legacy_title": "Meditate for 10 minutes", "title": "Silence the noise. 10 minutes of stillness.", "xp": 15},
+    {"legacy_title": "Write 5 key learnings today", "title": "What did today teach you? Write 5 truths.", "xp": 10},
 
-    {"title": "No social media after 9 PM", "xp": 15},
-    {"title": "Track your expenses today", "xp": 10},
-    {"title": "Have 1 meaningful conversation", "xp": 10},
-    {"title": "Write your goals for the week", "xp": 15},
-    {"title": "Sleep before 11 PM", "xp": 20},
+    {"legacy_title": "Study/work 60 minutes distraction-free", "title": "60 minutes. Full focus. Phone face down.", "xp": 20},
+    {"legacy_title": "Avoid junk food today", "title": "Discipline on the plate. Discipline in life.", "xp": 15},
+    {"legacy_title": "Do 50 push-ups (or equivalent)", "title": "50 reps. Your comfort zone ends here.", "xp": 20},
+    {"legacy_title": "Spend 15 mins learning something new", "title": "Grow or decay. 15 mins of real learning.", "xp": 10},
+    {"legacy_title": "Clean your workspace", "title": "Chaotic desk. Chaotic mind. Fix it.", "xp": 10},
+
+    {"legacy_title": "No social media after 9 PM", "title": "Cut the noise after 9. Protect your mind.", "xp": 15},
+    {"legacy_title": "Track your expenses today", "title": "Know where your money goes. Control follows awareness.", "xp": 10},
+    {"legacy_title": "Have 1 meaningful conversation", "title": "One real conversation beats 100 shallow ones.", "xp": 10},
+    {"legacy_title": "Write your goals for the week", "title": "Unclear goals = guaranteed failure. Write them down.", "xp": 15},
+    {"legacy_title": "Sleep before 11 PM", "title": "Recovery is part of the war. Sleep before 11.", "xp": 20},
 ]
 
 
@@ -204,7 +204,14 @@ def calculate_game_session_xp_for_type(game_type, score):
 def seed_task_templates():
     created_count = 0
     for template in DEFAULT_TASK_TEMPLATES:
-        _, created = Task.objects.get_or_create(
+        legacy_title = template.get("legacy_title")
+        if legacy_title:
+            Task.objects.filter(title=legacy_title).update(
+                title=template["title"],
+                xp=template["xp"],
+            )
+
+        _, created = Task.objects.update_or_create(
             title=template["title"],
             defaults={"xp": template["xp"]},
         )
