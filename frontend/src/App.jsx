@@ -535,7 +535,12 @@ function App() {
       setErrorText('')
 
       try {
-        const user = await authedFetch('/api/auth/me/')
+        // Parallelize auth/me and daily-tasks fetches
+        const [user, dailyTasks] = await Promise.all([
+          authedFetch('/api/auth/me/'),
+          authedFetch('/api/daily-tasks/'),
+        ])
+
         setUser(user)
         setUserName(user.name || '')
         setUserEmail(user.email)
@@ -543,7 +548,6 @@ function App() {
         setXp(user.xp)
         setStreakDays(user.streak)
 
-        const dailyTasks = await authedFetch('/api/daily-tasks/')
         setTasks(
           dailyTasks.map((task) => ({
             id: task.id,
@@ -552,11 +556,6 @@ function App() {
             completed: task.completed,
           })),
         )
-
-        const leaderboard = await authedFetch('/api/leaderboard/?limit=30')
-        setLeaderboardEntries(leaderboard.top_users || leaderboard.entries || [])
-        setTotalPlayers(leaderboard.total_users || 0)
-        setYourRank(leaderboard.your_rank || leaderboard.current_user_rank?.rank || null)
 
         // Only on initial load, set prevLevel to user's current level so level-up popup doesn't trigger on refresh
         if (!isInitialLoadRef.current) {
@@ -592,6 +591,25 @@ function App() {
 
     loadPublicSocialProof()
   }, [])
+
+  useEffect(() => {
+    if (activeTab !== 'Leaderboard' || !user) {
+      return
+    }
+
+    async function loadLeaderboard() {
+      try {
+        const leaderboard = await authedFetch('/api/leaderboard/?limit=30')
+        setLeaderboardEntries(leaderboard.top_users || leaderboard.entries || [])
+        setTotalPlayers(leaderboard.total_users || 0)
+        setYourRank(leaderboard.your_rank || leaderboard.current_user_rank?.rank || null)
+      } catch (error) {
+        console.error('Failed to load leaderboard:', error)
+      }
+    }
+
+    loadLeaderboard()
+  }, [activeTab, user])
 
   useEffect(() => {
     if (!gameStarted) {
@@ -1453,8 +1471,35 @@ function App() {
 
   if (loading) {
     return (
-      <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col items-center justify-center px-5 py-8">
-        <p className="text-sm font-semibold text-zinc-500">Loading...</p>
+      <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col items-center justify-center px-5 py-8 bg-[#f8f6f1]">
+        <div className="text-center space-y-6">
+          <div className="text-3xl font-black tracking-[0.18em] text-zinc-900">
+            ZYNEXON
+          </div>
+          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400">
+            The War Within
+          </p>
+          <div className="flex gap-1.5 justify-center mt-4">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="w-2 h-2 rounded-full bg-zinc-900"
+                style={{
+                  animation: `bounce 1s ease-in-out ${i * 0.15}s infinite`
+                }}
+              />
+            ))}
+          </div>
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest">
+            Loading your war room...
+          </p>
+        </div>
+        <style>{`
+          @keyframes bounce {
+            0%, 100% { transform: translateY(0); opacity: 0.4; }
+            50% { transform: translateY(-8px); opacity: 1; }
+          }
+        `}</style>
       </main>
     )
   }
