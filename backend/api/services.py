@@ -310,8 +310,6 @@ def get_daily_tasks(user, date=None):
     Get tasks for a user on a given date.
     If tasks don't exist, assign them first.
     """
-    seed_task_templates()
-
     target_date = date or timezone.localdate()
     
     user_tasks = UserTask.objects.filter(
