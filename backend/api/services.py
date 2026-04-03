@@ -11,6 +11,17 @@ from .models import DailyTaskSet, GameSession, Task, User, UserTask, XPLog
 
 
 MAX_DAILY_GAME_XP = 50
+WAR_MODE_XP_BY_DURATION = {
+    "skirmish": 30,
+    "battle": 60,
+    "full_war": 100,
+}
+WAR_MODE_DURATION_BY_GAME_TYPE = {
+    "war_mode_skirmish": "skirmish",
+    "war_mode_battle": "battle",
+    "war_mode_full_war": "full_war",
+}
+WAR_MODE_GAME_TYPES = tuple(WAR_MODE_DURATION_BY_GAME_TYPE.keys())
 MAX_DAILY_GAME_XP_BY_TYPE = {
     "quick_math": 50,
     "focus_tap": 50,
@@ -27,6 +38,9 @@ GAME_MIN_DURATION_SECONDS_BY_TYPE = {
     "number_recall": 2,
     "color_count_focus": 6,
     "speed_pattern": 2,
+    "war_mode_skirmish": 1400,
+    "war_mode_battle": 2600,
+    "war_mode_full_war": 3500,
 }
 GAME_MAX_DURATION_SECONDS_BY_TYPE = {
     "quick_math": 120,
@@ -34,6 +48,9 @@ GAME_MAX_DURATION_SECONDS_BY_TYPE = {
     "number_recall": 180,
     "color_count_focus": 180,
     "speed_pattern": 300,
+    "war_mode_skirmish": 2400,
+    "war_mode_battle": 4200,
+    "war_mode_full_war": 5400,
 }
 GAME_MAX_SCORE_BY_TYPE = {
     "quick_math": 60,
@@ -41,6 +58,9 @@ GAME_MAX_SCORE_BY_TYPE = {
     "number_recall": 1,
     "color_count_focus": 8,
     "speed_pattern": 1,
+    "war_mode_skirmish": 1,
+    "war_mode_battle": 1,
+    "war_mode_full_war": 1,
 }
 FOCUS_TAP_WIN_SCORE = 15
 NUMBER_RECALL_WIN_SCORE = 1
@@ -140,6 +160,9 @@ def update_streak(user):
 
 
 def get_daily_game_xp_cap(game_type):
+    if game_type in WAR_MODE_GAME_TYPES:
+        return None
+
     cap = MAX_DAILY_GAME_XP_BY_TYPE.get(game_type)
     if cap is None:
         raise ValidationError("Invalid game type.")
@@ -148,13 +171,17 @@ def get_daily_game_xp_cap(game_type):
 
 def get_today_game_xp(user, game_type):
     today = timezone.localdate()
-    result = (
-        GameSession.objects.filter(
-            user=user,
-            game_type=game_type,
-            ended_at__date=today,
-        ).aggregate(total=Sum("xp_awarded"))
+    query = GameSession.objects.filter(
+        user=user,
+        ended_at__date=today,
     )
+
+    if game_type in WAR_MODE_GAME_TYPES:
+        query = query.filter(game_type__in=WAR_MODE_GAME_TYPES)
+    else:
+        query = query.filter(game_type=game_type)
+
+    result = query.aggregate(total=Sum("xp_awarded"))
     return result["total"] or 0
 
 
@@ -186,6 +213,10 @@ def validate_game_duration(game_type, duration_seconds):
 
 
 def calculate_game_session_xp_for_type(game_type, score):
+    if game_type in WAR_MODE_DURATION_BY_GAME_TYPE:
+        duration_key = WAR_MODE_DURATION_BY_GAME_TYPE[game_type]
+        return WAR_MODE_XP_BY_DURATION[duration_key]
+
     if game_type == "focus_tap":
         return 10 if score >= FOCUS_TAP_WIN_SCORE else 0
 

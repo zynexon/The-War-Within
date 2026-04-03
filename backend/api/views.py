@@ -244,10 +244,18 @@ class GameSubmitView(APIView):
 		user = User.objects.select_for_update().get(id=request.user.id)
 		xp = calculate_game_session_xp_for_type(session.game_type, score)
 		daily_cap = get_daily_game_xp_cap(session.game_type)
-		game_xp_today = get_today_game_xp(user, session.game_type)
-		remaining = daily_cap - game_xp_today
-		xp_awarded = 0 if remaining <= 0 else min(xp, remaining)
-		capped_by_daily_limit = xp_awarded < xp
+
+		if daily_cap is None:
+			game_xp_today = 0
+			remaining_today = None
+			xp_awarded = xp
+			capped_by_daily_limit = False
+		else:
+			game_xp_today = get_today_game_xp(user, session.game_type)
+			remaining = daily_cap - game_xp_today
+			xp_awarded = 0 if remaining <= 0 else min(xp, remaining)
+			remaining_today = max(0, remaining - xp_awarded)
+			capped_by_daily_limit = xp_awarded < xp
 
 		session.ended_at = now
 		session.score = score
@@ -268,7 +276,7 @@ class GameSubmitView(APIView):
 				"xp_awarded": xp_awarded,
 				"daily_cap": daily_cap,
 				"today_game_xp_before": game_xp_today,
-				"remaining_today": max(0, remaining - xp_awarded),
+				"remaining_today": remaining_today,
 				"capped_by_daily_limit": capped_by_daily_limit,
 				"total_xp": user.xp,
 				"level": user.level,

@@ -29,6 +29,23 @@ function GameHubPage({ onBack, onNavigate }) {
       </div>
 
       <div
+        className="p-4 rounded-2xl border mb-4 cursor-pointer bg-zinc-900 text-white"
+        onClick={() => onNavigate('/game/war-mode')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            onNavigate('/game/war-mode')
+          }
+        }}
+      >
+        <h2 className="text-lg font-semibold">War Mode</h2>
+        <p className="text-sm text-zinc-300">
+          Deep focus timer. Quit early, earn nothing.
+        </p>
+      </div>
+
+      <div
         className="p-4 rounded-2xl border cursor-pointer"
         onClick={() => onNavigate('/game/focus-tap')}
         role="button"

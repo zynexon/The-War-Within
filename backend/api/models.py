@@ -77,12 +77,18 @@ class GameSession(models.Model):
 	TYPE_NUMBER_RECALL = "number_recall"
 	TYPE_COLOR_COUNT_FOCUS = "color_count_focus"
 	TYPE_SPEED_PATTERN = "speed_pattern"
+	TYPE_WAR_MODE_SKIRMISH = "war_mode_skirmish"
+	TYPE_WAR_MODE_BATTLE = "war_mode_battle"
+	TYPE_WAR_MODE_FULL_WAR = "war_mode_full_war"
 	TYPE_CHOICES = [
 		(TYPE_QUICK_MATH, "Quick Math"),
 		(TYPE_FOCUS_TAP, "Focus Tap"),
 		(TYPE_NUMBER_RECALL, "Number Recall"),
 		(TYPE_COLOR_COUNT_FOCUS, "Color Count Focus"),
 		(TYPE_SPEED_PATTERN, "Speed Pattern"),
+		(TYPE_WAR_MODE_SKIRMISH, "War Mode Skirmish"),
+		(TYPE_WAR_MODE_BATTLE, "War Mode Battle"),
+		(TYPE_WAR_MODE_FULL_WAR, "War Mode Full War"),
 	]
 
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

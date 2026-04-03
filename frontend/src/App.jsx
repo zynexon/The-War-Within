@@ -32,6 +32,30 @@ const DAILY_TRAINING_GAMES = [
   'Color Count',
   'Speed Pattern',
 ]
+const WAR_MODE_QUOTE_ROTATION_MS = 120000
+const WAR_MODE_OPTIONS = {
+  skirmish: {
+    title: 'Skirmish',
+    label: 'SKIRMISH IN PROGRESS',
+    minutes: 25,
+    gameType: 'war_mode_skirmish',
+    uiXp: 30,
+  },
+  battle: {
+    title: 'Battle',
+    label: 'BATTLE IN PROGRESS',
+    minutes: 45,
+    gameType: 'war_mode_battle',
+    uiXp: 60,
+  },
+  full_war: {
+    title: 'Full War',
+    label: 'FULL WAR IN PROGRESS',
+    minutes: 60,
+    gameType: 'war_mode_full_war',
+    uiXp: 100,
+  },
+}
 
 function isStandaloneMode() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
@@ -314,6 +338,17 @@ function App() {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [totalPlayers, setTotalPlayers] = useState(0)
   const [yourRank, setYourRank] = useState(null)
+  const [warModeSelection, setWarModeSelection] = useState('')
+  const [warModeSessionId, setWarModeSessionId] = useState('')
+  const [warModeEndAt, setWarModeEndAt] = useState(0)
+  const [warModeRemainingSeconds, setWarModeRemainingSeconds] = useState(0)
+  const [warModeQuoteIndex, setWarModeQuoteIndex] = useState(0)
+  const [warModeSubmitting, setWarModeSubmitting] = useState(false)
+  const [warModeError, setWarModeError] = useState('')
+  const [warModeCompletionReady, setWarModeCompletionReady] = useState(false)
+  const [warModeHonestyMessage, setWarModeHonestyMessage] = useState('')
+  const [warModeSurrenderConfirmOpen, setWarModeSurrenderConfirmOpen] = useState(false)
+  const [warModeResult, setWarModeResult] = useState(null)
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [bestStreak, setBestStreak] = useState(0)
   const [entry, setEntry] = useState({
@@ -331,6 +366,7 @@ function App() {
   const shouldFireQuickMathConfettiRef = useRef(false)
   const isInitialLoadRef = useRef(false)
   const speedPatternSessionIdRef = useRef('')
+  const warModeCompletionGuardRef = useRef(false)
 
   const requiresNameSetup = Boolean(user && !user.name)
   const profileDisplayName = userName || user?.name || 'User'
@@ -368,6 +404,16 @@ function App() {
     const dayNumber = Math.floor(Date.now() / 86400000)
     return DAILY_TRAINING_GAMES[dayNumber % DAILY_TRAINING_GAMES.length]
   }, [])
+  const warModeQuotes = useMemo(
+    () => [
+      ...DAILY_WISDOM,
+      'The war is won in minutes no one sees.',
+      'Silence your impulses. Finish the block.',
+      'You said you would. Now prove it.',
+      'Distraction is surrender in disguise.',
+    ],
+    [],
+  )
 
   useEffect(() => {
     const parsedStoredBest = Number(localStorage.getItem(bestStreakStorageKey) || '0')
@@ -394,6 +440,27 @@ function App() {
 
     setLastTrainingResult(payload)
     localStorage.setItem(LAST_TRAINING_RESULT_KEY, JSON.stringify(payload))
+  }
+
+  function formatWarModeTimer(totalSeconds) {
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
+  function resetWarModeState() {
+    setWarModeSelection('')
+    setWarModeSessionId('')
+    setWarModeEndAt(0)
+    setWarModeRemainingSeconds(0)
+    setWarModeQuoteIndex(0)
+    setWarModeSubmitting(false)
+    setWarModeError('')
+    setWarModeCompletionReady(false)
+    setWarModeHonestyMessage('')
+    setWarModeSurrenderConfirmOpen(false)
+    setWarModeResult(null)
+    warModeCompletionGuardRef.current = false
   }
 
   function navigate(path) {
@@ -614,6 +681,48 @@ function App() {
 
     loadLeaderboard()
   }, [activeTab, user])
+
+  useEffect(() => {
+    if (gameRoute !== '/game/war-mode/timer' || !warModeEndAt || !warModeSessionId) {
+      return
+    }
+
+    function syncRemaining() {
+      const remaining = Math.max(0, Math.ceil((warModeEndAt - Date.now()) / 1000))
+      setWarModeRemainingSeconds(remaining)
+    }
+
+    syncRemaining()
+    const interval = window.setInterval(syncRemaining, 1000)
+    return () => window.clearInterval(interval)
+  }, [gameRoute, warModeEndAt, warModeSessionId])
+
+  useEffect(() => {
+    if (gameRoute !== '/game/war-mode/timer' || !warModeSessionId) {
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      setWarModeQuoteIndex((previous) => (previous + 1) % warModeQuotes.length)
+    }, WAR_MODE_QUOTE_ROTATION_MS)
+
+    return () => window.clearInterval(interval)
+  }, [gameRoute, warModeSessionId, warModeQuotes.length])
+
+  useEffect(() => {
+    if (
+      gameRoute !== '/game/war-mode/timer'
+      || !warModeSessionId
+      || warModeRemainingSeconds > 0
+      || warModeSubmitting
+      || warModeCompletionGuardRef.current
+    ) {
+      return
+    }
+
+    warModeCompletionGuardRef.current = true
+    setWarModeCompletionReady(true)
+  }, [gameRoute, warModeRemainingSeconds, warModeSessionId, warModeSubmitting])
 
   useEffect(() => {
     if (!gameStarted) {
@@ -863,6 +972,16 @@ function App() {
         setGameRoute('/game/speed-pattern')
         return
       }
+      if (path === '/game/war-mode') {
+        setActiveTab('Game')
+        setGameRoute('/game/war-mode')
+        return
+      }
+      if (path === '/game/war-mode/timer') {
+        setActiveTab('Game')
+        setGameRoute('/game/war-mode/timer')
+        return
+      }
       if (path === '/game') {
         setActiveTab('Game')
         setGameRoute('/game')
@@ -1065,6 +1184,7 @@ function App() {
     setJournalSaving(false)
     setJournalSavedText('')
     setJournalLastUpdatedAt('')
+    resetWarModeState()
     setLoading(false)
   }
 
@@ -1084,6 +1204,90 @@ function App() {
     }
 
     return { num1, num2, operator, answer }
+  }
+
+  async function submitWarModeCompletion() {
+    if (!warModeSessionId || !warModeSelection) {
+      return
+    }
+
+    setWarModeSubmitting(true)
+    try {
+      setWarModeError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: warModeSessionId,
+          score: 1,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const refreshedUser = await authedFetch('/api/auth/me/')
+      setUser(refreshedUser)
+      setStreakDays(refreshedUser.streak)
+      setWarModeResult({
+        xpAwarded: data.xp_awarded,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+      })
+      setWarModeSessionId('')
+      setWarModeCompletionReady(false)
+      setWarModeHonestyMessage('')
+      setInstallEligible(true)
+      fireConfetti()
+    } catch (error) {
+      setWarModeError(error.message || 'Could not submit War Mode session.')
+      warModeCompletionGuardRef.current = false
+    } finally {
+      setWarModeSubmitting(false)
+    }
+  }
+
+  async function handleStartWarMode(durationKey) {
+    const selected = WAR_MODE_OPTIONS[durationKey]
+    if (!selected) {
+      return
+    }
+
+    setWarModeSelection(durationKey)
+    setWarModeQuoteIndex(0)
+    setWarModeResult(null)
+    setWarModeError('')
+    setWarModeCompletionReady(false)
+    setWarModeHonestyMessage('')
+    setWarModeSubmitting(false)
+    warModeCompletionGuardRef.current = false
+
+    try {
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: selected.gameType }),
+      })
+
+      const durationSeconds = selected.minutes * 60
+      setWarModeSessionId(data.session_id)
+      setWarModeRemainingSeconds(durationSeconds)
+      setWarModeEndAt(Date.now() + (durationSeconds * 1000))
+      navigate('/game/war-mode/timer')
+    } catch (error) {
+      setWarModeSessionId('')
+      setWarModeEndAt(0)
+      setWarModeRemainingSeconds(0)
+      setWarModeError(error.message || 'Could not start War Mode.')
+    }
+  }
+
+  function handleSurrenderWarMode() {
+    setWarModeSurrenderConfirmOpen(false)
+    resetWarModeState()
+    navigate('/')
+  }
+
+  function handleWarModeHonestNoShow() {
+    setWarModeSessionId('')
+    setWarModeCompletionReady(false)
+    setWarModeHonestyMessage("Respect for being honest. Come back when you're ready.")
   }
 
   async function handleStartGame() {
@@ -1527,6 +1731,177 @@ function App() {
     )
   }
 
+  if (activeTab === 'Game' && gameRoute === '/game/war-mode/timer') {
+    const selectedMode = WAR_MODE_OPTIONS[warModeSelection]
+    const rotatingQuote = warModeQuotes[warModeQuoteIndex % warModeQuotes.length]
+    const showHonestyPrompt = warModeCompletionReady && !warModeSubmitting && !warModeResult && !warModeHonestyMessage
+
+    return (
+      <main className="min-h-[100dvh] w-full bg-black text-white">
+        <section className="mx-auto flex min-h-[100dvh] w-full max-w-[420px] flex-col items-center justify-center px-6 text-center">
+          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-500">
+            {selectedMode?.label || 'WAR MODE IN PROGRESS'}
+          </p>
+
+          <p className="mt-6 text-6xl font-black tracking-tight text-white">
+            {formatWarModeTimer(warModeRemainingSeconds)}
+          </p>
+
+          <p className="mt-8 text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            {rotatingQuote}
+          </p>
+
+          <p className="mt-4 text-sm font-semibold text-zinc-300">
+            You said you would.
+            <br />
+            Now prove it.
+          </p>
+
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+            Lock your screen. The timer runs in the background.
+          </p>
+
+          {warModeError ? <p className="mt-4 text-xs font-semibold text-red-400">{warModeError}</p> : null}
+
+          {!showHonestyPrompt && !warModeResult && !warModeHonestyMessage ? (
+            <button
+              type="button"
+              onClick={() => setWarModeSurrenderConfirmOpen(true)}
+              disabled={warModeSubmitting}
+              className="mt-10 rounded-full border border-zinc-700 px-6 py-2.5 text-xs font-black uppercase tracking-[0.2em] text-zinc-300 transition hover:border-zinc-500 hover:text-white disabled:opacity-60"
+            >
+              Surrender
+            </button>
+          ) : null}
+        </section>
+
+        {warModeSurrenderConfirmOpen ? (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-950 p-6 text-center shadow-xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">Confirm Surrender</p>
+              <h3 className="mt-2 text-xl font-black text-white">Are you sure?</h3>
+              <p className="mt-2 text-sm font-semibold text-zinc-300">Surrender gives you no XP.</p>
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setWarModeSurrenderConfirmOpen(false)}
+                  className="rounded-xl border border-zinc-700 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-zinc-200 transition hover:bg-zinc-900"
+                >
+                  Keep Going
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSurrenderWarMode}
+                  className="rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
+                >
+                  Surrender
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showHonestyPrompt ? (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-950 p-6 text-center shadow-xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">Timer Complete</p>
+              <h3 className="mt-2 text-2xl font-black text-white">Did you actually work?</h3>
+
+              <div className="mt-5 grid gap-3">
+                <button
+                  type="button"
+                  onClick={submitWarModeCompletion}
+                  className="rounded-xl bg-white px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
+                >
+                  I earned this
+                </button>
+                <button
+                  type="button"
+                  onClick={handleWarModeHonestNoShow}
+                  className="rounded-xl border border-zinc-700 px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-200 transition hover:bg-zinc-900"
+                >
+                  I didn't show up
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {warModeHonestyMessage ? (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-950 p-6 text-center shadow-xl">
+              <p className="text-sm font-semibold text-zinc-200">{warModeHonestyMessage}</p>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetWarModeState()
+                    navigate('/game/war-mode')
+                  }}
+                  className="rounded-xl border border-zinc-700 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-zinc-200 transition hover:bg-zinc-900"
+                >
+                  Again
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetWarModeState()
+                    navigate('/')
+                  }}
+                  className="rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
+                >
+                  Home
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {warModeSubmitting ? (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
+            <p className="text-sm font-semibold text-zinc-200">Finalizing your session...</p>
+          </div>
+        ) : null}
+
+        {warModeResult ? (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-950 p-6 text-center shadow-xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">War Mode Complete</p>
+              <h3 className="mt-2 text-3xl font-black text-white">+{warModeResult.xpAwarded} XP</h3>
+              {warModeResult.cappedByDailyLimit ? (
+                <p className="mt-3 text-xs font-semibold text-amber-300">Daily War Mode XP cap reached.</p>
+              ) : null}
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetWarModeState()
+                    navigate('/game/war-mode')
+                  }}
+                  className="rounded-xl border border-zinc-700 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-zinc-200 transition hover:bg-zinc-900"
+                >
+                  Again
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetWarModeState()
+                    navigate('/')
+                  }}
+                  className="rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
+                >
+                  Home
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </main>
+    )
+  }
+
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-3 pb-24 space-y-7 relative bg-[#f8f6f1]">
       <div className="mt-0 px-1 py-1 text-center">
@@ -1695,7 +2070,50 @@ function App() {
           ) : null}
         </section>
       ) : activeTab === 'Game' ? (
-        gameRoute === '/game/quick-math' ? (
+        gameRoute === '/game/war-mode' ? (
+          <section className="space-y-5">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="text-xs font-bold uppercase tracking-widest text-zinc-500"
+            >
+              Back
+            </button>
+
+            <div className="rounded-3xl border border-zinc-900 bg-zinc-900 p-5 text-white shadow-lg">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">War Mode</p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight">Enter War Mode</h2>
+              <p className="mt-2 text-sm font-semibold text-zinc-300">
+                Choose one block. Start it. Finish it.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {Object.entries(WAR_MODE_OPTIONS).map(([key, option]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleStartWarMode(key)}
+                  className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-left shadow-sm transition hover:border-zinc-400"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">{option.minutes} Minutes</p>
+                  <div className="mt-1 flex items-center justify-between">
+                    <h3 className="text-xl font-black text-zinc-950">{option.title}</h3>
+                    <p className="text-sm font-black text-zinc-900">+{option.uiXp} XP</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold text-zinc-600">
+                This only works if you're honest with yourself. The XP means nothing if you didn't earn it.
+              </p>
+            </div>
+
+            {warModeError ? <p className="text-xs font-semibold text-red-600">{warModeError}</p> : null}
+          </section>
+        ) : gameRoute === '/game/quick-math' ? (
           <section className="space-y-4">
             <button
               type="button"
@@ -2046,6 +2464,16 @@ function App() {
               <p className="text-[13px] font-semibold mt-3 text-blue-600 whitespace-nowrap">{dailyTrainingGameLabel}</p>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => navigate('/game/war-mode')}
+            className="w-full rounded-2xl border border-zinc-900 bg-zinc-900 px-5 py-4 text-left text-white shadow-lg transition hover:bg-zinc-800"
+          >
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">War Mode</p>
+            <p className="mt-1 text-xl font-black tracking-tight">Enter War Mode</p>
+            <p className="mt-1 text-xs font-semibold text-zinc-300">One timer. No excuses. Quit early and earn nothing.</p>
+          </button>
 
           <p className="text-sm font-bold text-zinc-800">{homeProgressContext}</p>
 
