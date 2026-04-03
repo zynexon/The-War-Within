@@ -33,6 +33,7 @@ const DAILY_TRAINING_GAMES = [
   'Color Count',
   'Speed Pattern',
 ]
+const LEADERBOARD_CHASE_WARNING_XP = 200
 const WAR_MODE_OPTIONS = {
   skirmish: {
     title: 'Skirmish',
@@ -172,6 +173,22 @@ function formatRelativeTime(isoTime) {
 
   const diffDays = Math.floor(diffHours / 24)
   return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+}
+
+function getWeeklyResetCountdownLabel(nowMs = Date.now()) {
+  const now = new Date(nowMs)
+  const day = now.getDay()
+  const daysUntilMonday = day === 0 ? 1 : 8 - day
+  const nextMonday = new Date(now)
+  nextMonday.setDate(now.getDate() + daysUntilMonday)
+  nextMonday.setHours(0, 0, 0, 0)
+
+  const diffMs = Math.max(0, nextMonday.getTime() - now.getTime())
+  const totalHours = Math.floor(diffMs / 3600000)
+  const days = Math.floor(totalHours / 24)
+  const hours = totalHours % 24
+
+  return `WEEKLY WAR — RESETS IN ${days} DAYS ${hours} HRS`
 }
 
 async function readApiPayload(response) {
@@ -336,6 +353,8 @@ function App() {
 
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
+  const [leaderboardPeriod, setLeaderboardPeriod] = useState('weekly')
+  const [leaderboardNowMs, setLeaderboardNowMs] = useState(Date.now())
   const [totalPlayers, setTotalPlayers] = useState(0)
   const [yourRank, setYourRank] = useState(null)
   const [warModeSelection, setWarModeSelection] = useState('')
@@ -408,6 +427,18 @@ function App() {
     const dayNumber = Math.floor(Date.now() / 86400000)
     return DAILY_TRAINING_GAMES[dayNumber % DAILY_TRAINING_GAMES.length]
   }, [])
+  const leaderboardXpForPeriod = (entry) => (leaderboardPeriod === 'weekly' ? (entry?.weekly_xp || 0) : (entry?.xp || 0))
+  const currentUserLeaderboardEntry = leaderboardEntries.find((entry) => entry.is_current_user)
+  const secondPlaceEntry = leaderboardEntries.find((entry) => entry.rank === 2)
+  const leaderboardChaseGap = (currentUserLeaderboardEntry && secondPlaceEntry)
+    ? Math.max(0, leaderboardXpForPeriod(currentUserLeaderboardEntry) - leaderboardXpForPeriod(secondPlaceEntry))
+    : 0
+  const showLeaderboardChaseWarning = Boolean(
+    currentUserLeaderboardEntry
+    && currentUserLeaderboardEntry.rank === 1
+    && secondPlaceEntry
+    && leaderboardChaseGap <= LEADERBOARD_CHASE_WARNING_XP,
+  )
 
   useEffect(() => {
     const parsedStoredBest = Number(localStorage.getItem(bestStreakStorageKey) || '0')
@@ -661,7 +692,7 @@ function App() {
     async function loadLeaderboard() {
       setLeaderboardLoading(true)
       try {
-        const leaderboard = await authedFetch('/api/leaderboard/?limit=30')
+        const leaderboard = await authedFetch(`/api/leaderboard/?limit=30&period=${leaderboardPeriod}`)
         setLeaderboardEntries(leaderboard.top_users || leaderboard.entries || [])
         setTotalPlayers(leaderboard.total_users || 0)
         setYourRank(leaderboard.your_rank || leaderboard.current_user_rank?.rank || null)
@@ -673,7 +704,20 @@ function App() {
     }
 
     loadLeaderboard()
-  }, [activeTab, user])
+  }, [activeTab, user, leaderboardPeriod])
+
+  useEffect(() => {
+    if (activeTab !== 'Leaderboard' || leaderboardPeriod !== 'weekly') {
+      return
+    }
+
+    setLeaderboardNowMs(Date.now())
+    const interval = window.setInterval(() => {
+      setLeaderboardNowMs(Date.now())
+    }, 60000)
+
+    return () => window.clearInterval(interval)
+  }, [activeTab, leaderboardPeriod])
 
   useEffect(() => {
     if (gameRoute !== '/game/war-mode/timer' || !warModeEndAt || !warModeSessionId) {
@@ -1986,6 +2030,26 @@ function App() {
           <div className="text-center pt-2">
             <h2 className="text-4xl font-black leading-tight tracking-tighter text-zinc-950">Leaderboard</h2>
             <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">You vs your weaker self.</p>
+            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
+              {leaderboardPeriod === 'weekly' ? getWeeklyResetCountdownLabel(leaderboardNowMs) : 'ALL-TIME WAR'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setLeaderboardPeriod('weekly')}
+              className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-widest transition ${leaderboardPeriod === 'weekly' ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
+            >
+              Weekly
+            </button>
+            <button
+              type="button"
+              onClick={() => setLeaderboardPeriod('all_time')}
+              className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-widest transition ${leaderboardPeriod === 'all_time' ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
+            >
+              All-Time
+            </button>
           </div>
 
           <div className="rounded-2xl border border-zinc-900 bg-zinc-900 p-4 text-white shadow-md">
@@ -1999,13 +2063,46 @@ function App() {
                 <h3 className="mt-1 text-2xl font-black">{yourRank ? `#${yourRank}` : '—'}</h3>
               </div>
             </div>
+            {showLeaderboardChaseWarning ? (
+              <p className="mt-3 text-xs font-semibold text-amber-300">
+                ⚠️ {secondPlaceEntry.name || 'A player'} is {leaderboardChaseGap} XP behind you. Don't stop.
+              </p>
+            ) : null}
           </div>
 
-          <h3 className="text-lg font-semibold text-zinc-900">Top 30 Players</h3>
+          <h3 className="text-lg font-semibold text-zinc-900">
+            {leaderboardPeriod === 'weekly' ? 'Top 30 This Week' : 'Top 30 Players'}
+          </h3>
 
           <div className="space-y-2.5">
             {leaderboardEntries.map((entry, index) => {
               const badge = rankMeta(entry.rank)
+              const previousEntry = index > 0 ? leaderboardEntries[index - 1] : null
+              const entryXpValue = leaderboardPeriod === 'weekly'
+                ? (entry.weekly_xp || 0)
+                : (entry.xp || 0)
+              const previousXpValue = previousEntry
+                ? (leaderboardPeriod === 'weekly' ? (previousEntry.weekly_xp || 0) : (previousEntry.xp || 0))
+                : 0
+              const xpGapToAbove = previousEntry ? Math.max(0, previousXpValue - entryXpValue) : 0
+              const aboveName = previousEntry?.is_current_user
+                ? 'you'
+                : (previousEntry?.name || 'the player above')
+              const rankChangeValue = leaderboardPeriod === 'weekly' ? (entry.rank_change ?? 0) : null
+              const rankChangeLabel = rankChangeValue === null
+                ? ''
+                : rankChangeValue > 0
+                  ? `↑${rankChangeValue}`
+                  : rankChangeValue < 0
+                    ? `↓${Math.abs(rankChangeValue)}`
+                    : '—'
+              const rankChangeClass = rankChangeValue === null
+                ? ''
+                : rankChangeValue > 0
+                  ? 'text-emerald-600'
+                  : rankChangeValue < 0
+                    ? 'text-red-600'
+                    : 'text-zinc-400'
 
               return (
                 <div
@@ -2024,9 +2121,19 @@ function App() {
                         {entry.is_current_user ? ' (You)' : ''}
                       </p>
                       <p className="text-[11px] font-semibold text-zinc-500">LV.{entry.level} • 🔥 {entry.streak}</p>
+                      {previousEntry ? (
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                          {xpGapToAbove} XP behind {aboveName} ↑
+                        </p>
+                      ) : null}
                     </div>
                   </div>
-                  <p className="text-sm font-black text-zinc-900">{entry.xp} XP</p>
+                  <div className="text-right">
+                    <p className="text-sm font-black text-zinc-900">{entryXpValue} XP</p>
+                    {leaderboardPeriod === 'weekly' ? (
+                      <p className={`mt-1 text-xs font-black ${rankChangeClass}`}>{rankChangeLabel}</p>
+                    ) : null}
+                  </div>
                 </div>
                 </div>
               )

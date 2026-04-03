@@ -292,10 +292,12 @@ class LeaderboardView(APIView):
 		serializer.is_valid(raise_exception=True)
 
 		limit = serializer.validated_data.get("limit", 20)
+		period = serializer.validated_data.get("period", "weekly")
 		current_user = request.user if request.user.is_authenticated else None
-		entries, current_user_rank, total_users = get_leaderboard(current_user, limit)
+		entries, current_user_rank, total_users = get_leaderboard(current_user, limit, period)
 		return Response(
 			{
+				"period": period,
 				"total_users": total_users,
 				"your_rank": current_user_rank["rank"] if current_user_rank else None,
 				"top_users": entries,

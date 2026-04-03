@@ -2,6 +2,7 @@ import math
 from datetime import date
 
 from django.db.models import DateField
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -327,25 +328,84 @@ def get_daily_tasks(user, date=None):
     return user_tasks
 
 
-def get_leaderboard(current_user=None, limit=20):
-    users = list(
-        User.objects.annotate(
-            recent_activity=Coalesce("last_active_date", date(1970, 1, 1), output_field=DateField()),
-        )
-        .order_by("-xp", "-streak", "-recent_activity", "created_at")
+def get_weekly_leaderboard_window(reference_time=None):
+    now = reference_time or timezone.localtime()
+    week_start = (now - timezone.timedelta(days=now.weekday())).replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
     )
+    week_end = week_start + timezone.timedelta(days=7)
+    return week_start, week_end
+
+
+def get_leaderboard(current_user=None, limit=20, period="weekly"):
+    is_weekly = period == "weekly"
+    users_query = User.objects.annotate(
+        recent_activity=Coalesce("last_active_date", date(1970, 1, 1), output_field=DateField()),
+    )
+    previous_rank_by_user_id = {}
+
+    if is_weekly:
+        week_start, week_end = get_weekly_leaderboard_window()
+        today_start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+        users_query = users_query.annotate(
+            weekly_xp=Coalesce(
+                Sum(
+                    "xp_logs__amount",
+                    filter=Q(
+                        xp_logs__created_at__gte=week_start,
+                        xp_logs__created_at__lt=week_end,
+                    ),
+                ),
+                0,
+            )
+        ).order_by("-weekly_xp", "-streak", "-recent_activity", "created_at")
+
+        previous_users = list(
+            User.objects.annotate(
+                recent_activity=Coalesce("last_active_date", date(1970, 1, 1), output_field=DateField()),
+            )
+            .annotate(
+                weekly_xp=Coalesce(
+                    Sum(
+                        "xp_logs__amount",
+                        filter=Q(
+                            xp_logs__created_at__gte=week_start,
+                            xp_logs__created_at__lt=today_start,
+                        ),
+                    ),
+                    0,
+                )
+            )
+            .order_by("-weekly_xp", "-streak", "-recent_activity", "created_at")
+        )
+        previous_rank_by_user_id = {
+            user.id: index
+            for index, user in enumerate(previous_users, start=1)
+        }
+    else:
+        users_query = users_query.order_by("-xp", "-streak", "-recent_activity", "created_at")
+
+    users = list(users_query)
 
     total_users = len(users)
 
     entries = []
     current_user_rank = None
     for index, user in enumerate(users, start=1):
+        previous_rank = previous_rank_by_user_id.get(user.id)
+        rank_change = (previous_rank - index) if previous_rank is not None else 0
+
         entry = {
             "rank": index,
             "user_id": str(user.id),
             "name": user.name,
             "email": user.email,
             "xp": user.xp,
+            "weekly_xp": int(getattr(user, "weekly_xp", 0)) if is_weekly else None,
+            "rank_change": rank_change if is_weekly else None,
             "level": user.level,
             "streak": user.streak,
             "last_active_date": user.last_active_date,

@@ -76,6 +76,7 @@ class DailyTasksQuerySerializer(serializers.Serializer):
 
 class LeaderboardQuerySerializer(serializers.Serializer):
     limit = serializers.IntegerField(required=False, min_value=1, max_value=100, default=20)
+    period = serializers.ChoiceField(choices=["weekly", "all_time"], required=False, default="weekly")
 
 
 class BootstrapUserInputSerializer(serializers.Serializer):
