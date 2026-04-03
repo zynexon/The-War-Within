@@ -95,6 +95,23 @@ function GameHubPage({ onBack, onNavigate }) {
           Memorize 5x5 patterns across 3 rounds.
         </p>
       </div>
+
+      <div
+        className="p-4 rounded-2xl border cursor-pointer"
+        onClick={() => onNavigate('/game/reverse-order')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            onNavigate('/game/reverse-order')
+          }
+        }}
+      >
+        <h2 className="text-lg font-semibold">Reverse Order</h2>
+        <p className="text-sm text-gray-500 whitespace-nowrap">
+          Apply rules. Pick final sequence.
+        </p>
+      </div>
     </section>
   )
 }

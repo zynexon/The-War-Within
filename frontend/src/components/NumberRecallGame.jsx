@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 const SEQUENCE_LENGTH = 7
 const SHOW_DURATION_MS = 2000
+const TOTAL_ROUNDS = 3
 
 function createSequence(length = SEQUENCE_LENGTH) {
   return Array.from({ length }, () => Math.floor(Math.random() * 10))
@@ -11,6 +12,7 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
   const [sequence, setSequence] = useState([])
   const [userInput, setUserInput] = useState([])
   const [phase, setPhase] = useState('idle')
+  const [currentRound, setCurrentRound] = useState(1)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [result, setResult] = useState(null)
   const [hasReportedResult, setHasReportedResult] = useState(false)
@@ -26,18 +28,27 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
     }
   }, [])
 
-  async function startGame() {
+  function startRound(roundNumber) {
     if (timerRef.current) {
       window.clearTimeout(timerRef.current)
     }
 
     const nextSequence = createSequence()
+    setCurrentRound(roundNumber)
     setSequence(nextSequence)
     setUserInput([])
     setCurrentIndex(0)
+    setPhase('show')
+
+    timerRef.current = window.setTimeout(() => {
+      setPhase('input')
+    }, SHOW_DURATION_MS)
+  }
+
+  async function startGame() {
     setResult(null)
     setHasReportedResult(false)
-    setPhase('show')
+    setCurrentRound(1)
 
     if (onGameStart) {
       const started = await onGameStart()
@@ -47,9 +58,7 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
       }
     }
 
-    timerRef.current = window.setTimeout(() => {
-      setPhase('input')
-    }, SHOW_DURATION_MS)
+    startRound(1)
   }
 
   async function finalizeGame(nextResult) {
@@ -83,12 +92,23 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
       setCurrentIndex(nextIndex)
 
       if (nextInput.length === sequence.length) {
+        if (currentRound < TOTAL_ROUNDS) {
+          setPhase('round-complete')
+          timerRef.current = window.setTimeout(() => {
+            startRound(currentRound + 1)
+          }, 700)
+          return
+        }
+
         void finalizeGame('win')
       }
       return
     }
 
-    void finalizeGame('lose')
+    setPhase('round-reset')
+    timerRef.current = window.setTimeout(() => {
+      startRound(currentRound)
+    }, 900)
   }
 
   return (
@@ -105,6 +125,9 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
         <h2 className="text-2xl font-black tracking-tight text-zinc-950">Number Recall</h2>
         <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-zinc-500">
           Memorize 7 digits in 2 seconds
+        </p>
+        <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+          Round {currentRound}/{TOTAL_ROUNDS}
         </p>
       </div>
 
@@ -160,6 +183,18 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
         </div>
       ) : null}
 
+      {phase === 'round-complete' ? (
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm text-center">
+          <p className="text-sm font-bold text-emerald-700">Round cleared. Next round...</p>
+        </div>
+      ) : null}
+
+      {phase === 'round-reset' ? (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-5 shadow-sm text-center">
+          <p className="text-sm font-bold text-red-700">Wrong input. Resetting this round...</p>
+        </div>
+      ) : null}
+
       {phase === 'submitting' ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-2">
@@ -173,7 +208,7 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-3">
             {result === 'win' ? (
-              <h3 className="text-2xl font-black text-green-600">You got it right 🎉</h3>
+              <h3 className="text-2xl font-black text-green-600">You cleared all 3 rounds 🎉</h3>
             ) : (
               <h3 className="text-2xl font-black text-red-600">Game Over ❌</h3>
             )}

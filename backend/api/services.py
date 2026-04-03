@@ -28,6 +28,7 @@ MAX_DAILY_GAME_XP_BY_TYPE = {
     "number_recall": 50,
     "color_count_focus": 60,
     "speed_pattern": 100,
+    "reverse_order": 75,
 }
 DAILY_TASK_COUNT = 5
 GAME_MIN_DURATION_SECONDS = 20
@@ -38,6 +39,7 @@ GAME_MIN_DURATION_SECONDS_BY_TYPE = {
     "number_recall": 2,
     "color_count_focus": 6,
     "speed_pattern": 2,
+    "reverse_order": 0,
     "war_mode_skirmish": 1400,
     "war_mode_battle": 2600,
     "war_mode_full_war": 3500,
@@ -48,6 +50,7 @@ GAME_MAX_DURATION_SECONDS_BY_TYPE = {
     "number_recall": 180,
     "color_count_focus": 180,
     "speed_pattern": 300,
+    "reverse_order": 600,
     "war_mode_skirmish": 2400,
     "war_mode_battle": 4200,
     "war_mode_full_war": 5400,
@@ -58,6 +61,7 @@ GAME_MAX_SCORE_BY_TYPE = {
     "number_recall": 1,
     "color_count_focus": 8,
     "speed_pattern": 1,
+    "reverse_order": 1,
     "war_mode_skirmish": 1,
     "war_mode_battle": 1,
     "war_mode_full_war": 1,
@@ -213,6 +217,9 @@ def validate_game_duration(game_type, duration_seconds):
 
 
 def calculate_game_session_xp_for_type(game_type, score):
+    if game_type == "reverse_order":
+        return 15 if score >= 1 else 0
+
     if game_type in WAR_MODE_DURATION_BY_GAME_TYPE:
         duration_key = WAR_MODE_DURATION_BY_GAME_TYPE[game_type]
         return WAR_MODE_XP_BY_DURATION[duration_key]

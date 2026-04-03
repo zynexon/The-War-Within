@@ -5,6 +5,7 @@ import ColorCountFocusGame from './components/ColorCountFocusGame'
 import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
 import NumberRecallGame from './components/NumberRecallGame'
+import ReverseOrderGame from './components/ReverseOrderGame'
 import SpeedPatternGame from './components/SpeedPatternGame'
 import AuthPage from './components/pages/AuthPage'
 import GameHubPage from './components/pages/GameHubPage'
@@ -347,6 +348,11 @@ function App() {
   const [warModeHonestyMessage, setWarModeHonestyMessage] = useState('')
   const [warModeSurrenderConfirmOpen, setWarModeSurrenderConfirmOpen] = useState(false)
   const [warModeResult, setWarModeResult] = useState(null)
+  const [reverseOrderSessionId, setReverseOrderSessionId] = useState('')
+  const [reverseOrderSubmitting, setReverseOrderSubmitting] = useState(false)
+  const [reverseOrderXpAwarded, setReverseOrderXpAwarded] = useState(null)
+  const [reverseOrderResult, setReverseOrderResult] = useState(null)
+  const [reverseOrderError, setReverseOrderError] = useState('')
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [bestStreak, setBestStreak] = useState(0)
   const [entry, setEntry] = useState({
@@ -947,6 +953,11 @@ function App() {
         setGameRoute('/game/speed-pattern')
         return
       }
+      if (path === '/game/reverse-order') {
+        setActiveTab('Game')
+        setGameRoute('/game/reverse-order')
+        return
+      }
       if (path === '/game/war-mode') {
         setActiveTab('Game')
         setGameRoute('/game/war-mode')
@@ -1153,6 +1164,11 @@ function App() {
     setSpeedPatternXpAwarded(null)
     setSpeedPatternResult(null)
     setSpeedPatternError('')
+    setReverseOrderSessionId('')
+    setReverseOrderSubmitting(false)
+    setReverseOrderXpAwarded(null)
+    setReverseOrderResult(null)
+    setReverseOrderError('')
     setEntry({ did_you_win_today: '', where_did_you_fail_yourself: '', mental_state: '' })
     setSavedEntry(null)
     setJournalLoading(true)
@@ -1648,6 +1664,67 @@ function App() {
       return undefined
     } finally {
       setSpeedPatternSubmitting(false)
+    }
+  }
+
+  async function handleReverseOrderStart() {
+    try {
+      setReverseOrderError('')
+      setReverseOrderXpAwarded(null)
+      setReverseOrderResult(null)
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'reverse_order' }),
+      })
+      setReverseOrderSessionId(data.session_id)
+      return true
+    } catch (error) {
+      setReverseOrderSessionId('')
+      setReverseOrderError(error.message || 'Could not start Reverse Order session.')
+      return false
+    }
+  }
+
+  async function handleReverseOrderFinish(result) {
+    if (!result || !reverseOrderSessionId) {
+      return null
+    }
+
+    setReverseOrderSubmitting(true)
+    try {
+      setReverseOrderError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: reverseOrderSessionId,
+          score: result.score,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const refreshedUser = await authedFetch('/api/auth/me/')
+      setUser(refreshedUser)
+      setStreakDays(refreshedUser.streak)
+      setReverseOrderXpAwarded(data.xp_awarded)
+      const meta = {
+        xpAwarded: data.xp_awarded,
+        dailyCap: data.daily_cap,
+        remainingToday: data.remaining_today,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+        todayGameXpBefore: data.today_game_xp_before,
+      }
+      setReverseOrderResult(meta)
+      setReverseOrderSessionId('')
+      if (data.xp_awarded > 0) {
+        setInstallEligible(true)
+      }
+      return meta
+    } catch (error) {
+      setReverseOrderError(error.message || 'Could not submit Reverse Order result.')
+      return null
+    } finally {
+      setReverseOrderSubmitting(false)
     }
   }
 
@@ -2220,6 +2297,16 @@ function App() {
             awardedXp={speedPatternXpAwarded}
             resultMeta={speedPatternResult}
             errorText={speedPatternError}
+          />
+        ) : gameRoute === '/game/reverse-order' ? (
+          <ReverseOrderGame
+            onMainMenu={() => navigate('/game')}
+            onGameStart={handleReverseOrderStart}
+            onGameFinished={handleReverseOrderFinish}
+            submitting={reverseOrderSubmitting}
+            awardedXp={reverseOrderXpAwarded}
+            resultMeta={reverseOrderResult}
+            errorText={reverseOrderError}
           />
         ) : (
           <GameHubPage onBack={() => navigate('/')} onNavigate={navigate} />
