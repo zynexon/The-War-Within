@@ -146,6 +146,14 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
 
   return (
     <section className="space-y-5">
+      <button
+        type="button"
+        onClick={onMainMenu}
+        className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
+      >
+        ← Back
+      </button>
+
       {!gameOver && !gameWon ? (
         <>
           <div className="text-center pt-2">

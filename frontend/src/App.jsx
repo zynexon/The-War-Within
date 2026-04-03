@@ -2086,9 +2086,9 @@ function App() {
             <button
               type="button"
               onClick={() => navigate('/game')}
-              className="text-xs font-bold uppercase tracking-widest text-zinc-500"
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
             >
-              Back to Games
+              ← Back
             </button>
 
             <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm text-center">
