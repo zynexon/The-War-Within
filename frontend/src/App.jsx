@@ -311,6 +311,7 @@ function App() {
   } = useGameSession(BEST_GAME_SCORE_KEY, LAST_TRAINING_RESULT_KEY)
 
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [totalPlayers, setTotalPlayers] = useState(0)
   const [yourRank, setYourRank] = useState(null)
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
@@ -598,6 +599,7 @@ function App() {
     }
 
     async function loadLeaderboard() {
+      setLeaderboardLoading(true)
       try {
         const leaderboard = await authedFetch('/api/leaderboard/?limit=30')
         setLeaderboardEntries(leaderboard.top_users || leaderboard.entries || [])
@@ -605,6 +607,8 @@ function App() {
         setYourRank(leaderboard.your_rank || leaderboard.current_user_rank?.rank || null)
       } catch (error) {
         console.error('Failed to load leaderboard:', error)
+      } finally {
+        setLeaderboardLoading(false)
       }
     }
 
@@ -1611,7 +1615,7 @@ function App() {
               )
             })}
             {!isLoading && leaderboardEntries.length === 0 ? (
-              <p className="text-sm text-zinc-500">No leaderboard data yet.</p>
+              <p className="text-sm text-zinc-500">{leaderboardLoading ? 'Loading leaderboard data..' : 'No leaderboard data yet.'}</p>
             ) : null}
           </div>
         </section>
