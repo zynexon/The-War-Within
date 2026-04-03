@@ -33,7 +33,7 @@ const DAILY_TRAINING_GAMES = [
   'Color Count',
   'Speed Pattern',
 ]
-const LEADERBOARD_CHASE_WARNING_XP = 200
+const LEADERBOARD_CHASE_WARNING_XP = 100
 const WAR_MODE_OPTIONS = {
   skirmish: {
     title: 'Skirmish',
@@ -540,6 +540,13 @@ function App() {
       return {
         icon: '🥉',
         className: 'bg-orange-100 text-orange-700 ring-1 ring-orange-300',
+      }
+    }
+
+    if (rank >= 4 && rank <= 10) {
+      return {
+        icon: null,
+        className: 'bg-zinc-900 text-white ring-1 ring-zinc-700',
       }
     }
 
@@ -2029,7 +2036,7 @@ function App() {
         <section className="space-y-4">
           <div className="text-center pt-2">
             <h2 className="text-4xl font-black leading-tight tracking-tighter text-zinc-950">Leaderboard</h2>
-            <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">You vs your weaker self.</p>
+            <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">{totalPlayers} WARRIORS. ONE THRONE.</p>
             <p className="mt-2 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
               {leaderboardPeriod === 'weekly' ? getWeeklyResetCountdownLabel(leaderboardNowMs) : 'ALL-TIME WAR'}
             </p>
@@ -2071,7 +2078,7 @@ function App() {
           </div>
 
           <h3 className="text-lg font-semibold text-zinc-900">
-            {leaderboardPeriod === 'weekly' ? 'Top 30 This Week' : 'Top 30 Players'}
+            THE WARBOARD
           </h3>
 
           <div className="space-y-2.5">
@@ -2085,6 +2092,7 @@ function App() {
                 ? (leaderboardPeriod === 'weekly' ? (previousEntry.weekly_xp || 0) : (previousEntry.xp || 0))
                 : 0
               const xpGapToAbove = previousEntry ? Math.max(0, previousXpValue - entryXpValue) : 0
+              const isDangerCloseGap = previousEntry ? xpGapToAbove < 50 : false
               const aboveName = previousEntry?.is_current_user
                 ? 'you'
                 : (previousEntry?.name || 'the player above')
@@ -2122,7 +2130,7 @@ function App() {
                       </p>
                       <p className="text-[11px] font-semibold text-zinc-500">LV.{entry.level} • 🔥 {entry.streak}</p>
                       {previousEntry ? (
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                        <p className={`mt-1 text-[10px] font-bold uppercase tracking-widest ${isDangerCloseGap ? 'text-amber-600' : 'text-zinc-500'}`}>
                           {xpGapToAbove} XP behind {aboveName} ↑
                         </p>
                       ) : null}
