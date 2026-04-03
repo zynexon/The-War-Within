@@ -7,7 +7,7 @@ function GameHubPage({ onBack, onNavigate }) {
           onClick={onBack}
           className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
         >
-          Back
+          ← Back
         </button>
       </div>
 
@@ -25,23 +25,6 @@ function GameHubPage({ onBack, onNavigate }) {
         <h2 className="text-lg font-semibold">Quick Math</h2>
         <p className="text-sm text-gray-500">
           Solve as many as you can in 30 seconds
-        </p>
-      </div>
-
-      <div
-        className="p-4 rounded-2xl border mb-4 cursor-pointer bg-zinc-900 text-white"
-        onClick={() => onNavigate('/game/war-mode')}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            onNavigate('/game/war-mode')
-          }
-        }}
-      >
-        <h2 className="text-lg font-semibold">War Mode</h2>
-        <p className="text-sm text-zinc-300">
-          Deep focus timer. Quit early, earn nothing.
         </p>
       </div>
 

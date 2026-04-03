@@ -19,7 +19,7 @@ function TasksPage({
           onClick={onBack}
           className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
         >
-          Back
+          ← Back
         </button>
       </section>
 

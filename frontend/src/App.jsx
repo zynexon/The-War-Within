@@ -32,7 +32,6 @@ const DAILY_TRAINING_GAMES = [
   'Color Count',
   'Speed Pattern',
 ]
-const WAR_MODE_QUOTE_ROTATION_MS = 120000
 const WAR_MODE_OPTIONS = {
   skirmish: {
     title: 'Skirmish',
@@ -342,7 +341,6 @@ function App() {
   const [warModeSessionId, setWarModeSessionId] = useState('')
   const [warModeEndAt, setWarModeEndAt] = useState(0)
   const [warModeRemainingSeconds, setWarModeRemainingSeconds] = useState(0)
-  const [warModeQuoteIndex, setWarModeQuoteIndex] = useState(0)
   const [warModeSubmitting, setWarModeSubmitting] = useState(false)
   const [warModeError, setWarModeError] = useState('')
   const [warModeCompletionReady, setWarModeCompletionReady] = useState(false)
@@ -404,16 +402,6 @@ function App() {
     const dayNumber = Math.floor(Date.now() / 86400000)
     return DAILY_TRAINING_GAMES[dayNumber % DAILY_TRAINING_GAMES.length]
   }, [])
-  const warModeQuotes = useMemo(
-    () => [
-      ...DAILY_WISDOM,
-      'The war is won in minutes no one sees.',
-      'Silence your impulses. Finish the block.',
-      'You said you would. Now prove it.',
-      'Distraction is surrender in disguise.',
-    ],
-    [],
-  )
 
   useEffect(() => {
     const parsedStoredBest = Number(localStorage.getItem(bestStreakStorageKey) || '0')
@@ -453,7 +441,6 @@ function App() {
     setWarModeSessionId('')
     setWarModeEndAt(0)
     setWarModeRemainingSeconds(0)
-    setWarModeQuoteIndex(0)
     setWarModeSubmitting(false)
     setWarModeError('')
     setWarModeCompletionReady(false)
@@ -696,18 +683,6 @@ function App() {
     const interval = window.setInterval(syncRemaining, 1000)
     return () => window.clearInterval(interval)
   }, [gameRoute, warModeEndAt, warModeSessionId])
-
-  useEffect(() => {
-    if (gameRoute !== '/game/war-mode/timer' || !warModeSessionId) {
-      return
-    }
-
-    const interval = window.setInterval(() => {
-      setWarModeQuoteIndex((previous) => (previous + 1) % warModeQuotes.length)
-    }, WAR_MODE_QUOTE_ROTATION_MS)
-
-    return () => window.clearInterval(interval)
-  }, [gameRoute, warModeSessionId, warModeQuotes.length])
 
   useEffect(() => {
     if (
@@ -1251,7 +1226,6 @@ function App() {
     }
 
     setWarModeSelection(durationKey)
-    setWarModeQuoteIndex(0)
     setWarModeResult(null)
     setWarModeError('')
     setWarModeCompletionReady(false)
@@ -1733,7 +1707,6 @@ function App() {
 
   if (activeTab === 'Game' && gameRoute === '/game/war-mode/timer') {
     const selectedMode = WAR_MODE_OPTIONS[warModeSelection]
-    const rotatingQuote = warModeQuotes[warModeQuoteIndex % warModeQuotes.length]
     const showHonestyPrompt = warModeCompletionReady && !warModeSubmitting && !warModeResult && !warModeHonestyMessage
 
     return (
@@ -1747,18 +1720,10 @@ function App() {
             {formatWarModeTimer(warModeRemainingSeconds)}
           </p>
 
-          <p className="mt-8 text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">
-            {rotatingQuote}
-          </p>
-
           <p className="mt-4 text-sm font-semibold text-zinc-300">
             You said you would.
             <br />
             Now prove it.
-          </p>
-
-          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-            Lock your screen. The timer runs in the background.
           </p>
 
           {warModeError ? <p className="mt-4 text-xs font-semibold text-red-400">{warModeError}</p> : null}
@@ -2075,9 +2040,9 @@ function App() {
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="text-xs font-bold uppercase tracking-widest text-zinc-500"
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
             >
-              Back
+              ← Back
             </button>
 
             <div className="rounded-3xl border border-zinc-900 bg-zinc-900 p-5 text-white shadow-lg">
@@ -2105,9 +2070,12 @@ function App() {
               ))}
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+            <div className="px-1 pt-1">
               <p className="text-xs font-semibold text-zinc-600">
                 This only works if you're honest with yourself. The XP means nothing if you didn't earn it.
+              </p>
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                Lock your screen. The timer runs in the background.
               </p>
             </div>
 
