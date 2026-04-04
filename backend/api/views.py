@@ -268,12 +268,17 @@ class GameSubmitView(APIView):
 		session.score = score
 		session.xp_awarded = xp_awarded
 		session.save(update_fields=["ended_at", "score", "xp_awarded"])
+		milestone_shields_awarded = 0
+		war_mode_shields_awarded = 0
 
 		if xp_awarded > 0:
-			increment_user_xp(user, xp_awarded)
+			milestone_shields_awarded = increment_user_xp(user, xp_awarded)
 			if session.game_type == "war_mode_full_war":
-				grant_streak_shields(user, 1)
-				user.save(update_fields=["streak_shields"])
+				war_mode_shields_awarded = grant_streak_shields(user, 1)
+				if war_mode_shields_awarded > 0:
+					user.save(update_fields=["streak_shields"])
+
+		total_shields_awarded = milestone_shields_awarded + war_mode_shields_awarded
 
 		create_xp_log(user, XPLog.SOURCE_GAME, xp_awarded)
 		update_streak(user)
@@ -291,6 +296,9 @@ class GameSubmitView(APIView):
 				"total_xp": user.xp,
 				"level": user.level,
 				"streak_shields": user.streak_shields,
+				"xp_milestone_shields_awarded": milestone_shields_awarded,
+				"war_mode_shields_awarded": war_mode_shields_awarded,
+				"total_shields_awarded": total_shields_awarded,
 			}
 		)
 
@@ -458,7 +466,7 @@ class AddGameXPView(APIView):
 			)
 
 		granted = min(requested_xp, remaining)
-		increment_user_xp(user, granted)
+		milestone_shields_awarded = increment_user_xp(user, granted)
 		create_xp_log(user, XPLog.SOURCE_GAME, granted)
 		update_streak(user)
 
@@ -477,6 +485,9 @@ class AddGameXPView(APIView):
 				"level": user.level,
 				"total_xp": user.xp,
 				"streak": user.streak,
+				"streak_shields": user.streak_shields,
+				"xp_milestone_shields_awarded": milestone_shields_awarded,
+				"total_shields_awarded": milestone_shields_awarded,
 			},
 			status=response_status,
 		)

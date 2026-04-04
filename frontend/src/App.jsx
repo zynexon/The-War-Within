@@ -1321,6 +1321,9 @@ function App() {
         xpAwarded: data.xp_awarded,
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
+      if ((data.total_shields_awarded || 0) > 0) {
+        setShieldEarnedNotice('🛡️ Shield earned. Full War rewarded.')
+      }
       setWarModeSessionId('')
       setWarModeCompletionReady(false)
       setWarModeHonestyMessage('')
