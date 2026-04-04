@@ -9,7 +9,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
-from .models import DailyTaskSet, GameSession, Task, User, UserTask, XPLog
+from .models import DailyTaskSet, GameSession, JournalEntry, Task, User, UserTask, XPLog
 
 
 MAX_DAILY_GAME_XP = 50
@@ -496,6 +496,7 @@ def get_leaderboard(current_user=None, limit=20, period="weekly"):
             "rank_change": rank_change if is_weekly else None,
             "level": user.level,
             "streak": user.streak,
+            "equipped_badge": user.equipped_badge,
             "last_active_date": user.last_active_date,
             "is_current_user": bool(current_user) and user.id == current_user.id,
         }
@@ -507,3 +508,35 @@ def get_leaderboard(current_user=None, limit=20, period="weekly"):
             entries.append(entry)
 
     return entries, current_user_rank, total_users
+
+
+def get_user_stats(user):
+    total_tasks = UserTask.objects.filter(
+        user=user,
+        completed=True,
+    ).count()
+
+    war_sessions = GameSession.objects.filter(
+        user=user,
+        game_type__in=WAR_MODE_GAME_TYPES,
+        ended_at__isnull=False,
+        xp_awarded__gt=0,
+    ).count()
+
+    full_war_sessions = GameSession.objects.filter(
+        user=user,
+        game_type="war_mode_full_war",
+        ended_at__isnull=False,
+        xp_awarded__gt=0,
+    ).count()
+
+    journal_count = JournalEntry.objects.filter(
+        user=user,
+    ).count()
+
+    return {
+        "total_tasks_completed": total_tasks,
+        "war_mode_sessions": war_sessions,
+        "full_war_sessions": full_war_sessions,
+        "journal_entries": journal_count,
+    }

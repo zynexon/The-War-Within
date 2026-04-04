@@ -105,7 +105,16 @@ class UpdateNameInputSerializer(serializers.Serializer):
         return cleaned
 
 
+class EquipBadgeInputSerializer(serializers.Serializer):
+    badge_id = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+
+
 class UserSerializer(serializers.ModelSerializer):
+    total_tasks_completed = serializers.SerializerMethodField()
+
+    def get_total_tasks_completed(self, obj):
+        return obj.user_tasks.filter(completed=True).count()
+
     class Meta:
         model = User
         fields = [
@@ -115,8 +124,10 @@ class UserSerializer(serializers.ModelSerializer):
             "xp",
             "level",
             "streak",
+            "equipped_badge",
             "streak_shields",
             "shield_used_today",
+            "total_tasks_completed",
             "last_active_date",
             "created_at",
         ]

@@ -92,38 +92,30 @@ function getLevelTitle(level) {
   return LEVEL_TITLES[level] || 'Civilian'
 }
 
-function getBadges(user) {
-  const badges = []
+const BADGES = [
+  { id: 'streak_5', icon: '🔥', title: 'On Fire', desc: 'Maintain a 5-day streak.', check: (s) => s.streak >= 5 },
+  { id: 'streak_10', icon: '⚡', title: 'Unstoppable', desc: 'Maintain a 10-day streak.', check: (s) => s.streak >= 10 },
+  { id: 'streak_30', icon: '💀', title: 'No Days Off', desc: 'Maintain a 30-day streak.', check: (s) => s.streak >= 30 },
+  { id: 'tasks_10', icon: '✅', title: 'Getting Started', desc: 'Complete 10 tasks.', check: (s) => s.totalTasksCompleted >= 10 },
+  { id: 'tasks_50', icon: '⚔️', title: 'Disciplined', desc: 'Complete 50 tasks.', check: (s) => s.totalTasksCompleted >= 50 },
+  { id: 'tasks_100', icon: '🛡️', title: 'Iron Discipline', desc: 'Complete 100 tasks.', check: (s) => s.totalTasksCompleted >= 100 },
+  { id: 'level_5', icon: '🎖️', title: 'Veteran', desc: 'Reach Level 5.', check: (s) => s.level >= 5 },
+  { id: 'level_10', icon: '🏴', title: 'ZYNEXON', desc: 'Reach Level 10. The final rank.', check: (s) => s.level >= 10 },
+  { id: 'war_1', icon: '🪖', title: 'First Blood', desc: 'Complete your first War Mode.', check: (s) => s.warModeSessions >= 1 },
+  { id: 'war_5', icon: '🔫', title: 'Warmonger', desc: 'Complete 5 War Mode sessions.', check: (s) => s.warModeSessions >= 5 },
+  { id: 'war_full_5', icon: '💣', title: 'Full War', desc: 'Complete 5 Full War sessions.', check: (s) => s.fullWarSessions >= 5 },
+  { id: 'xp_500', icon: '💰', title: 'Grinder', desc: 'Earn 500 total XP.', check: (s) => s.xp >= 500 },
+  { id: 'xp_1000', icon: '💎', title: 'Elite Earner', desc: 'Earn 1000 total XP.', check: (s) => s.xp >= 1000 },
+  { id: 'shield_max', icon: '🛡️', title: 'Fortified', desc: 'Hold 3 Shields at once.', check: (s) => s.streak_shields >= 3 },
+  { id: 'journal_7', icon: '📖', title: 'Self Aware', desc: 'Write 7 journal entries.', check: (s) => s.journalStreak >= 7 },
+]
 
-  if (user.level >= 1) {
-    badges.push({ title: 'Civilian', icon: '⭐' })
-  }
+function getBadges(stats) {
+  return BADGES.filter((badge) => badge.check(stats))
+}
 
-  if (user.streak >= 3) {
-    badges.push({ title: 'Consistent', icon: '🔥' })
-  }
-
-  if (user.level >= 3) {
-    badges.push({ title: 'Soldier', icon: '🪖' })
-  }
-
-  if (user.xp >= 500) {
-    badges.push({ title: 'Elite', icon: '🧠' })
-  }
-
-  if (user.level >= 5) {
-    badges.push({ title: 'Veteran', icon: '🎖️' })
-  }
-
-  if (user.level >= 7) {
-    badges.push({ title: 'Commander', icon: '⚔️' })
-  }
-
-  if (user.level >= 10) {
-    badges.push({ title: 'ZYNEXON', icon: '🏴' })
-  }
-
-  return badges
+function getBadgeIcon(badgeId) {
+  return BADGES.find((badge) => badge.id === badgeId)?.icon || null
 }
 
 function OptionGrid({ title, options, value, onSelect }) {
@@ -439,7 +431,23 @@ function App() {
   const profileProgressXp = Math.max(0, xp - profileCurrentLevelXp)
   const profileNeededXp = Math.max(1, profileNextLevelXp - profileCurrentLevelXp)
   const profileProgressPercent = Math.min(100, Math.max(0, (profileProgressXp / profileNeededXp) * 100))
-  const earnedBadges = getBadges({ level, streak: streakDays, xp })
+  const streakShields = Math.max(0, Math.min(MAX_STREAK_SHIELDS, user?.streak_shields || 0))
+  const totalTasksCompleted = Number.isFinite(user?.total_tasks_completed)
+    ? user.total_tasks_completed
+    : tasks.filter((task) => task.completed).length
+  const badgeStats = {
+    level,
+    xp,
+    streak: streakDays,
+    streak_shields: streakShields,
+    totalTasksCompleted: user?.total_tasks_completed || 0,
+    warModeSessions: user?.war_mode_sessions || 0,
+    fullWarSessions: user?.full_war_sessions || 0,
+    journalStreak: user?.journal_entries || 0,
+  }
+  const earnedBadges = getBadges(badgeStats)
+  const earnedBadgeIds = new Set(earnedBadges.map((badge) => badge.id))
+  const equippedBadgeMeta = BADGES.find((badge) => badge.id === equippedBadge) || null
   const showQuickMathResult = activeTab === 'Game' && gameRoute === '/game/quick-math' && (Boolean(gameResult) || gameSubmitting)
   const showFocusTapResult = activeTab === 'Game' && gameRoute === '/game/focus-tap' && (Boolean(focusTapResult) || focusTapSubmitting)
   const showNumberRecallResult = activeTab === 'Game' && gameRoute === '/game/number-recall' && (Boolean(numberRecallResult) || numberRecallSubmitting)
@@ -478,7 +486,6 @@ function App() {
     && secondPlaceEntry
     && leaderboardChaseGap <= LEADERBOARD_CHASE_WARNING_XP,
   )
-  const streakShields = Math.max(0, Math.min(MAX_STREAK_SHIELDS, user?.streak_shields || 0))
   const shieldUsedToday = Boolean(user?.shield_used_today)
   const shieldBannerStorageKey = user?.id
     ? `zynexon_shield_banner_seen_${user.id}_${getTodayStorageKeyDate()}`
@@ -718,6 +725,12 @@ function App() {
         setUser(user)
         setUserName(user.name || '')
         setUserEmail(user.email)
+        setEquippedBadge(user.equipped_badge || null)
+        if (user.equipped_badge) {
+          localStorage.setItem('badge', user.equipped_badge)
+        } else {
+          localStorage.removeItem('badge')
+        }
         setLevel(user.level)
         setXp(user.xp)
         setStreakDays(user.streak)
@@ -983,11 +996,25 @@ function App() {
   }, [installEligible, deferredPrompt, isInstalled])
 
   useEffect(() => {
+    if (!user) {
+      return
+    }
+
+    const serverBadge = user.equipped_badge || null
+    setEquippedBadge(serverBadge)
+    if (serverBadge) {
+      localStorage.setItem('badge', serverBadge)
+    } else {
+      localStorage.removeItem('badge')
+    }
+  }, [user])
+
+  useEffect(() => {
     if (!equippedBadge) {
       return
     }
 
-    const stillEarned = earnedBadges.some((badge) => badge.title === equippedBadge)
+    const stillEarned = earnedBadges.some((badge) => badge.id === equippedBadge)
     if (!stillEarned) {
       setEquippedBadge(null)
       localStorage.removeItem('badge')
@@ -1249,8 +1276,10 @@ function App() {
   function handleLogout() {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
+    localStorage.removeItem('badge')
     setAccessToken('')
     setUser(null)
+    setEquippedBadge(null)
     setTasks([])
     setUserName('')
     setUserEmail('')
@@ -1536,6 +1565,9 @@ function App() {
             level: data.level,
             streak: data.streak,
             streak_shields: data.streak_shields ?? currentUser.streak_shields,
+            total_tasks_completed: typeof data.total_tasks_completed === 'number'
+              ? data.total_tasks_completed
+              : (currentUser.total_tasks_completed || 0) + 1,
           }
           : currentUser
       ))
@@ -1557,6 +1589,49 @@ function App() {
 
   function handleConfirmNo() {
     setSelectedTask(null)
+  }
+
+  async function handleToggleBadge(badgeId, earned) {
+    if (!earned) {
+      return
+    }
+
+    const previousBadge = equippedBadge
+    const nextBadge = equippedBadge === badgeId ? null : badgeId
+    setEquippedBadge(nextBadge)
+    if (nextBadge) {
+      localStorage.setItem('badge', nextBadge)
+    } else {
+      localStorage.removeItem('badge')
+    }
+
+    try {
+      const data = await authedFetch('/api/user/equip-badge/', {
+        method: 'PATCH',
+        body: JSON.stringify({ badge_id: nextBadge }),
+      })
+
+      const persisted = data?.equipped_badge || null
+      setEquippedBadge(persisted)
+      setUser((currentUser) => (
+        currentUser
+          ? { ...currentUser, equipped_badge: persisted }
+          : currentUser
+      ))
+      if (persisted) {
+        localStorage.setItem('badge', persisted)
+      } else {
+        localStorage.removeItem('badge')
+      }
+    } catch (error) {
+      setEquippedBadge(previousBadge)
+      if (previousBadge) {
+        localStorage.setItem('badge', previousBadge)
+      } else {
+        localStorage.removeItem('badge')
+      }
+      setErrorText(error.message || 'Could not equip badge.')
+    }
   }
 
   async function handleFocusTapStart() {
@@ -2231,6 +2306,9 @@ function App() {
                           {getLevelTitle(entry.level)}
                         </span>
                         {' '}• 🔥 {entry.streak}
+                        {entry.equipped_badge ? (
+                          <span className="ml-1">{getBadgeIcon(entry.equipped_badge)}</span>
+                        ) : null}
                       </p>
                       {previousEntry ? (
                         <p className={`mt-1 text-[10px] font-bold uppercase tracking-widest ${isDangerCloseGap ? 'text-amber-600' : 'text-zinc-500'}`}>
@@ -2632,7 +2710,7 @@ function App() {
               <p className="mt-2 text-center text-xs font-semibold text-zinc-200">{xp} / {profileNextLevelXp} XP to next level</p>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-3 gap-3">
               <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Total XP</p>
                 <p className="mt-1 text-xl font-black leading-none">{xp}</p>
@@ -2640,6 +2718,10 @@ function App() {
               <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Best Streak</p>
                 <p className="mt-1 text-xl font-black leading-none">{bestStreak}</p>
+              </div>
+              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Tasks Done</p>
+                <p className="mt-1 text-xl font-black leading-none">{totalTasksCompleted}</p>
               </div>
             </div>
 
@@ -2656,38 +2738,68 @@ function App() {
                   i
                 </button>
               </div>
-              <p className="mt-2 text-xl tracking-[0.3em]">
+              <div className="mt-2 flex items-center justify-center gap-2">
                 {Array.from({ length: MAX_STREAK_SHIELDS }).map((_, index) => (
-                  <span key={`shield-slot-${index}`} className="inline-block">
-                    {index < streakShields ? '🛡️' : '◻️'}
-                  </span>
+                  <span
+                    key={`shield-slot-${index}`}
+                    className={`inline-block h-6 w-6 rounded-full border-2 ${
+                      index < streakShields
+                        ? 'border-white bg-white'
+                        : 'border-zinc-600 bg-transparent'
+                    }`}
+                  />
                 ))}
-              </p>
+              </div>
               <p className="mt-1 text-xs font-semibold text-zinc-200">{streakShields} / {MAX_STREAK_SHIELDS}</p>
             </div>
+
+            <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Soldier since {new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </p>
           </section>
 
           <h3 className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">ACHIEVEMENTS</h3>
-          {equippedBadge ? (
+          {equippedBadgeMeta ? (
             <div className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-semibold text-white shadow-sm">
-              <span>🏅</span>
-              <span>Equipped: {equippedBadge}</span>
+              <span>{equippedBadgeMeta.icon}</span>
+              <span>Equipped: {equippedBadgeMeta.title}</span>
             </div>
           ) : null}
-          <div className="mt-2 space-y-2">
-            {earnedBadges.map((badge, index) => (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {BADGES.map((badge) => {
+              const earned = earnedBadgeIds.has(badge.id)
+              const isEquipped = equippedBadge === badge.id
+
+              return (
               <div
-                key={index}
-                className={`p-3 border rounded-lg flex items-center gap-3 bg-white cursor-pointer transition ${equippedBadge === badge.title ? 'border-indigo-500 bg-indigo-50' : 'border-zinc-200 hover:bg-zinc-50'}`}
+                key={badge.id}
                 onClick={() => {
-                  setEquippedBadge(badge.title)
-                  localStorage.setItem('badge', badge.title)
+                  void handleToggleBadge(badge.id, earned)
                 }}
+                className={`flex items-center gap-2 rounded-xl border p-3 transition ${
+                  !earned
+                    ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 opacity-40'
+                    : isEquipped
+                      ? 'cursor-pointer border-zinc-900 bg-zinc-900'
+                      : 'cursor-pointer border-zinc-200 bg-white hover:border-zinc-400'
+                }`}
               >
-                <span>{badge.icon}</span>
-                <span>{badge.title}</span>
+                <span className={`text-lg ${!earned ? 'grayscale' : ''}`}>
+                  {badge.icon}
+                </span>
+                <div className="min-w-0">
+                  <p className={`truncate text-xs font-black ${
+                    isEquipped ? 'text-white' : earned ? 'text-zinc-900' : 'text-zinc-400'
+                  }`}>
+                    {badge.title}
+                  </p>
+                  <p className="mt-0.5 truncate text-[10px] font-semibold text-zinc-400">
+                    {badge.desc}
+                  </p>
+                </div>
               </div>
-            ))}
+              )
+            })}
           </div>
 
           <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-3 shadow-sm flex items-center justify-between mt-6">
@@ -2978,11 +3090,18 @@ function App() {
             <div className="mt-4 flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3">
               <p className="text-xs font-bold text-zinc-300">Your Shields</p>
               <div className="flex items-center gap-2">
-                <p className="text-base tracking-widest">
+                <div className="flex items-center gap-2">
                   {Array.from({ length: MAX_STREAK_SHIELDS }).map((_, i) => (
-                    <span key={i}>{i < streakShields ? '🛡️' : '◻️'}</span>
+                    <span
+                      key={i}
+                      className={`inline-block h-6 w-6 rounded-full border-2 ${
+                        i < streakShields
+                          ? 'border-white bg-white'
+                          : 'border-zinc-600 bg-transparent'
+                      }`}
+                    />
                   ))}
-                </p>
+                </div>
                 <p className="text-xs font-black text-zinc-300">{streakShields} / {MAX_STREAK_SHIELDS}</p>
               </div>
             </div>

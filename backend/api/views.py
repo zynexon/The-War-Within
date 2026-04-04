@@ -12,6 +12,7 @@ from .serializers import (
 	AssignDailyTasksInputSerializer,
 	CompleteTaskInputSerializer,
 	DailyTasksQuerySerializer,
+	EquipBadgeInputSerializer,
 	GameStartInputSerializer,
 	GameSubmitInputSerializer,
 	GameXPInputSerializer,
@@ -33,6 +34,7 @@ from .services import (
 	get_daily_tasks,
 	get_game_session,
 	get_leaderboard,
+	get_user_stats,
 	grant_streak_shields,
 	get_user_task,
 	get_today_game_xp,
@@ -121,7 +123,9 @@ class AuthMeView(APIView):
 
 	def get(self, request):
 		check_streak_on_login(request.user)
-		return Response(UserSerializer(request.user).data)
+		user_data = UserSerializer(request.user).data
+		user_data.update(get_user_stats(request.user))
+		return Response(user_data)
 
 
 class UserView(APIView):
@@ -129,7 +133,22 @@ class UserView(APIView):
 
 	def get(self, request):
 		check_streak_on_login(request.user)
-		return Response(UserSerializer(request.user).data)
+		user_data = UserSerializer(request.user).data
+		user_data.update(get_user_stats(request.user))
+		return Response(user_data)
+
+
+class EquipBadgeView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def patch(self, request):
+		serializer = EquipBadgeInputSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		badge_id = serializer.validated_data.get("badge_id") or None
+		request.user.equipped_badge = badge_id
+		request.user.save(update_fields=["equipped_badge"])
+		return Response({"equipped_badge": badge_id})
 
 
 class UpdateNameView(APIView):
@@ -141,7 +160,9 @@ class UpdateNameView(APIView):
 
 		request.user.name = serializer.validated_data["name"]
 		request.user.save(update_fields=["name"])
-		return Response(UserSerializer(request.user).data)
+		user_data = UserSerializer(request.user).data
+		user_data.update(get_user_stats(request.user))
+		return Response(user_data)
 
 
 class SeedTasksView(APIView):
@@ -427,6 +448,7 @@ class CompleteTaskView(APIView):
 				user.save(update_fields=["streak_shields", "last_perfect_week_shield_date"])
 
 		total_shields_awarded = xp_milestone_shields + perfect_week_shields
+		total_tasks_completed = user.user_tasks.filter(completed=True).count()
 
 		return Response(
 			{
@@ -439,6 +461,7 @@ class CompleteTaskView(APIView):
 				"xp_milestone_shields_awarded": xp_milestone_shields,
 				"perfect_week_shields_awarded": perfect_week_shields,
 				"total_shields_awarded": total_shields_awarded,
+				"total_tasks_completed": total_tasks_completed,
 			}
 		)
 
