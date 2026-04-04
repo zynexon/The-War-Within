@@ -11,6 +11,9 @@ class User(AbstractUser):
 	xp = models.IntegerField(default=0)
 	level = models.IntegerField(default=1)
 	streak = models.IntegerField(default=0)
+	streak_shields = models.IntegerField(default=0)
+	shield_used_today = models.BooleanField(default=False)
+	last_perfect_week_shield_date = models.DateField(null=True, blank=True)
 	last_active_date = models.DateField(null=True, blank=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 

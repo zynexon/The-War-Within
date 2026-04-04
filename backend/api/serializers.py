@@ -108,7 +108,18 @@ class UpdateNameInputSerializer(serializers.Serializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "name", "email", "xp", "level", "streak", "last_active_date", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "email",
+            "xp",
+            "level",
+            "streak",
+            "streak_shields",
+            "shield_used_today",
+            "last_active_date",
+            "created_at",
+        ]
 
 
 class UserTaskSerializer(serializers.ModelSerializer):

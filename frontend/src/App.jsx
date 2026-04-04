@@ -34,6 +34,7 @@ const DAILY_TRAINING_GAMES = [
   'Speed Pattern',
 ]
 const LEADERBOARD_CHASE_WARNING_XP = 100
+const MAX_STREAK_SHIELDS = 3
 const WAR_MODE_OPTIONS = {
   skirmish: {
     title: 'Skirmish',
@@ -189,6 +190,14 @@ function getWeeklyResetCountdownLabel(nowMs = Date.now()) {
   const hours = totalHours % 24
 
   return `WEEKLY WAR — RESETS IN ${days} DAYS ${hours} HRS`
+}
+
+function getTodayStorageKeyDate() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 async function readApiPayload(response) {
@@ -374,6 +383,7 @@ function App() {
   const [reverseOrderError, setReverseOrderError] = useState('')
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [bestStreak, setBestStreak] = useState(0)
+  const [showShieldUsedBanner, setShowShieldUsedBanner] = useState(false)
   const [entry, setEntry] = useState({
     did_you_win_today: '',
     where_did_you_fail_yourself: '',
@@ -439,6 +449,18 @@ function App() {
     && secondPlaceEntry
     && leaderboardChaseGap <= LEADERBOARD_CHASE_WARNING_XP,
   )
+  const streakShields = Math.max(0, Math.min(MAX_STREAK_SHIELDS, user?.streak_shields || 0))
+  const shieldUsedToday = Boolean(user?.shield_used_today)
+  const shieldBannerStorageKey = user?.id
+    ? `zynexon_shield_banner_seen_${user.id}_${getTodayStorageKeyDate()}`
+    : ''
+
+  const handleDismissShieldBanner = () => {
+    if (shieldBannerStorageKey) {
+      localStorage.setItem(shieldBannerStorageKey, '1')
+    }
+    setShowShieldUsedBanner(false)
+  }
 
   useEffect(() => {
     const parsedStoredBest = Number(localStorage.getItem(bestStreakStorageKey) || '0')
@@ -451,6 +473,21 @@ function App() {
       localStorage.setItem(bestStreakStorageKey, String(nextBest))
     }
   }, [bestStreakStorageKey, streakDays])
+
+  useEffect(() => {
+    if (!user?.id || !shieldUsedToday) {
+      setShowShieldUsedBanner(false)
+      return
+    }
+
+    const hasSeenBanner = shieldBannerStorageKey
+      ? localStorage.getItem(shieldBannerStorageKey) === '1'
+      : false
+    if (!hasSeenBanner && shieldBannerStorageKey) {
+      localStorage.setItem(shieldBannerStorageKey, '1')
+    }
+    setShowShieldUsedBanner(!hasSeenBanner)
+  }, [user?.id, shieldUsedToday, shieldBannerStorageKey])
 
   function recordLastTrainingResult(label, scoreValue) {
     const parsedScore = Number(scoreValue)
@@ -1450,6 +1487,17 @@ function App() {
       setXp(data.total_xp)
       setLevel(data.level)
       setStreakDays(data.streak)
+      setUser((currentUser) => (
+        currentUser
+          ? {
+            ...currentUser,
+            xp: data.total_xp,
+            level: data.level,
+            streak: data.streak,
+            streak_shields: data.streak_shields ?? currentUser.streak_shields,
+          }
+          : currentUser
+      ))
       shouldFireTaskConfettiRef.current = true
 
       setJustCompletedId(taskId)
@@ -2526,6 +2574,19 @@ function App() {
                 <p className="mt-1 text-xl font-black leading-none">{bestStreak}</p>
               </div>
             </div>
+
+            <div className="mt-3 h-px bg-white/15" />
+            <div className="mt-3 rounded-xl border border-white/15 bg-white/10 px-3 py-3 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Shields</p>
+              <p className="mt-2 text-xl tracking-[0.3em]">
+                {Array.from({ length: MAX_STREAK_SHIELDS }).map((_, index) => (
+                  <span key={`shield-slot-${index}`} className="inline-block">
+                    {index < streakShields ? '🛡️' : '░'}
+                  </span>
+                ))}
+              </p>
+              <p className="mt-1 text-xs font-semibold text-zinc-200">{streakShields} / {MAX_STREAK_SHIELDS}</p>
+            </div>
           </section>
 
           <h3 className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">ACHIEVEMENTS</h3>
@@ -2575,6 +2636,23 @@ function App() {
       ) : (
         <div className="max-w-md mx-auto px-4 pb-24 w-full">
         <section className="space-y-6">
+          {showShieldUsedBanner ? (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">🛡️ Shield Used</p>
+              <p className="mt-1 text-sm font-semibold text-amber-900">Your {streakDays}-day streak was protected.</p>
+              <p className="mt-1 text-xs font-semibold text-amber-800">
+                {streakShields} shield{streakShields === 1 ? '' : 's'} remaining. Don't make it a habit.
+              </p>
+              <button
+                type="button"
+                onClick={handleDismissShieldBanner}
+                className="mt-3 rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-100"
+              >
+                Understood
+              </button>
+            </div>
+          ) : null}
+
           <div className="mt-4 p-5 rounded-2xl bg-zinc-900 shadow-xl border border-zinc-800">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">War Room Status</p>
             <div className="flex justify-between items-center">
@@ -2593,6 +2671,12 @@ function App() {
               <span>{xp} XP</span>
               <span>{profileNextLevelXp} XP</span>
             </div>
+
+            <p className="mt-3 text-xs font-semibold text-zinc-300">
+              {streakShields > 0
+                ? `🛡️ ${streakShields} Streak Shield${streakShields === 1 ? '' : 's'}`
+                : '🛡️ No shields — earn one by completing a Perfect Week'}
+            </p>
           </div>
 
           <section className="mt-6 w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-5 py-5 shadow-xl">

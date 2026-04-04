@@ -2,6 +2,7 @@ import math
 from datetime import date
 
 from django.db.models import DateField
+from django.db.models import Count
 from django.db.models import Q
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
@@ -32,6 +33,8 @@ MAX_DAILY_GAME_XP_BY_TYPE = {
     "reverse_order": 75,
 }
 DAILY_TASK_COUNT = 5
+MAX_STREAK_SHIELDS = 3
+XP_SHIELD_MILESTONE = 500
 GAME_MIN_DURATION_SECONDS = 20
 GAME_MAX_DURATION_SECONDS = 120
 GAME_MIN_DURATION_SECONDS_BY_TYPE = {
@@ -137,9 +140,14 @@ def increment_user_xp(user, amount):
     if amount <= 0:
         raise ValidationError("XP amount must be positive.")
 
+    previous_xp = user.xp
     user.xp += amount
     user.level = calculate_level(user.xp)
-    user.save(update_fields=["xp", "level"])
+    milestones_crossed = (user.xp // XP_SHIELD_MILESTONE) - (previous_xp // XP_SHIELD_MILESTONE)
+    if milestones_crossed > 0:
+        grant_streak_shields(user, milestones_crossed)
+
+    user.save(update_fields=["xp", "level", "streak_shields"])
     return user
 
 
@@ -147,7 +155,86 @@ def create_xp_log(user, source, amount):
     return XPLog.objects.create(user=user, source=source, amount=amount)
 
 
+def grant_streak_shields(user, amount=1):
+    if amount <= 0:
+        return 0
+
+    current = max(0, user.streak_shields or 0)
+    next_value = min(MAX_STREAK_SHIELDS, current + amount)
+    granted = next_value - current
+    user.streak_shields = next_value
+    return granted
+
+
+def award_shield_for_perfect_week(user, reference_date=None):
+    target_date = reference_date or timezone.localdate()
+    week_start = target_date - timezone.timedelta(days=6)
+
+    if user.last_perfect_week_shield_date:
+        days_since_last_award = (target_date - user.last_perfect_week_shield_date).days
+        if days_since_last_award < 7:
+            return 0
+
+    completed_counts = {
+        row["date"]: row["total"]
+        for row in UserTask.objects.filter(
+            user=user,
+            date__gte=week_start,
+            date__lte=target_date,
+            completed=True,
+        )
+        .values("date")
+        .annotate(total=Count("id"))
+    }
+
+    for offset in range(7):
+        day = week_start + timezone.timedelta(days=offset)
+        if completed_counts.get(day, 0) < DAILY_TASK_COUNT:
+            return 0
+
+    granted = grant_streak_shields(user, 1)
+    if granted > 0:
+        user.last_perfect_week_shield_date = target_date
+    return granted
+
+
+def check_streak_on_login(user, today=None):
+    target_day = today or timezone.localdate()
+    yesterday = target_day - timezone.timedelta(days=1)
+    update_fields = []
+
+    if user.shield_used_today and user.last_active_date != target_day:
+        user.shield_used_today = False
+        update_fields.append("shield_used_today")
+
+    if not user.last_active_date:
+        if update_fields:
+            user.save(update_fields=list(dict.fromkeys(update_fields)))
+        return user
+
+    gap_days = (target_day - user.last_active_date).days
+    if gap_days <= 1:
+        if update_fields:
+            user.save(update_fields=list(dict.fromkeys(update_fields)))
+        return user
+
+    if gap_days == 2 and (user.streak_shields or 0) > 0:
+        user.streak_shields -= 1
+        user.shield_used_today = True
+        user.last_active_date = yesterday
+        update_fields.extend(["streak_shields", "shield_used_today", "last_active_date"])
+    else:
+        user.streak = 0
+        user.last_active_date = yesterday
+        update_fields.extend(["streak", "last_active_date"])
+
+    user.save(update_fields=list(dict.fromkeys(update_fields)))
+    return user
+
+
 def update_streak(user):
+    check_streak_on_login(user)
+
     today = timezone.localdate()
     yesterday = today - timezone.timedelta(days=1)
 

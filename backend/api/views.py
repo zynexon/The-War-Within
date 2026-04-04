@@ -24,13 +24,16 @@ from .serializers import (
 	UserTaskSerializer,
 )
 from .services import (
+	award_shield_for_perfect_week,
 	assign_daily_tasks,
 	calculate_game_session_xp_for_type,
+	check_streak_on_login,
 	create_xp_log,
 	get_daily_game_xp_cap,
 	get_daily_tasks,
 	get_game_session,
 	get_leaderboard,
+	grant_streak_shields,
 	get_user_task,
 	get_today_game_xp,
 	increment_user_xp,
@@ -117,6 +120,7 @@ class AuthMeView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request):
+		check_streak_on_login(request.user)
 		return Response(UserSerializer(request.user).data)
 
 
@@ -124,6 +128,7 @@ class UserView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request):
+		check_streak_on_login(request.user)
 		return Response(UserSerializer(request.user).data)
 
 
@@ -177,6 +182,7 @@ class DailyTasksView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request):
+		check_streak_on_login(request.user)
 		serializer = DailyTasksQuerySerializer(data=request.query_params)
 		serializer.is_valid(raise_exception=True)
 
@@ -264,6 +270,9 @@ class GameSubmitView(APIView):
 
 		if xp_awarded > 0:
 			increment_user_xp(user, xp_awarded)
+			if session.game_type == "war_mode_full_war":
+				grant_streak_shields(user, 1)
+				user.save(update_fields=["streak_shields"])
 
 		create_xp_log(user, XPLog.SOURCE_GAME, xp_awarded)
 		update_streak(user)
@@ -280,6 +289,7 @@ class GameSubmitView(APIView):
 				"capped_by_daily_limit": capped_by_daily_limit,
 				"total_xp": user.xp,
 				"level": user.level,
+				"streak_shields": user.streak_shields,
 			}
 		)
 
@@ -389,6 +399,7 @@ class CompleteTaskView(APIView):
 			)
 
 		xp_earned = user_task.task.xp
+		target_date = user_task.date
 		user_task.completed = True
 		user_task.save(update_fields=["completed"])
 
@@ -397,6 +408,13 @@ class CompleteTaskView(APIView):
 		create_xp_log(user, XPLog.SOURCE_TASK, xp_earned)
 		update_streak(user)
 
+		perfect_week_shields = 0
+		completed_today = user.user_tasks.filter(date=target_date, completed=True).count()
+		if completed_today >= 5:
+			perfect_week_shields = award_shield_for_perfect_week(user, target_date)
+			if perfect_week_shields > 0:
+				user.save(update_fields=["streak_shields", "last_perfect_week_shield_date"])
+
 		return Response(
 			{
 				"success": True,
@@ -404,6 +422,8 @@ class CompleteTaskView(APIView):
 				"level": user.level,
 				"streak": user.streak,
 				"total_xp": user.xp,
+				"streak_shields": user.streak_shields,
+				"perfect_week_shields_awarded": perfect_week_shields,
 			}
 		)
 
