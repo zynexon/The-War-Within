@@ -447,7 +447,8 @@ function App() {
   }
   const earnedBadges = getBadges(badgeStats)
   const earnedBadgeIds = new Set(earnedBadges.map((badge) => badge.id))
-  const equippedBadgeMeta = BADGES.find((badge) => badge.id === equippedBadge) || null
+  const earnedBadgeList = BADGES.filter((badge) => earnedBadgeIds.has(badge.id))
+  const lockedBadgeList = BADGES.filter((badge) => !earnedBadgeIds.has(badge.id))
   const showQuickMathResult = activeTab === 'Game' && gameRoute === '/game/quick-math' && (Boolean(gameResult) || gameSubmitting)
   const showFocusTapResult = activeTab === 'Game' && gameRoute === '/game/focus-tap' && (Boolean(focusTapResult) || focusTapSubmitting)
   const showNumberRecallResult = activeTab === 'Game' && gameRoute === '/game/number-recall' && (Boolean(numberRecallResult) || numberRecallSubmitting)
@@ -2759,41 +2760,32 @@ function App() {
           </section>
 
           <h3 className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">ACHIEVEMENTS</h3>
-          {equippedBadgeMeta ? (
-            <div className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-semibold text-white shadow-sm">
-              <span>{equippedBadgeMeta.icon}</span>
-              <span>Equipped: {equippedBadgeMeta.title}</span>
-            </div>
-          ) : null}
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {BADGES.map((badge) => {
-              const earned = earnedBadgeIds.has(badge.id)
+            {earnedBadgeList.map((badge) => {
               const isEquipped = equippedBadge === badge.id
 
               return (
               <div
                 key={badge.id}
                 onClick={() => {
-                  void handleToggleBadge(badge.id, earned)
+                  void handleToggleBadge(badge.id, true)
                 }}
                 className={`flex items-center gap-2 rounded-xl border p-3 transition ${
-                  !earned
-                    ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 opacity-40'
-                    : isEquipped
-                      ? 'cursor-pointer border-zinc-900 bg-zinc-900'
-                      : 'cursor-pointer border-zinc-200 bg-white hover:border-zinc-400'
+                  isEquipped
+                    ? 'cursor-pointer border-zinc-900 bg-zinc-900'
+                    : 'cursor-pointer border-zinc-200 bg-white hover:border-zinc-400'
                 }`}
               >
-                <span className={`text-lg ${!earned ? 'grayscale' : ''}`}>
+                <span className="text-lg">
                   {badge.icon}
                 </span>
                 <div className="min-w-0">
-                  <p className={`truncate text-xs font-black ${
-                    isEquipped ? 'text-white' : earned ? 'text-zinc-900' : 'text-zinc-400'
+                  <p className={`text-xs font-black ${
+                    isEquipped ? 'text-white' : 'text-zinc-900'
                   }`}>
                     {badge.title}
                   </p>
-                  <p className="mt-0.5 truncate text-[10px] font-semibold text-zinc-400">
+                  <p className="mt-0.5 text-[10px] font-semibold leading-snug text-zinc-400">
                     {badge.desc}
                   </p>
                 </div>
@@ -2801,6 +2793,34 @@ function App() {
               )
             })}
           </div>
+
+          {lockedBadgeList.length > 0 ? (
+            <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">LOCKED</p>
+          ) : null}
+
+          {lockedBadgeList.length > 0 ? (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {lockedBadgeList.map((badge) => (
+                <div
+                  key={badge.id}
+                  onClick={() => {
+                    void handleToggleBadge(badge.id, false)
+                  }}
+                  className="flex cursor-not-allowed items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 opacity-40 transition"
+                >
+                  <span className="text-lg grayscale">{badge.icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-zinc-400">
+                      {badge.title}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-semibold leading-snug text-zinc-400">
+                      {badge.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-3 shadow-sm flex items-center justify-between mt-6">
             <p className="text-xs font-semibold text-zinc-500">Signed in as {userName || userEmail}</p>
