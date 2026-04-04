@@ -386,6 +386,7 @@ function App() {
   const [bestStreak, setBestStreak] = useState(0)
   const [showShieldUsedBanner, setShowShieldUsedBanner] = useState(false)
   const [shieldEarnedNotice, setShieldEarnedNotice] = useState('')
+  const [showShieldInfo, setShowShieldInfo] = useState(false)
   const [entry, setEntry] = useState({
     did_you_win_today: '',
     where_did_you_fail_yourself: '',
@@ -2600,11 +2601,21 @@ function App() {
 
             <div className="mt-3 h-px bg-white/15" />
             <div className="mt-3 rounded-xl border border-white/15 bg-white/10 px-3 py-3 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Shields</p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Shields</p>
+                <button
+                  type="button"
+                  onClick={() => setShowShieldInfo(true)}
+                  className="flex h-4 w-4 items-center justify-center rounded-full border border-zinc-500 text-[10px] font-black text-zinc-400 transition hover:border-zinc-300 hover:text-zinc-200"
+                  aria-label="Shield info"
+                >
+                  i
+                </button>
+              </div>
               <p className="mt-2 text-xl tracking-[0.3em]">
                 {Array.from({ length: MAX_STREAK_SHIELDS }).map((_, index) => (
                   <span key={`shield-slot-${index}`} className="inline-block">
-                    {index < streakShields ? '🛡️' : '░'}
+                    {index < streakShields ? '🛡️' : '◻️'}
                   </span>
                 ))}
               </p>
@@ -2695,11 +2706,21 @@ function App() {
               <span>{profileNextLevelXp} XP</span>
             </div>
 
-            <p className="mt-3 text-xs font-semibold text-zinc-300">
-              {streakShields > 0
-                ? `🛡️ ${streakShields} Streak Shield${streakShields === 1 ? '' : 's'}`
-                : '🛡️ No shields — earn one by completing a Perfect Week'}
-            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <p className="text-xs font-semibold text-zinc-300">
+                {streakShields > 0
+                  ? `🛡️ ${streakShields} Streak Shield${streakShields === 1 ? '' : 's'}`
+                  : '🛡️ No shields. Earn one with a Perfect Week.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowShieldInfo(true)}
+                className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border border-zinc-600 text-[10px] font-black text-zinc-400 transition hover:border-zinc-400"
+                aria-label="Shield info"
+              >
+                i
+              </button>
+            </div>
           </div>
 
           <section className="mt-6 w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-5 py-5 shadow-xl">
@@ -2831,6 +2852,82 @@ function App() {
           >
             Not now
           </button>
+        </div>
+      ) : null}
+
+      {showShieldInfo ? (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">How It Works</p>
+                <h3 className="mt-1 text-xl font-black text-white">🛡️ Streak Shield</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowShieldInfo(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-zinc-500 hover:text-white"
+                aria-label="Close shield info"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-sm font-semibold leading-relaxed text-zinc-200">
+              Miss a day. Keep your streak. That's what a Shield does - it activates automatically, no action needed.
+            </p>
+
+            <p className="mt-3 text-xs font-semibold leading-relaxed text-zinc-400">
+              Shields do <span className="text-white">not</span> cover 2+ missed days. Miss two in a row and your streak resets regardless of how many shields you have.
+            </p>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">How to Earn</p>
+            <div className="space-y-3">
+              {[
+                { icon: '🏆', label: 'Perfect Week', desc: 'Complete all 5 tasks for 7 days straight.' },
+                { icon: '⚡', label: 'XP Milestone', desc: 'Every 500 XP earned grants one Shield.' },
+                { icon: '⚔️', label: 'Full War', desc: 'Complete a 60-min Full War Mode session.' },
+              ].map(({ icon, label, desc }) => (
+                <div key={label} className="flex items-start gap-3">
+                  <span className="mt-0.5 text-lg leading-none">{icon}</span>
+                  <div>
+                    <p className="text-xs font-black text-white">{label}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-zinc-400">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <p className="text-xs font-semibold leading-relaxed text-zinc-400">
+              You can hold a maximum of <span className="font-black text-white">3 Shields</span> at once.
+              Earn them before you need them.
+            </p>
+            <p className="mt-2 text-xs font-semibold leading-relaxed text-zinc-400">The XP means nothing if you didn't earn it.</p>
+
+            <div className="mt-4 flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3">
+              <p className="text-xs font-bold text-zinc-300">Your Shields</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base tracking-widest">
+                  {Array.from({ length: MAX_STREAK_SHIELDS }).map((_, i) => (
+                    <span key={i}>{i < streakShields ? '🛡️' : '◻️'}</span>
+                  ))}
+                </p>
+                <p className="text-xs font-black text-zinc-300">{streakShields} / {MAX_STREAK_SHIELDS}</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowShieldInfo(false)}
+              className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
+            >
+              Got it
+            </button>
+          </div>
         </div>
       ) : null}
     </main>
