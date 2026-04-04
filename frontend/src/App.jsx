@@ -2853,7 +2853,7 @@ function App() {
                   ) : (
                     <span
                       key={`shield-slot-${index}`}
-                      className="inline-block h-6 w-6 rounded-full border-2 border-zinc-600 bg-transparent"
+                      className="inline-block h-5 w-5 rounded-full border-2 border-zinc-600 bg-transparent"
                       aria-label="empty shield slot"
                     />
                   )
@@ -3232,7 +3232,7 @@ function App() {
                     ) : (
                       <span
                         key={i}
-                        className="inline-block h-6 w-6 rounded-full border-2 border-zinc-600 bg-transparent"
+                        className="inline-block h-5 w-5 rounded-full border-2 border-zinc-600 bg-transparent"
                         aria-label="empty shield slot"
                       />
                     )
