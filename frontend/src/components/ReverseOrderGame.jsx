@@ -489,8 +489,16 @@ function ReverseOrderGame({ onMainMenu, onGameStart, onGameFinished, submitting,
       ) : null}
 
       {loadingQuestion ? <p className="text-xs font-semibold text-zinc-500">Loading question...</p> : null}
-      {submitting ? <p className="text-xs font-semibold text-zinc-500">Checking answer...</p> : null}
       {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+
+      {submitting && !completionResult && !gameOverResult ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-2">
+            <h3 className="text-xl font-black text-zinc-950">Submitting Result</h3>
+            <p className="text-sm font-semibold text-zinc-600">Finalizing your run...</p>
+          </div>
+        </div>
+      ) : null}
 
       {completionResult ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
