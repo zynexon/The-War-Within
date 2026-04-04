@@ -2708,7 +2708,9 @@ function App() {
                   style={{ width: `${profileProgressPercent}%` }}
                 />
               </div>
-              <p className="mt-2 text-center text-xs font-semibold text-zinc-200">{xp} / {profileNextLevelXp} XP to next level</p>
+              <p className="mt-2 text-center text-xs font-semibold text-zinc-200">
+                {profileProgressXp} XP into Level {level} • {profileNeededXp} total needed
+              </p>
             </div>
 
             <div className="mt-3 grid grid-cols-3 gap-3">
@@ -2717,7 +2719,7 @@ function App() {
                 <p className="mt-1 text-xl font-black leading-none">{xp}</p>
               </div>
               <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Best Streak</p>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-300">Best Streak</p>
                 <p className="mt-1 text-xl font-black leading-none">{bestStreak}</p>
               </div>
               <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
@@ -2754,10 +2756,11 @@ function App() {
               <p className="mt-1 text-xs font-semibold text-zinc-200">{streakShields} / {MAX_STREAK_SHIELDS}</p>
             </div>
 
-            <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              Soldier since {new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </p>
           </section>
+
+          <p className="-mt-1 text-center text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            Soldier since {new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </p>
 
           <h3 className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">ACHIEVEMENTS</h3>
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -2893,8 +2896,8 @@ function App() {
             </div>
 
             <div className="flex justify-between mt-2 text-xs text-zinc-300">
-              <span>{xp} XP</span>
-              <span>{profileNextLevelXp} XP</span>
+              <span>{profileProgressXp} XP</span>
+              <span>{profileNeededXp} XP</span>
             </div>
 
             <div className="mt-3 flex items-center gap-2">
