@@ -412,6 +412,7 @@ function App() {
   const [showShieldUsedBanner, setShowShieldUsedBanner] = useState(false)
   const [shieldEarnedNotice, setShieldEarnedNotice] = useState('')
   const [showShieldInfo, setShowShieldInfo] = useState(false)
+  const [showLevelInfo, setShowLevelInfo] = useState(false)
   const [entry, setEntry] = useState({
     did_you_win_today: '',
     where_did_you_fail_yourself: '',
@@ -2599,7 +2600,17 @@ function App() {
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Level</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Level</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowLevelInfo(true)}
+                    className="flex h-4 w-4 items-center justify-center rounded-full border border-zinc-600 text-[10px] font-black text-zinc-400 transition hover:border-zinc-400"
+                    aria-label="Level info"
+                  >
+                    i
+                  </button>
+                </div>
                 <p className="mt-1 text-2xl font-black leading-none">{level}</p>
                 <p className={`mt-1 text-[10px] font-black uppercase tracking-[0.14em] ${level >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>
                   {getLevelTitle(level)}
@@ -2723,11 +2734,21 @@ function App() {
           <div className="mt-4 p-5 rounded-2xl bg-zinc-900 shadow-xl border border-zinc-800">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">War Room Status</p>
             <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold text-white">Level {level}</h2>
-                <p className={`mt-0.5 text-xs font-black uppercase tracking-[0.18em] ${level >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>
-                  {getLevelTitle(level)}
-                </p>
+              <div className="flex items-center gap-2">
+                <div>
+                  <h2 className="text-xl font-semibold text-white">Level {level}</h2>
+                  <p className={`mt-0.5 text-xs font-black uppercase tracking-[0.18em] ${level >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                    {getLevelTitle(level)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLevelInfo(true)}
+                  className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border border-zinc-600 text-[10px] font-black text-zinc-400 transition hover:border-zinc-400"
+                  aria-label="Level info"
+                >
+                  i
+                </button>
               </div>
               <span className="text-sm bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full flex items-center gap-1 hover:scale-[1.02] transition-all duration-200">🔥 {streakDays} day streak</span>
             </div>
@@ -2969,6 +2990,125 @@ function App() {
             <button
               type="button"
               onClick={() => setShowShieldInfo(false)}
+              className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showLevelInfo ? (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">
+                  Progression
+                </p>
+                <h3 className="mt-1 text-xl font-black text-white">⚔️ Ranks</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLevelInfo(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-zinc-500 hover:text-white"
+                aria-label="Close level info"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-sm font-semibold leading-relaxed text-zinc-200">
+              Every XP you earn advances your rank. Ranks are earned - not given.
+            </p>
+            <p className="mt-2 text-xs font-semibold leading-relaxed text-zinc-400">
+              XP is gained through daily tasks, training games, War Mode, and your journal. The more consistent you are, the faster you climb.
+            </p>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+              All Ranks
+            </p>
+
+            <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+              {Object.entries(LEVEL_TITLES).map(([lvl, title]) => {
+                const numLevel = Number(lvl)
+                const isCurrent = numLevel === level
+                const isAchieved = numLevel < level
+                const isZynexon = numLevel === 10
+
+                return (
+                  <div
+                    key={lvl}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 transition ${
+                      isCurrent
+                        ? 'border border-white/30 bg-white/10'
+                        : isAchieved
+                          ? 'border border-zinc-800 bg-zinc-900/50'
+                          : 'border border-zinc-800/50 bg-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`w-12 text-[10px] font-black ${
+                        isAchieved ? 'text-zinc-500' : isCurrent ? 'text-zinc-300' : 'text-zinc-600'
+                      }`}>
+                        LVL {lvl}
+                      </span>
+                      <span className={`text-sm font-black uppercase tracking-[0.1em] ${
+                        isZynexon
+                          ? isCurrent || isAchieved ? 'text-amber-400' : 'text-amber-700'
+                          : isCurrent
+                            ? 'text-white'
+                            : isAchieved
+                              ? 'text-zinc-400'
+                              : 'text-zinc-600'
+                      }`}>
+                        {title}
+                      </span>
+                    </div>
+                    <span className="text-xs">
+                      {isAchieved ? '✓' : isCurrent ? '◉' : ''}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Your Rank</p>
+                <p className={`mt-0.5 text-sm font-black uppercase tracking-[0.1em] ${
+                  level >= 10 ? 'text-amber-400' : 'text-white'
+                }`}>
+                  {getLevelTitle(level)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Level</p>
+                <p className="mt-0.5 text-sm font-black text-white">{level}</p>
+              </div>
+            </div>
+
+            {level < 10 ? (
+              <p className="mt-3 text-center text-xs font-semibold text-zinc-500">
+                Next rank:{' '}
+                <span className="font-black uppercase text-zinc-300">
+                  {getLevelTitle(level + 1)}
+                </span>
+                {' '}at Level {level + 1}
+              </p>
+            ) : (
+              <p className="mt-3 text-center text-xs font-semibold text-amber-600">
+                You are Zynexon. The war never ends.
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowLevelInfo(false)}
               className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
             >
               Got it
