@@ -2842,14 +2842,21 @@ function App() {
               </div>
               <div className="mt-2 flex items-center justify-center gap-2">
                 {Array.from({ length: MAX_STREAK_SHIELDS }).map((_, index) => (
-                  <span
-                    key={`shield-slot-${index}`}
-                    className={`inline-block h-6 w-6 rounded-full border-2 ${
-                      index < streakShields
-                        ? 'border-white bg-white'
-                        : 'border-zinc-600 bg-transparent'
-                    }`}
-                  />
+                  index < streakShields ? (
+                    <span
+                      key={`shield-slot-${index}`}
+                      className="inline-flex h-6 w-6 items-center justify-center text-base leading-none"
+                      aria-label="filled shield"
+                    >
+                      🛡️
+                    </span>
+                  ) : (
+                    <span
+                      key={`shield-slot-${index}`}
+                      className="inline-block h-6 w-6 rounded-full border-2 border-zinc-600 bg-transparent"
+                      aria-label="empty shield slot"
+                    />
+                  )
                 ))}
               </div>
               <p className="mt-1 text-xs font-semibold text-zinc-200">{streakShields} / {MAX_STREAK_SHIELDS}</p>
@@ -3214,14 +3221,21 @@ function App() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   {Array.from({ length: MAX_STREAK_SHIELDS }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`inline-block h-6 w-6 rounded-full border-2 ${
-                        i < streakShields
-                          ? 'border-white bg-white'
-                          : 'border-zinc-600 bg-transparent'
-                      }`}
-                    />
+                    i < streakShields ? (
+                      <span
+                        key={i}
+                        className="inline-flex h-6 w-6 items-center justify-center text-base leading-none"
+                        aria-label="filled shield"
+                      >
+                        🛡️
+                      </span>
+                    ) : (
+                      <span
+                        key={i}
+                        className="inline-block h-6 w-6 rounded-full border-2 border-zinc-600 bg-transparent"
+                        aria-label="empty shield slot"
+                      />
+                    )
                   ))}
                 </div>
                 <p className="text-xs font-black text-zinc-300">{streakShields} / {MAX_STREAK_SHIELDS}</p>
