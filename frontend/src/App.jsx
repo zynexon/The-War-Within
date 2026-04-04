@@ -5,6 +5,7 @@ import ColorCountFocusGame from './components/ColorCountFocusGame'
 import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
 import NumberRecallGame from './components/NumberRecallGame'
+import NumberStackGame from './components/NumberStackGame'
 import ReverseOrderGame from './components/ReverseOrderGame'
 import SpeedPatternGame from './components/SpeedPatternGame'
 import AuthPage from './components/pages/AuthPage'
@@ -399,6 +400,11 @@ function App() {
   const [reverseOrderXpAwarded, setReverseOrderXpAwarded] = useState(null)
   const [reverseOrderResult, setReverseOrderResult] = useState(null)
   const [reverseOrderError, setReverseOrderError] = useState('')
+  const [numberStackSessionId, setNumberStackSessionId] = useState('')
+  const [numberStackSubmitting, setNumberStackSubmitting] = useState(false)
+  const [numberStackXpAwarded, setNumberStackXpAwarded] = useState(null)
+  const [numberStackResult, setNumberStackResult] = useState(null)
+  const [numberStackError, setNumberStackError] = useState('')
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [bestStreak, setBestStreak] = useState(0)
   const [showShieldUsedBanner, setShowShieldUsedBanner] = useState(false)
@@ -420,6 +426,7 @@ function App() {
   const shouldFireQuickMathConfettiRef = useRef(false)
   const isInitialLoadRef = useRef(false)
   const speedPatternSessionIdRef = useRef('')
+  const numberStackSessionIdRef = useRef('')
   const warModeCompletionGuardRef = useRef(false)
 
   const requiresNameSetup = Boolean(user && !user.name)
@@ -1112,6 +1119,11 @@ function App() {
         setGameRoute('/game/reverse-order')
         return
       }
+      if (path === '/game/number-stack') {
+        setActiveTab('Game')
+        setGameRoute('/game/number-stack')
+        return
+      }
       if (path === '/game/war-mode') {
         setActiveTab('Game')
         setGameRoute('/game/war-mode')
@@ -1325,6 +1337,12 @@ function App() {
     setReverseOrderXpAwarded(null)
     setReverseOrderResult(null)
     setReverseOrderError('')
+    setNumberStackSessionId('')
+    numberStackSessionIdRef.current = ''
+    setNumberStackSubmitting(false)
+    setNumberStackXpAwarded(null)
+    setNumberStackResult(null)
+    setNumberStackError('')
     setEntry({ did_you_win_today: '', where_did_you_fail_yourself: '', mental_state: '' })
     setSavedEntry(null)
     setJournalLoading(true)
@@ -1944,6 +1962,77 @@ function App() {
       return null
     } finally {
       setReverseOrderSubmitting(false)
+    }
+  }
+
+  async function handleNumberStackStart() {
+    try {
+      setNumberStackError('')
+      setNumberStackXpAwarded(null)
+      setNumberStackResult(null)
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'number_stack' }),
+      })
+      setNumberStackSessionId(data.session_id)
+      numberStackSessionIdRef.current = data.session_id
+      return true
+    } catch (error) {
+      setNumberStackSessionId('')
+      numberStackSessionIdRef.current = ''
+      setNumberStackError(error.message || 'Could not start Number Stack session.')
+      return false
+    }
+  }
+
+  async function handleNumberStackFinish(result) {
+    const activeSessionId = numberStackSessionIdRef.current
+
+    if (!result) {
+      return null
+    }
+
+    if (!activeSessionId) {
+      setNumberStackError('No active session. Please restart Number Stack.')
+      return null
+    }
+
+    setNumberStackSubmitting(true)
+    try {
+      setNumberStackError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: activeSessionId,
+          score: result.score,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const refreshedUser = await authedFetch('/api/auth/me/')
+      setUser(refreshedUser)
+      setStreakDays(refreshedUser.streak)
+      setNumberStackXpAwarded(data.xp_awarded)
+      const meta = {
+        xpAwarded: data.xp_awarded,
+        dailyCap: data.daily_cap,
+        remainingToday: data.remaining_today,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+        todayGameXpBefore: data.today_game_xp_before,
+      }
+      setNumberStackResult(meta)
+      setNumberStackSessionId('')
+      numberStackSessionIdRef.current = ''
+      if (data.xp_awarded > 0) {
+        setInstallEligible(true)
+      }
+      return meta
+    } catch (error) {
+      setNumberStackError(error.message || 'Could not submit Number Stack result.')
+      return null
+    } finally {
+      setNumberStackSubmitting(false)
     }
   }
 
@@ -2604,6 +2693,16 @@ function App() {
             awardedXp={reverseOrderXpAwarded}
             resultMeta={reverseOrderResult}
             errorText={reverseOrderError}
+          />
+        ) : gameRoute === '/game/number-stack' ? (
+          <NumberStackGame
+            onMainMenu={() => navigate('/game')}
+            onGameStart={handleNumberStackStart}
+            onGameFinished={handleNumberStackFinish}
+            submitting={numberStackSubmitting}
+            awardedXp={numberStackXpAwarded}
+            resultMeta={numberStackResult}
+            errorText={numberStackError}
           />
         ) : (
           <GameHubPage onBack={() => navigate('/')} onNavigate={navigate} />

@@ -82,6 +82,7 @@ class GameSession(models.Model):
 	TYPE_COLOR_COUNT_FOCUS = "color_count_focus"
 	TYPE_SPEED_PATTERN = "speed_pattern"
 	TYPE_REVERSE_ORDER = "reverse_order"
+	TYPE_NUMBER_STACK = "number_stack"
 	TYPE_WAR_MODE_SKIRMISH = "war_mode_skirmish"
 	TYPE_WAR_MODE_BATTLE = "war_mode_battle"
 	TYPE_WAR_MODE_FULL_WAR = "war_mode_full_war"
@@ -92,6 +93,7 @@ class GameSession(models.Model):
 		(TYPE_COLOR_COUNT_FOCUS, "Color Count Focus"),
 		(TYPE_SPEED_PATTERN, "Speed Pattern"),
 		(TYPE_REVERSE_ORDER, "Reverse Order"),
+		(TYPE_NUMBER_STACK, "Number Stack"),
 		(TYPE_WAR_MODE_SKIRMISH, "War Mode Skirmish"),
 		(TYPE_WAR_MODE_BATTLE, "War Mode Battle"),
 		(TYPE_WAR_MODE_FULL_WAR, "War Mode Full War"),

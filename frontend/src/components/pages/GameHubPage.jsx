@@ -112,6 +112,23 @@ function GameHubPage({ onBack, onNavigate }) {
           Apply rules. Pick final sequence.
         </p>
       </div>
+
+      <div
+        className="p-4 rounded-2xl border cursor-pointer"
+        onClick={() => onNavigate('/game/number-stack')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            onNavigate('/game/number-stack')
+          }
+        }}
+      >
+        <h2 className="text-lg font-semibold">Number Stack</h2>
+        <p className="text-sm text-gray-500">
+          Follow 2-3 rules and pick the final stack.
+        </p>
+      </div>
     </section>
   )
 }
