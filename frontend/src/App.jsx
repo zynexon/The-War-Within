@@ -33,6 +33,18 @@ const DAILY_TRAINING_GAMES = [
   'Color Count',
   'Speed Pattern',
 ]
+const LEVEL_TITLES = {
+  1: 'Civilian',
+  2: 'Recruit',
+  3: 'Soldier',
+  4: 'Warrior',
+  5: 'Veteran',
+  6: 'Elite',
+  7: 'Commander',
+  8: 'General',
+  9: 'Legend',
+  10: 'ZYNEXON',
+}
 const LEADERBOARD_CHASE_WARNING_XP = 100
 // Keep this in sync with backend/api/services.py MAX_STREAK_SHIELDS.
 const MAX_STREAK_SHIELDS = 3
@@ -75,19 +87,24 @@ function getAvatarColor(name) {
   return 'bg-zinc-900'
 }
 
+function getLevelTitle(level) {
+  if (level >= 10) return 'ZYNEXON'
+  return LEVEL_TITLES[level] || 'Civilian'
+}
+
 function getBadges(user) {
   const badges = []
 
   if (user.level >= 1) {
-    badges.push({ title: 'Beginner', icon: '⭐' })
+    badges.push({ title: 'Civilian', icon: '⭐' })
   }
 
   if (user.streak >= 3) {
     badges.push({ title: 'Consistent', icon: '🔥' })
   }
 
-  if (user.streak >= 7) {
-    badges.push({ title: 'Focused', icon: '⚡' })
+  if (user.level >= 3) {
+    badges.push({ title: 'Soldier', icon: '🪖' })
   }
 
   if (user.xp >= 500) {
@@ -95,7 +112,15 @@ function getBadges(user) {
   }
 
   if (user.level >= 5) {
-    badges.push({ title: 'Warrior', icon: '🏆' })
+    badges.push({ title: 'Veteran', icon: '🎖️' })
+  }
+
+  if (user.level >= 7) {
+    badges.push({ title: 'Commander', icon: '⚔️' })
+  }
+
+  if (user.level >= 10) {
+    badges.push({ title: 'ZYNEXON', icon: '🏴' })
   }
 
   return badges
@@ -2200,7 +2225,12 @@ function App() {
                         {entry.name || 'Player'}
                         {entry.is_current_user ? ' (You)' : ''}
                       </p>
-                      <p className="text-[11px] font-semibold text-zinc-500">LV.{entry.level} • 🔥 {entry.streak}</p>
+                      <p className="text-[11px] font-semibold text-zinc-500">
+                        <span className={`font-black uppercase ${entry.level >= 10 ? 'text-amber-500' : 'text-zinc-600'}`}>
+                          {getLevelTitle(entry.level)}
+                        </span>
+                        {' '}• 🔥 {entry.streak}
+                      </p>
                       {previousEntry ? (
                         <p className={`mt-1 text-[10px] font-bold uppercase tracking-widest ${isDangerCloseGap ? 'text-amber-600' : 'text-zinc-500'}`}>
                           {xpGapToAbove} XP behind {aboveName} ↑
@@ -2571,6 +2601,9 @@ function App() {
               <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Level</p>
                 <p className="mt-1 text-2xl font-black leading-none">{level}</p>
+                <p className={`mt-1 text-[10px] font-black uppercase tracking-[0.14em] ${level >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                  {getLevelTitle(level)}
+                </p>
               </div>
               <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">STREAK</p>
@@ -2690,7 +2723,12 @@ function App() {
           <div className="mt-4 p-5 rounded-2xl bg-zinc-900 shadow-xl border border-zinc-800">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">War Room Status</p>
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-white">Level {level}</h2>
+              <div>
+                <h2 className="text-xl font-semibold text-white">Level {level}</h2>
+                <p className={`mt-0.5 text-xs font-black uppercase tracking-[0.18em] ${level >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                  {getLevelTitle(level)}
+                </p>
+              </div>
               <span className="text-sm bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full flex items-center gap-1 hover:scale-[1.02] transition-all duration-200">🔥 {streakDays} day streak</span>
             </div>
 
@@ -2813,19 +2851,27 @@ function App() {
 
       {showLevelUp && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 text-center w-80 animate-[pop_0.3s_ease-out]">
-            <h2 className="text-xl font-bold mb-2">
-              LEVEL UP 🚀
-            </h2>
-            <p className="text-gray-500 mb-3">
-              You reached Level {level}
+          <div className="w-80 rounded-3xl border border-zinc-700 bg-zinc-950 p-6 text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">
+              Level Up
             </p>
-            <p className="text-indigo-500 font-semibold mb-4">
-              Keep stacking wins.
+            <p className="mt-3 text-5xl">⚔️</p>
+            <h2 className={`mt-3 text-2xl font-black tracking-tight ${level >= 10 ? 'text-amber-400' : 'text-white'}`}>
+              {getLevelTitle(level)}
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-zinc-400">
+              Level {level} reached.
+            </p>
+            <p className="mt-3 text-xs font-semibold text-zinc-500">
+              {level >= 10
+                ? 'You are Zynexon. There is nothing left to prove - except doing it again tomorrow.'
+                : level >= 7
+                  ? 'Few make it this far. Keep going.'
+                  : 'Keep stacking wins.'}
             </p>
             <button
               onClick={() => setShowLevelUp(false)}
-              className="w-full bg-black text-white p-3 rounded-xl font-semibold transition hover:bg-zinc-800"
+              className="mt-5 w-full rounded-xl bg-white p-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
             >
               Continue
             </button>
