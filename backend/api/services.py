@@ -144,11 +144,16 @@ def increment_user_xp(user, amount):
     user.xp += amount
     user.level = calculate_level(user.xp)
     milestones_crossed = (user.xp // XP_SHIELD_MILESTONE) - (previous_xp // XP_SHIELD_MILESTONE)
+    milestone_shields_awarded = 0
     if milestones_crossed > 0:
-        grant_streak_shields(user, milestones_crossed)
+        milestone_shields_awarded = grant_streak_shields(user, milestones_crossed)
 
-    user.save(update_fields=["xp", "level", "streak_shields"])
-    return user
+    update_fields = ["xp", "level"]
+    if milestone_shields_awarded > 0:
+        update_fields.append("streak_shields")
+
+    user.save(update_fields=update_fields)
+    return milestone_shields_awarded
 
 
 def create_xp_log(user, source, amount):
@@ -233,8 +238,6 @@ def check_streak_on_login(user, today=None):
 
 
 def update_streak(user):
-    check_streak_on_login(user)
-
     today = timezone.localdate()
     yesterday = today - timezone.timedelta(days=1)
 

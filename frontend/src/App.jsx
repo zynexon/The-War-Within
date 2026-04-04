@@ -34,6 +34,7 @@ const DAILY_TRAINING_GAMES = [
   'Speed Pattern',
 ]
 const LEADERBOARD_CHASE_WARNING_XP = 100
+// Keep this in sync with backend/api/services.py MAX_STREAK_SHIELDS.
 const MAX_STREAK_SHIELDS = 3
 const WAR_MODE_OPTIONS = {
   skirmish: {
@@ -384,6 +385,7 @@ function App() {
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [bestStreak, setBestStreak] = useState(0)
   const [showShieldUsedBanner, setShowShieldUsedBanner] = useState(false)
+  const [shieldEarnedNotice, setShieldEarnedNotice] = useState('')
   const [entry, setEntry] = useState({
     did_you_win_today: '',
     where_did_you_fail_yourself: '',
@@ -488,6 +490,15 @@ function App() {
     }
     setShowShieldUsedBanner(!hasSeenBanner)
   }, [user?.id, shieldUsedToday, shieldBannerStorageKey])
+
+  useEffect(() => {
+    if (!shieldEarnedNotice) {
+      return
+    }
+
+    const timerId = window.setTimeout(() => setShieldEarnedNotice(''), 4000)
+    return () => window.clearTimeout(timerId)
+  }, [shieldEarnedNotice])
 
   function recordLastTrainingResult(label, scoreValue) {
     const parsedScore = Number(scoreValue)
@@ -1504,6 +1515,9 @@ function App() {
       setTimeout(() => setJustCompletedId(null), 1200)
       setErrorText('')
       setInstallEligible(true)
+      if ((data.total_shields_awarded || 0) > 0) {
+        setShieldEarnedNotice(`🛡️ Shield earned: +${data.total_shields_awarded}. Discipline pays.`)
+      }
     } catch (error) {
       setErrorText(error.message || 'Task could not be completed.')
     } finally {
@@ -2045,6 +2059,12 @@ function App() {
 
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-3 pb-24 space-y-7 relative bg-[#f8f6f1]">
+      {shieldEarnedNotice ? (
+        <div className="fixed left-1/2 top-4 z-[9999] w-[calc(100%-2rem)] max-w-[360px] -translate-x-1/2 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-center shadow-lg">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">{shieldEarnedNotice}</p>
+        </div>
+      ) : null}
+
       <div className="mt-0 px-1 py-1 text-center">
         <h1 className="text-2xl font-bold tracking-wide text-zinc-900">ZYNEXON</h1>
       </div>

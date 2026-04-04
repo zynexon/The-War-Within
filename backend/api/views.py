@@ -248,6 +248,7 @@ class GameSubmitView(APIView):
 			)
 
 		user = User.objects.select_for_update().get(id=request.user.id)
+		check_streak_on_login(user)
 		xp = calculate_game_session_xp_for_type(session.game_type, score)
 		daily_cap = get_daily_game_xp_cap(session.game_type)
 
@@ -359,6 +360,7 @@ class JournalView(APIView):
 		user = User.objects.select_for_update().get(id=request.user.id)
 		xp_awarded = 0
 		if created:
+			check_streak_on_login(user)
 			xp_awarded = JOURNAL_DAILY_XP
 			increment_user_xp(user, xp_awarded)
 			create_xp_log(user, XPLog.SOURCE_JOURNAL, xp_awarded)
@@ -403,8 +405,9 @@ class CompleteTaskView(APIView):
 		user_task.completed = True
 		user_task.save(update_fields=["completed"])
 
-		user = request.user
-		increment_user_xp(user, xp_earned)
+		user = User.objects.select_for_update().get(id=request.user.id)
+		check_streak_on_login(user)
+		xp_milestone_shields = increment_user_xp(user, xp_earned)
 		create_xp_log(user, XPLog.SOURCE_TASK, xp_earned)
 		update_streak(user)
 
@@ -415,6 +418,8 @@ class CompleteTaskView(APIView):
 			if perfect_week_shields > 0:
 				user.save(update_fields=["streak_shields", "last_perfect_week_shield_date"])
 
+		total_shields_awarded = xp_milestone_shields + perfect_week_shields
+
 		return Response(
 			{
 				"success": True,
@@ -423,7 +428,9 @@ class CompleteTaskView(APIView):
 				"streak": user.streak,
 				"total_xp": user.xp,
 				"streak_shields": user.streak_shields,
+				"xp_milestone_shields_awarded": xp_milestone_shields,
 				"perfect_week_shields_awarded": perfect_week_shields,
+				"total_shields_awarded": total_shields_awarded,
 			}
 		)
 
@@ -437,6 +444,7 @@ class AddGameXPView(APIView):
 		serializer.is_valid(raise_exception=True)
 
 		user = User.objects.select_for_update().get(id=request.user.id)
+		check_streak_on_login(user)
 		requested_xp = serializer.validated_data["xpEarned"]
 		game_type = serializer.validated_data["game_type"]
 
