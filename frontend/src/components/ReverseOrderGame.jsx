@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti'
 const COLOR_POOL = ['BLUE', 'RED', 'YELLOW', 'BLACK', 'PURPLE', 'GREEN']
 const DAILY_CAP = 75
 const TOTAL_ROUNDS = 3
+const MAX_ATTEMPTS_PER_ROUND = 3
 
 function fireConfetti() {
   confetti({
@@ -284,9 +285,11 @@ function ReverseOrderGame({ onMainMenu, onGameStart, onGameFinished, submitting,
   const [feedbackText, setFeedbackText] = useState('')
   const [loadingQuestion, setLoadingQuestion] = useState(true)
   const [currentRound, setCurrentRound] = useState(1)
+  const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS_PER_ROUND)
   const [completionResult, setCompletionResult] = useState(null)
+  const [gameOverResult, setGameOverResult] = useState(null)
 
-  const canChooseOption = !loadingQuestion && !submitting && feedbackType === 'idle' && !completionResult
+  const canChooseOption = !loadingQuestion && !submitting && feedbackType === 'idle' && !completionResult && !gameOverResult
 
   function loadPuzzle() {
     const puzzle = buildPuzzle()
@@ -302,7 +305,9 @@ function ReverseOrderGame({ onMainMenu, onGameStart, onGameFinished, submitting,
     setFeedbackType('idle')
     setFeedbackText('')
     setCurrentRound(1)
+    setAttemptsLeft(MAX_ATTEMPTS_PER_ROUND)
     setCompletionResult(null)
+    setGameOverResult(null)
 
     try {
       loadPuzzle()
@@ -332,8 +337,18 @@ function ReverseOrderGame({ onMainMenu, onGameStart, onGameFinished, submitting,
     const isCorrect = validateAnswer(option, correctAnswer)
 
     if (!isCorrect) {
+      const nextAttempts = attemptsLeft - 1
+      setAttemptsLeft(nextAttempts)
       setFeedbackType('incorrect')
-      setFeedbackText('Incorrect. Round reset.')
+      if (nextAttempts <= 0) {
+        setFeedbackText('Incorrect. No attempts left this round.')
+        window.setTimeout(() => {
+          setGameOverResult({ round: currentRound })
+        }, 500)
+        return
+      }
+
+      setFeedbackText(`Incorrect. New stack loaded. Attempts left: ${nextAttempts}`)
       window.setTimeout(() => {
         setSelectedOption(null)
         setFeedbackType('idle')
@@ -348,6 +363,7 @@ function ReverseOrderGame({ onMainMenu, onGameStart, onGameFinished, submitting,
       setFeedbackText('Correct')
       window.setTimeout(() => {
         setCurrentRound((previous) => previous + 1)
+        setAttemptsLeft(MAX_ATTEMPTS_PER_ROUND)
         setSelectedOption(null)
         setFeedbackType('idle')
         setFeedbackText('')
@@ -428,6 +444,9 @@ function ReverseOrderGame({ onMainMenu, onGameStart, onGameFinished, submitting,
         <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
           Round {currentRound}/{TOTAL_ROUNDS}
         </p>
+        <p className="mt-1 text-[11px] font-semibold text-zinc-500">
+          Attempts left this round: {attemptsLeft}
+        </p>
       </div>
 
       <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm space-y-4">
@@ -494,6 +513,37 @@ function ReverseOrderGame({ onMainMenu, onGameStart, onGameFinished, submitting,
                 className="flex-1 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
               >
                 Play Again
+              </button>
+              <button
+                type="button"
+                onClick={onMainMenu}
+                className="flex-1 rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100"
+              >
+                Main Menu
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {gameOverResult ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-3">
+            <h3 className="text-2xl font-black text-zinc-950">Game Over</h3>
+            <p className="text-sm font-semibold text-zinc-600">
+              You used all {MAX_ATTEMPTS_PER_ROUND} attempts on round {gameOverResult.round}.
+            </p>
+            <p className="text-sm font-semibold text-zinc-600">No rewards this run.</p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void startThreeRoundGame()
+                }}
+                className="flex-1 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+              >
+                Try Again
               </button>
               <button
                 type="button"

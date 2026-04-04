@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import confetti from 'canvas-confetti'
 
-const DAILY_CAP = 75
 const TOTAL_ROUNDS = 3
+const MAX_ATTEMPTS_PER_ROUND = 3
 const MIN_VALUE = 0
 const MAX_VALUE = 50
 const MAX_RULE_ATTEMPTS = 80
@@ -232,27 +232,6 @@ function buildPuzzle() {
   }
 }
 
-function awardXP(previousXpToday, resultMeta) {
-  const gained = resultMeta?.xpAwarded || 0
-  const before = Number.isFinite(resultMeta?.todayGameXpBefore)
-    ? resultMeta.todayGameXpBefore
-    : previousXpToday
-  const updated = Math.min(DAILY_CAP, before + gained)
-  const capReached = Boolean(resultMeta?.cappedByDailyLimit) || updated >= DAILY_CAP
-
-  if (capReached) {
-    return {
-      xpEarnedToday: updated,
-      message: 'Daily XP limit reached',
-    }
-  }
-
-  return {
-    xpEarnedToday: updated,
-    message: gained > 0 ? 'Correct' : 'No XP awarded',
-  }
-}
-
 function fireConfetti() {
   confetti({
     particleCount: 80,
@@ -263,19 +242,27 @@ function fireConfetti() {
 }
 
 function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, resultMeta, errorText }) {
+  const onGameStartRef = useRef(onGameStart)
+  const onGameFinishedRef = useRef(onGameFinished)
   const [startSequence, setStartSequence] = useState([])
   const [rules, setRules] = useState([])
   const [correctAnswer, setCorrectAnswer] = useState([])
   const [options, setOptions] = useState([])
   const [selectedOption, setSelectedOption] = useState(null)
-  const [xpEarnedToday, setXpEarnedToday] = useState(0)
   const [feedbackType, setFeedbackType] = useState('idle')
   const [feedbackText, setFeedbackText] = useState('')
   const [loadingQuestion, setLoadingQuestion] = useState(true)
   const [currentRound, setCurrentRound] = useState(1)
+  const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS_PER_ROUND)
   const [completionResult, setCompletionResult] = useState(null)
+  const [gameOverResult, setGameOverResult] = useState(null)
 
-  const canChooseOption = !loadingQuestion && !submitting && feedbackType === 'idle' && !completionResult
+  const canChooseOption = !loadingQuestion && !submitting && feedbackType === 'idle' && !completionResult && !gameOverResult
+
+  useEffect(() => {
+    onGameStartRef.current = onGameStart
+    onGameFinishedRef.current = onGameFinished
+  }, [onGameStart, onGameFinished])
 
   function loadPuzzle() {
     const puzzle = buildPuzzle()
@@ -291,11 +278,13 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
     setFeedbackType('idle')
     setFeedbackText('')
     setCurrentRound(1)
+    setAttemptsLeft(MAX_ATTEMPTS_PER_ROUND)
     setCompletionResult(null)
+    setGameOverResult(null)
 
     try {
       loadPuzzle()
-      const started = onGameStart ? await onGameStart() : true
+      const started = onGameStartRef.current ? await onGameStartRef.current() : true
       if (!started) {
         setFeedbackType('incorrect')
         setFeedbackText('Could not start a new game. Try again.')
@@ -306,13 +295,11 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
     } finally {
       setLoadingQuestion(false)
     }
-  }, [onGameStart])
+  }, [])
 
   useEffect(() => {
     void startThreeRoundGame()
-    // Intentionally run once on mount to avoid repeated restarts from parent re-renders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [startThreeRoundGame])
 
   async function handleSelectOption(option, index) {
     if (!canChooseOption) {
@@ -323,8 +310,18 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
     const isCorrect = sameSequence(option, correctAnswer)
 
     if (!isCorrect) {
+      const nextAttempts = attemptsLeft - 1
+      setAttemptsLeft(nextAttempts)
       setFeedbackType('incorrect')
-      setFeedbackText('Wrong answer. New stack loaded for this round.')
+      if (nextAttempts <= 0) {
+        setFeedbackText('Wrong. No attempts left this round.')
+        window.setTimeout(() => {
+          setGameOverResult({ round: currentRound })
+        }, 500)
+        return
+      }
+
+      setFeedbackText(`Wrong - try again with a new stack. Attempts left: ${nextAttempts}`)
       window.setTimeout(() => {
         setSelectedOption(null)
         setFeedbackType('idle')
@@ -339,6 +336,7 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
       setFeedbackText('Correct')
       window.setTimeout(() => {
         setCurrentRound((previous) => previous + 1)
+        setAttemptsLeft(MAX_ATTEMPTS_PER_ROUND)
         setSelectedOption(null)
         setFeedbackType('idle')
         setFeedbackText('')
@@ -348,10 +346,10 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
     }
 
     setFeedbackType('correct')
-    setFeedbackText('Correct')
+    setFeedbackText('Correct - submitting...')
 
-    const submitMeta = onGameFinished ? await onGameFinished({ score: 1 }) : null
-    if (!submitMeta && onGameFinished) {
+    const submitMeta = onGameFinishedRef.current ? await onGameFinishedRef.current({ score: 1 }) : null
+    if (!submitMeta && onGameFinishedRef.current) {
       setFeedbackType('incorrect')
       setFeedbackText('Could not submit result. Try again.')
       window.setTimeout(() => {
@@ -362,16 +360,16 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
       return
     }
 
-    const reward = awardXP(xpEarnedToday, submitMeta || resultMeta)
-    setXpEarnedToday(reward.xpEarnedToday)
+    const actualXp = submitMeta?.xpAwarded ?? resultMeta?.xpAwarded ?? 0
+    const wasCapped = Boolean(submitMeta?.cappedByDailyLimit ?? resultMeta?.cappedByDailyLimit)
     setFeedbackText(
-      reward.message === 'Daily XP limit reached'
-        ? 'Correct. +15 XP. Daily XP limit reached'
-        : 'Correct. +15 XP',
+      wasCapped
+        ? `Correct. +${actualXp} XP. Daily cap reached.`
+        : `Correct. +${actualXp} XP`,
     )
     setCompletionResult({
-      xpAwarded: submitMeta?.xpAwarded ?? resultMeta?.xpAwarded ?? 0,
-      cappedByDailyLimit: Boolean(submitMeta?.cappedByDailyLimit ?? resultMeta?.cappedByDailyLimit),
+      xpAwarded: actualXp,
+      cappedByDailyLimit: wasCapped,
       dailyCap: submitMeta?.dailyCap ?? resultMeta?.dailyCap,
       remainingToday: submitMeta?.remainingToday ?? resultMeta?.remainingToday,
     })
@@ -380,13 +378,8 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
 
   function optionClass(index, option) {
     const isSelected = selectedOption === index
-    const isCorrect = sameSequence(option, correctAnswer)
 
     if (feedbackType === 'correct' && isSelected) {
-      return 'border-emerald-500 bg-emerald-50 text-emerald-700'
-    }
-
-    if (feedbackType === 'incorrect' && isCorrect) {
       return 'border-emerald-500 bg-emerald-50 text-emerald-700'
     }
 
@@ -418,6 +411,9 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
         </p>
         <p className="mt-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
           Round {currentRound}/{TOTAL_ROUNDS}
+        </p>
+        <p className="mt-1 text-[11px] font-semibold text-zinc-500">
+          Attempts left this round: {attemptsLeft}
         </p>
       </div>
 
@@ -461,7 +457,7 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
       ) : null}
 
       {loadingQuestion ? <p className="text-xs font-semibold text-zinc-500">Loading question...</p> : null}
-      {submitting ? <p className="text-xs font-semibold text-zinc-500">Checking answer...</p> : null}
+      {submitting ? <p className="text-xs font-semibold text-zinc-500">Submitting result...</p> : null}
       {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
 
       {completionResult ? (
@@ -485,6 +481,37 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
                 className="flex-1 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
               >
                 Play Again
+              </button>
+              <button
+                type="button"
+                onClick={onMainMenu}
+                className="flex-1 rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100"
+              >
+                Main Menu
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {gameOverResult ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-3">
+            <h3 className="text-2xl font-black text-zinc-950">Game Over</h3>
+            <p className="text-sm font-semibold text-zinc-600">
+              You used all {MAX_ATTEMPTS_PER_ROUND} attempts on round {gameOverResult.round}.
+            </p>
+            <p className="text-sm font-semibold text-zinc-600">No rewards this run.</p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void startThreeRoundGame()
+                }}
+                className="flex-1 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+              >
+                Try Again
               </button>
               <button
                 type="button"
