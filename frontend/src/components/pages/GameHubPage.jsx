@@ -6,9 +6,10 @@ const TRAINING_GAMES = [
     desc: 'Solve as many as you can in 30 seconds.',
     difficulty: { icon: '⚡', label: 'Easy', color: 'text-emerald-600' },
     maxXp: 50,
+    gameType: 'quick_math',
     category: 'speed_reaction',
     resultType: 'score',
-    resultLabels: ['Quick Math'],
+    resultLabel: 'Quick Math',
   },
   {
     id: 'focus_tap',
@@ -17,9 +18,10 @@ const TRAINING_GAMES = [
     desc: 'Tap the right color. Avoid distractions.',
     difficulty: { icon: '⚡', label: 'Easy', color: 'text-emerald-600' },
     maxXp: 50,
+    gameType: 'focus_tap',
     category: 'speed_reaction',
     resultType: 'score',
-    resultLabels: ['Focus Tap'],
+    resultLabel: 'Focus Tap',
   },
   {
     id: 'number_recall',
@@ -28,9 +30,10 @@ const TRAINING_GAMES = [
     desc: 'Memorize 7 digits. Reproduce perfectly.',
     difficulty: { icon: '🔥', label: 'Medium', color: 'text-amber-600' },
     maxXp: 50,
+    gameType: 'number_recall',
     category: 'memory_pattern',
     resultType: 'binary',
-    resultLabels: ['Number Recall'],
+    resultLabel: 'Number Recall',
   },
   {
     id: 'color_count_focus',
@@ -39,9 +42,10 @@ const TRAINING_GAMES = [
     desc: 'Count target color flashes across 8 rounds.',
     difficulty: { icon: '🔥', label: 'Medium', color: 'text-amber-600' },
     maxXp: 60,
+    gameType: 'color_count_focus',
     category: 'memory_pattern',
     resultType: 'score',
-    resultLabels: ['Color Count Focus'],
+    resultLabel: 'Color Count Focus',
   },
   {
     id: 'speed_pattern',
@@ -50,9 +54,10 @@ const TRAINING_GAMES = [
     desc: 'Memorize 5x5 patterns across 3 rounds.',
     difficulty: { icon: '💀', label: 'Hard', color: 'text-rose-600' },
     maxXp: 100,
+    gameType: 'speed_pattern',
     category: 'memory_pattern',
     resultType: 'binary',
-    resultLabels: ['Speed Pattern'],
+    resultLabel: 'Speed Pattern',
   },
   {
     id: 'number_stack',
@@ -61,9 +66,10 @@ const TRAINING_GAMES = [
     desc: 'Follow 3 rules and pick the final stack.',
     difficulty: { icon: '💀', label: 'Hard', color: 'text-rose-600' },
     maxXp: 75,
+    gameType: 'number_stack',
     category: 'memory_pattern',
     resultType: 'binary',
-    resultLabels: ['Number Stack'],
+    resultLabel: 'Number Stack',
   },
   {
     id: 'reverse_order',
@@ -72,9 +78,10 @@ const TRAINING_GAMES = [
     desc: 'Apply ordered rules. Pick final sequence.',
     difficulty: { icon: '💀', label: 'Hard', color: 'text-rose-600' },
     maxXp: 75,
+    gameType: 'reverse_order',
     category: 'logic_reasoning',
     resultType: 'binary',
-    resultLabels: ['Reverse Order'],
+    resultLabel: 'Reverse Order',
   },
 ]
 
@@ -84,22 +91,26 @@ const CATEGORY_SECTIONS = [
   { id: 'logic_reasoning', label: 'Logic & Reasoning' },
 ]
 
-function displayLastResult(game, lastTrainingResult) {
-  if (!lastTrainingResult || !game.resultLabels.includes(lastTrainingResult.label)) {
-    return 'Last: --'
+function displayRemainingXp(game, gameRemainingXpByType, lastTrainingResult) {
+  const entry = gameRemainingXpByType?.[game.gameType]
+  const mappedRemaining = Number(entry?.remaining_today)
+  if (Number.isFinite(mappedRemaining)) {
+    return `Remaining today: ${Math.max(0, mappedRemaining)} XP`
   }
 
-  if (game.resultType === 'binary') {
-    return `Last: ${lastTrainingResult.score > 0 ? 'Win' : 'Loss'}`
+  if (lastTrainingResult && game.resultLabel === lastTrainingResult.label) {
+    const remaining = Number(lastTrainingResult.remainingToday)
+    if (Number.isFinite(remaining)) {
+      return `Remaining today: ${Math.max(0, remaining)} XP`
+    }
   }
 
-  return `Last: ${lastTrainingResult.score}`
+  return `Remaining today: ${game.maxXp} XP`
 }
 
-function gameCard(game, onNavigate, lastTrainingResult, isFeatured = false) {
+function GameCard({ game, onNavigate, lastTrainingResult, gameRemainingXpByType, isFeatured = false }) {
   return (
     <div
-      key={game.id}
       className={`rounded-2xl border cursor-pointer ${isFeatured ? 'border-zinc-700 bg-zinc-950 text-white p-5' : 'border-zinc-200 bg-white p-4'}`}
       onClick={() => onNavigate(game.route)}
       role="button"
@@ -122,7 +133,7 @@ function gameCard(game, onNavigate, lastTrainingResult, isFeatured = false) {
           Up to {game.maxXp} XP
         </p>
         <p className={`text-xs font-semibold ${isFeatured ? 'text-zinc-300' : 'text-zinc-600'}`}>
-          {displayLastResult(game, lastTrainingResult)}
+          {displayRemainingXp(game, gameRemainingXpByType, lastTrainingResult)}
         </p>
       </div>
       {isFeatured ? <p className="mt-3 text-sm font-black text-white">Train Now →</p> : null}
@@ -130,8 +141,8 @@ function gameCard(game, onNavigate, lastTrainingResult, isFeatured = false) {
   )
 }
 
-function GameHubPage({ onBack, onNavigate, dailyTrainingGameLabel, lastTrainingResult }) {
-  const featuredGame = TRAINING_GAMES.find((game) => game.resultLabels.includes(dailyTrainingGameLabel)) || TRAINING_GAMES[0]
+function GameHubPage({ onBack, onNavigate, dailyTrainingGameLabel, lastTrainingResult, gameRemainingXpByType }) {
+  const featuredGame = TRAINING_GAMES.find((game) => game.resultLabel === dailyTrainingGameLabel) || TRAINING_GAMES[0]
 
   return (
     <section className="space-y-4">
@@ -152,16 +163,34 @@ function GameHubPage({ onBack, onNavigate, dailyTrainingGameLabel, lastTrainingR
 
       <div className="space-y-2">
         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Today's Training</p>
-        {gameCard(featuredGame, onNavigate, lastTrainingResult, true)}
+        <GameCard
+          game={featuredGame}
+          onNavigate={onNavigate}
+          lastTrainingResult={lastTrainingResult}
+          gameRemainingXpByType={gameRemainingXpByType}
+          isFeatured
+        />
       </div>
 
       {CATEGORY_SECTIONS.map((section) => {
-        const games = TRAINING_GAMES.filter((game) => game.category === section.id)
+        const games = TRAINING_GAMES.filter((game) => game.category === section.id && game.id !== featuredGame.id)
+        if (games.length === 0) {
+          return null
+        }
+
         return (
           <div key={section.id} className="space-y-2">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">{section.label}</p>
             <div className="space-y-3">
-              {games.map((game) => gameCard(game, onNavigate, lastTrainingResult))}
+              {games.map((game) => (
+                <GameCard
+                  key={game.id}
+                  game={game}
+                  onNavigate={onNavigate}
+                  lastTrainingResult={lastTrainingResult}
+                  gameRemainingXpByType={gameRemainingXpByType}
+                />
+              ))}
             </div>
           </div>
         )

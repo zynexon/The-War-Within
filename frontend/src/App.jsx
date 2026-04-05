@@ -31,8 +31,10 @@ const DAILY_TRAINING_GAMES = [
   'Quick Math',
   'Focus Tap',
   'Number Recall',
-  'Color Count',
+  'Color Count Focus',
   'Speed Pattern',
+  'Reverse Order',
+  'Number Stack',
 ]
 const LEVEL_TITLES = {
   1: 'Civilian',
@@ -380,6 +382,7 @@ function App() {
   } = useGameSession(BEST_GAME_SCORE_KEY, LAST_TRAINING_RESULT_KEY)
 
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
+  const [gameRemainingXpByType, setGameRemainingXpByType] = useState({})
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [leaderboardPeriod, setLeaderboardPeriod] = useState('weekly')
   const [leaderboardNowMs, setLeaderboardNowMs] = useState(Date.now())
@@ -542,15 +545,30 @@ function App() {
     return () => window.clearTimeout(timerId)
   }, [shieldEarnedNotice])
 
-  function recordLastTrainingResult(label, scoreValue) {
+  function recordLastTrainingResult(label, scoreValue, remainingTodayValue, dailyCapValue, gameTypeValue) {
     const parsedScore = Number(scoreValue)
     if (!label || Number.isNaN(parsedScore)) {
       return
     }
 
+    const parsedRemainingToday = Number(remainingTodayValue)
+    const parsedDailyCap = Number(dailyCapValue)
+
     const payload = {
       label,
       score: parsedScore,
+      remainingToday: Number.isFinite(parsedRemainingToday) ? parsedRemainingToday : null,
+      dailyCap: Number.isFinite(parsedDailyCap) ? parsedDailyCap : null,
+    }
+
+    if (gameTypeValue && Number.isFinite(parsedRemainingToday) && Number.isFinite(parsedDailyCap)) {
+      setGameRemainingXpByType((current) => ({
+        ...current,
+        [gameTypeValue]: {
+          daily_cap: parsedDailyCap,
+          remaining_today: Math.max(0, parsedRemainingToday),
+        },
+      }))
     }
 
     setLastTrainingResult(payload)
@@ -725,9 +743,10 @@ function App() {
 
       try {
         // Parallelize auth/me and daily-tasks fetches
-        const [user, dailyTasks] = await Promise.all([
+        const [user, dailyTasks, gameRemaining] = await Promise.all([
           authedFetch('/api/auth/me/'),
           authedFetch('/api/daily-tasks/'),
+          authedFetch('/api/game/remaining/'),
         ])
 
         setUser(user)
@@ -751,6 +770,7 @@ function App() {
             completed: task.completed,
           })),
         )
+        setGameRemainingXpByType(gameRemaining?.remaining_by_type || {})
 
         // Only on initial load, set prevLevel to user's current level so level-up popup doesn't trigger on refresh
         if (!isInitialLoadRef.current) {
@@ -1300,6 +1320,7 @@ function App() {
     setXp(0)
     setStreakDays(0)
     setLeaderboardEntries([])
+    setGameRemainingXpByType({})
     setTotalPlayers(0)
     setYourRank(null)
     setActiveTab('Home')
@@ -1534,7 +1555,7 @@ function App() {
         remaining_today: data.remaining_today,
         capped_by_daily_limit: data.capped_by_daily_limit,
       })
-      recordLastTrainingResult('Quick Math', data.score)
+      recordLastTrainingResult('Quick Math', data.score, data.remaining_today, data.daily_cap, data.game_type)
       shouldFireQuickMathConfettiRef.current = true
       setInstallEligible(true)
       if (sessionId === gameSessionId) {
@@ -1699,7 +1720,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
-      recordLastTrainingResult('Focus Tap', result.score)
+      recordLastTrainingResult('Focus Tap', result.score, data.remaining_today, data.daily_cap, data.game_type)
       setFocusTapSessionId('')
     } catch (error) {
       setFocusTapError(error.message || 'Could not submit Focus Tap result.')
@@ -1756,7 +1777,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
-      recordLastTrainingResult('Number Recall', result.score)
+      recordLastTrainingResult('Number Recall', result.score, data.remaining_today, data.daily_cap, data.game_type)
       setNumberRecallSessionId('')
       if (result.outcome === 'win') {
         fireConfetti()
@@ -1816,7 +1837,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
-      recordLastTrainingResult('Color Count Focus', result.score)
+      recordLastTrainingResult('Color Count Focus', result.score, data.remaining_today, data.daily_cap, data.game_type)
       setColorCountSessionId('')
       if (result.outcome === 'win') {
         fireConfetti()
@@ -1889,7 +1910,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
-      recordLastTrainingResult('Speed Pattern', result.score)
+      recordLastTrainingResult('Speed Pattern', result.score, data.remaining_today, data.daily_cap, data.game_type)
       setSpeedPatternSessionId('')
       speedPatternSessionIdRef.current = ''
       if (result.outcome === 'win') {
@@ -1956,7 +1977,7 @@ function App() {
       if (data.xp_awarded > 0) {
         setInstallEligible(true)
       }
-      recordLastTrainingResult('Reverse Order', result.score)
+      recordLastTrainingResult('Reverse Order', result.score, data.remaining_today, data.daily_cap, data.game_type)
       return meta
     } catch (error) {
       setReverseOrderError(error.message || 'Could not submit Reverse Order result.')
@@ -2028,7 +2049,7 @@ function App() {
       if (data.xp_awarded > 0) {
         setInstallEligible(true)
       }
-      recordLastTrainingResult('Number Stack', result.score)
+      recordLastTrainingResult('Number Stack', result.score, data.remaining_today, data.daily_cap, data.game_type)
       return meta
     } catch (error) {
       setNumberStackError(error.message || 'Could not submit Number Stack result.')
@@ -2712,6 +2733,7 @@ function App() {
             onNavigate={navigate}
             dailyTrainingGameLabel={dailyTrainingGameLabel}
             lastTrainingResult={lastTrainingResult}
+            gameRemainingXpByType={gameRemainingXpByType}
           />
         )
       ) : activeTab === 'Profile' ? (

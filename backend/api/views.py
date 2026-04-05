@@ -31,6 +31,7 @@ from .services import (
 	check_streak_on_login,
 	create_xp_log,
 	get_daily_game_xp_cap,
+	get_daily_game_remaining_by_type,
 	get_daily_tasks,
 	get_game_session,
 	get_leaderboard,
@@ -233,6 +234,14 @@ class GameStartView(APIView):
 			{"session_id": str(session.id), "game_type": session.game_type},
 			status=status.HTTP_201_CREATED,
 		)
+
+
+class GameDailyRemainingView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		remaining_by_type = get_daily_game_remaining_by_type(request.user)
+		return Response({"remaining_by_type": remaining_by_type})
 
 
 class GameSubmitView(APIView):

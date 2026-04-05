@@ -284,6 +284,19 @@ def get_today_game_xp(user, game_type):
     return result["total"] or 0
 
 
+def get_daily_game_remaining_by_type(user):
+    remaining_by_type = {}
+
+    for game_type, daily_cap in MAX_DAILY_GAME_XP_BY_TYPE.items():
+        game_xp_today = get_today_game_xp(user, game_type)
+        remaining_by_type[game_type] = {
+            "daily_cap": daily_cap,
+            "remaining_today": max(0, daily_cap - game_xp_today),
+        }
+
+    return remaining_by_type
+
+
 def calculate_game_session_xp(score):
     return min(score * GAME_XP_PER_SCORE, GAME_XP_PER_SESSION_CAP)
 
