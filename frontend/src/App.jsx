@@ -2363,9 +2363,14 @@ function App() {
             ) : null}
           </div>
 
-          <h3 className="text-lg font-semibold text-zinc-900">
-            THE WARBOARD
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-zinc-900">THE WARBOARD</h3>
+            {leaderboardEntries[0] ? (
+              <p className="text-xs font-black text-zinc-500 uppercase tracking-widest">
+                👑 {leaderboardEntries[0].name || 'Player'}
+              </p>
+            ) : null}
+          </div>
 
           <div className="space-y-2.5">
             {leaderboardEntries.map((entry, index) => {
@@ -2818,10 +2823,12 @@ function App() {
                     i
                   </button>
                 </div>
-                <p className="mt-1 text-2xl font-black leading-none">{level}</p>
-                <p className={`mt-1 text-[10px] font-black uppercase tracking-[0.14em] ${level >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>
-                  {getLevelTitle(level)}
-                </p>
+                <div className="mt-1 flex items-end gap-2">
+                  <p className="text-2xl font-black leading-none">{level}</p>
+                  <p className={`text-[10px] font-black uppercase tracking-[0.14em] ${level >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                    {getLevelTitle(level)}
+                  </p>
+                </div>
               </div>
               <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">STREAK</p>
