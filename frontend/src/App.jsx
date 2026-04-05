@@ -1956,6 +1956,7 @@ function App() {
       if (data.xp_awarded > 0) {
         setInstallEligible(true)
       }
+      recordLastTrainingResult('Reverse Order', result.score)
       return meta
     } catch (error) {
       setReverseOrderError(error.message || 'Could not submit Reverse Order result.')
@@ -2027,6 +2028,7 @@ function App() {
       if (data.xp_awarded > 0) {
         setInstallEligible(true)
       }
+      recordLastTrainingResult('Number Stack', result.score)
       return meta
     } catch (error) {
       setNumberStackError(error.message || 'Could not submit Number Stack result.')
@@ -2705,7 +2707,12 @@ function App() {
             errorText={numberStackError}
           />
         ) : (
-          <GameHubPage onBack={() => navigate('/')} onNavigate={navigate} />
+          <GameHubPage
+            onBack={() => navigate('/')}
+            onNavigate={navigate}
+            dailyTrainingGameLabel={dailyTrainingGameLabel}
+            lastTrainingResult={lastTrainingResult}
+          />
         )
       ) : activeTab === 'Profile' ? (
         <section className="space-y-5">
