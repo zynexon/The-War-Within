@@ -224,9 +224,7 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
               <p className="text-xs font-semibold text-zinc-500">Server XP awarded: +{awardedXp}</p>
             ) : null}
             {resultMeta?.cappedByDailyLimit ? (
-              <p className="text-xs font-semibold text-amber-600">
-                Daily game cap reached ({resultMeta.dailyCap} XP/day). Remaining today: {resultMeta.remainingToday}
-              </p>
+              <p className="text-xs font-semibold text-amber-600">Cap reached today ✓</p>
             ) : null}
             {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
             <div className="flex gap-3 pt-2">

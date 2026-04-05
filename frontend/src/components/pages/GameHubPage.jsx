@@ -95,17 +95,23 @@ function displayRemainingXp(game, gameRemainingXpByType, lastTrainingResult) {
   const entry = gameRemainingXpByType?.[game.gameType]
   const mappedRemaining = Number(entry?.remaining_today)
   if (Number.isFinite(mappedRemaining)) {
+    if (mappedRemaining <= 0) {
+      return 'Cap reached today ✓'
+    }
     return `Remaining today: ${Math.max(0, mappedRemaining)} XP`
   }
 
   if (lastTrainingResult && game.resultLabel === lastTrainingResult.label) {
     const remaining = Number(lastTrainingResult.remainingToday)
     if (Number.isFinite(remaining)) {
+      if (remaining <= 0) {
+        return 'Cap reached today ✓'
+      }
       return `Remaining today: ${Math.max(0, remaining)} XP`
     }
   }
 
-  return `Remaining today: ${game.maxXp} XP`
+  return `Up to ${game.maxXp} XP today`
 }
 
 function GameCard({ game, onNavigate, lastTrainingResult, gameRemainingXpByType, isFeatured = false }) {

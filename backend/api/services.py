@@ -285,16 +285,25 @@ def get_today_game_xp(user, game_type):
 
 
 def get_daily_game_remaining_by_type(user):
-    remaining_by_type = {}
+    today = timezone.localdate()
+    xp_by_type = dict(
+        GameSession.objects.filter(
+            user=user,
+            ended_at__date=today,
+            game_type__in=MAX_DAILY_GAME_XP_BY_TYPE.keys(),
+        )
+        .values("game_type")
+        .annotate(total=Coalesce(Sum("xp_awarded"), 0))
+        .values_list("game_type", "total")
+    )
 
-    for game_type, daily_cap in MAX_DAILY_GAME_XP_BY_TYPE.items():
-        game_xp_today = get_today_game_xp(user, game_type)
-        remaining_by_type[game_type] = {
+    return {
+        game_type: {
             "daily_cap": daily_cap,
-            "remaining_today": max(0, daily_cap - game_xp_today),
+            "remaining_today": max(0, daily_cap - (xp_by_type.get(game_type, 0) or 0)),
         }
-
-    return remaining_by_type
+        for game_type, daily_cap in MAX_DAILY_GAME_XP_BY_TYPE.items()
+    }
 
 
 def calculate_game_session_xp(score):

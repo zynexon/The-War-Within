@@ -475,9 +475,7 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
             <p className="text-sm font-semibold text-zinc-600">You cleared all 3 rounds.</p>
             <p className="text-sm font-semibold text-zinc-600">XP earned: +{completionResult.xpAwarded}</p>
             {completionResult.cappedByDailyLimit ? (
-              <p className="text-xs font-semibold text-amber-600">
-                Daily game cap reached ({completionResult.dailyCap} XP/day). Remaining today: {completionResult.remainingToday}
-              </p>
+              <p className="text-xs font-semibold text-amber-600">Cap reached today ✓</p>
             ) : null}
 
             <div className="flex gap-3 pt-2">

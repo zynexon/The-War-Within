@@ -2243,7 +2243,7 @@ function App() {
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">War Mode Complete</p>
               <h3 className="mt-2 text-3xl font-black text-white">+{warModeResult.xpAwarded} XP</h3>
               {warModeResult.cappedByDailyLimit ? (
-                <p className="mt-3 text-xs font-semibold text-amber-300">Daily War Mode XP cap reached.</p>
+                <p className="mt-3 text-xs font-semibold text-amber-300">Cap reached today ✓</p>
               ) : null}
 
               <div className="mt-5 grid grid-cols-2 gap-3">
@@ -2644,7 +2644,7 @@ function App() {
                   <p className="text-sm font-semibold text-zinc-600">XP earned: +{Math.floor(animatedGameXp)}</p>
                   <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Best: {bestGameScore}</p>
                   {gameResult.capped_by_daily_limit ? (
-                    <p className="text-xs font-semibold text-amber-600">Daily game XP cap reached.</p>
+                    <p className="text-xs font-semibold text-amber-600">Cap reached today ✓</p>
                   ) : null}
                   <div className="pt-2 grid grid-cols-2 gap-3">
                     <button
