@@ -414,6 +414,7 @@ function App() {
   const [shieldEarnedNotice, setShieldEarnedNotice] = useState('')
   const [showShieldInfo, setShowShieldInfo] = useState(false)
   const [showLevelInfo, setShowLevelInfo] = useState(false)
+  const [showWarModeInfo, setShowWarModeInfo] = useState(false)
   const [entry, setEntry] = useState({
     did_you_win_today: '',
     where_did_you_fail_yourself: '',
@@ -2537,7 +2538,17 @@ function App() {
             </button>
 
             <div className="rounded-3xl border border-zinc-900 bg-zinc-900 p-5 text-white shadow-lg">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">War Mode</p>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">War Mode</p>
+                <button
+                  type="button"
+                  onClick={() => setShowWarModeInfo(true)}
+                  className="flex h-6 w-6 items-center justify-center rounded-full border border-zinc-600 text-[10px] font-black text-zinc-400 transition hover:border-zinc-400 hover:text-zinc-200"
+                  aria-label="War Mode info"
+                >
+                  i
+                </button>
+              </div>
               <h2 className="mt-2 text-3xl font-black tracking-tight">Enter War Mode</h2>
               <p className="mt-2 text-sm font-semibold text-zinc-300">
                 Choose one block. Start it. Finish it.
@@ -3400,6 +3411,97 @@ function App() {
             <button
               type="button"
               onClick={() => setShowLevelInfo(false)}
+              className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showWarModeInfo && activeTab === 'Game' && gameRoute === '/game/war-mode' ? (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">
+                  Focus Mode
+                </p>
+                <h3 className="mt-1 text-xl font-black text-white">⚔️ War Mode</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWarModeInfo(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-zinc-500 hover:text-white"
+                aria-label="Close war mode info"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-sm font-semibold leading-relaxed text-zinc-200">
+              War Mode is a timed focus session. You commit to a block of deep work, lock your phone, and earn XP when you finish.
+            </p>
+            <p className="mt-3 text-xs font-semibold leading-relaxed text-zinc-400">
+              The work happens outside the app - on your laptop, your notebook, wherever. Zynexon just holds you accountable and rewards you for showing up.
+            </p>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+              Sessions
+            </p>
+            <div className="space-y-2">
+              {[
+                { label: 'Skirmish', duration: '25 min', xp: '+30 XP', desc: 'A quick focused push.' },
+                { label: 'Battle', duration: '45 min', xp: '+60 XP', desc: 'A proper work block.' },
+                { label: 'Full War', duration: '60 min', xp: '+100 XP', desc: 'Maximum effort. Earns a Streak Shield.' },
+              ].map(({ label, duration, xp: warXp, desc }) => (
+                <div key={label} className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5">
+                  <div>
+                    <p className="text-xs font-black text-white">{label}
+                      <span className="ml-2 text-[10px] font-semibold text-zinc-500">{duration}</span>
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-semibold text-zinc-400">{desc}</p>
+                  </div>
+                  <p className="text-xs font-black text-zinc-300">{warXp}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+              How It Works
+            </p>
+            <div className="space-y-2.5">
+              {[
+                { step: '1', text: 'Pick a session length and start.' },
+                { step: '2', text: 'Lock your screen. The timer runs in the background.' },
+                { step: '3', text: 'Come back when the time is up.' },
+                { step: '4', text: 'Answer honestly - did you actually work?' },
+                { step: '5', text: "Claim your XP. Or don't, if you didn't earn it." },
+              ].map(({ step, text }) => (
+                <div key={step} className="flex items-start gap-3">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-black text-zinc-300">
+                    {step}
+                  </span>
+                  <p className="text-xs font-semibold leading-snug text-zinc-300">{text}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <p className="text-xs font-semibold leading-relaxed text-zinc-400">
+              War Mode runs on the{' '}
+              <span className="font-black text-white">honour system.</span>{' '}
+              The XP means nothing if you didn't earn it. Your discipline is between you and yourself.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setShowWarModeInfo(false)}
               className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
             >
               Got it
