@@ -48,7 +48,7 @@ from .services import (
 )
 
 
-JOURNAL_DAILY_XP = 5
+JOURNAL_DAILY_XP = 20
 
 
 def get_validation_error_message(exc, fallback="Request failed."):
