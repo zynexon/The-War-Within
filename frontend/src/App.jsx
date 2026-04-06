@@ -383,6 +383,8 @@ function App() {
 
   const [leaderboardEntries, setLeaderboardEntries] = useState([])
   const [gameRemainingXpByType, setGameRemainingXpByType] = useState({})
+  const [dailyChallenge, setDailyChallenge] = useState(null)
+  const [showDailyChallenge, setShowDailyChallenge] = useState(false)
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [leaderboardPeriod, setLeaderboardPeriod] = useState('weekly')
   const [leaderboardNowMs, setLeaderboardNowMs] = useState(Date.now())
@@ -478,6 +480,16 @@ function App() {
     : tasksLeft > 0
       ? `${tasksLeft} task${tasksLeft === 1 ? '' : 's'} left to win today.`
       : 'All tasks cleared. Win secured for today.'
+  const dailyChallengeCompleted = Boolean(dailyChallenge?.completed)
+  const dailyChallengeProgressCurrent = Number(dailyChallenge?.progress?.current || 0)
+  const dailyChallengeProgressTarget = Math.max(
+    1,
+    Number(dailyChallenge?.progress?.target || dailyChallenge?.challenge?.target_value || 1),
+  )
+  const dailyChallengeProgressPercent = Math.min(
+    100,
+    Math.max(0, (Math.min(dailyChallengeProgressCurrent, dailyChallengeProgressTarget) / dailyChallengeProgressTarget) * 100),
+  )
   const dailyWisdom = useMemo(() => {
     const dayNumber = Math.floor(Date.now() / 86400000)
     return DAILY_WISDOM[dayNumber % DAILY_WISDOM.length]
@@ -730,6 +742,38 @@ function App() {
     return data
   }
 
+  async function refreshDailyChallengeStatus() {
+    if (!accessToken) {
+      return
+    }
+
+    try {
+      const data = await authedFetch('/api/daily-challenge/')
+      setDailyChallenge(data)
+
+      if (typeof data.total_xp === 'number') {
+        setXp(data.total_xp)
+      }
+      if (typeof data.level === 'number') {
+        setLevel(data.level)
+      }
+      if (typeof data.total_xp === 'number' || typeof data.level === 'number' || typeof data.streak_shields === 'number') {
+        setUser((currentUser) => (
+          currentUser
+            ? {
+              ...currentUser,
+              xp: typeof data.total_xp === 'number' ? data.total_xp : currentUser.xp,
+              level: typeof data.level === 'number' ? data.level : currentUser.level,
+              streak_shields: typeof data.streak_shields === 'number' ? data.streak_shields : currentUser.streak_shields,
+            }
+            : currentUser
+        ))
+      }
+    } catch {
+      // Keep the rest of the dashboard usable if challenge sync fails.
+    }
+  }
+
   useEffect(() => {
     async function loadDashboard() {
       if (!accessToken) {
@@ -744,10 +788,11 @@ function App() {
 
       try {
         // Parallelize auth/me and daily-tasks fetches
-        const [user, dailyTasks, gameRemaining] = await Promise.all([
+        const [user, dailyTasks, gameRemaining, dailyChallengeData] = await Promise.all([
           authedFetch('/api/auth/me/'),
           authedFetch('/api/daily-tasks/'),
           authedFetch('/api/game/remaining/'),
+          authedFetch('/api/daily-challenge/').catch(() => null),
         ])
 
         setUser(user)
@@ -772,6 +817,24 @@ function App() {
           })),
         )
         setGameRemainingXpByType(gameRemaining?.remaining_by_type || {})
+        setDailyChallenge(dailyChallengeData)
+
+        if (dailyChallengeData && (typeof dailyChallengeData.total_xp === 'number' || typeof dailyChallengeData.level === 'number')) {
+          setXp(typeof dailyChallengeData.total_xp === 'number' ? dailyChallengeData.total_xp : user.xp)
+          setLevel(typeof dailyChallengeData.level === 'number' ? dailyChallengeData.level : user.level)
+          setUser((currentUser) => (
+            currentUser
+              ? {
+                ...currentUser,
+                xp: typeof dailyChallengeData.total_xp === 'number' ? dailyChallengeData.total_xp : currentUser.xp,
+                level: typeof dailyChallengeData.level === 'number' ? dailyChallengeData.level : currentUser.level,
+                streak_shields: typeof dailyChallengeData.streak_shields === 'number'
+                  ? dailyChallengeData.streak_shields
+                  : currentUser.streak_shields,
+              }
+              : currentUser
+          ))
+        }
 
         // Only on initial load, set prevLevel to user's current level so level-up popup doesn't trigger on refresh
         if (!isInitialLoadRef.current) {
@@ -942,7 +1005,7 @@ function App() {
   }, [pendingLevelUpLevel, showLevelUp, showGameResult, selectedTask, showInstallPopup])
 
   useEffect(() => {
-    if (showLevelUp || showGameResult) {
+    if (showLevelUp || showGameResult || showDailyChallenge) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'auto'
@@ -951,7 +1014,7 @@ function App() {
     return () => {
       document.body.style.overflow = 'auto'
     }
-  }, [showLevelUp, showGameResult])
+  }, [showLevelUp, showGameResult, showDailyChallenge])
 
   useEffect(() => {
     if (gameStarted && timeLeft === 0) {
@@ -1285,6 +1348,8 @@ function App() {
       } else {
         setJournalSavedText('Entry updated. XP already claimed today.')
       }
+
+      void refreshDailyChallengeStatus()
     } catch (error) {
       setJournalSavedText(error.message || 'Could not save journal entry.')
     } finally {
@@ -1313,6 +1378,8 @@ function App() {
     localStorage.removeItem('badge')
     setAccessToken('')
     setUser(null)
+    setDailyChallenge(null)
+    setShowDailyChallenge(false)
     setEquippedBadge(null)
     setTasks([])
     setUserName('')
@@ -1425,6 +1492,7 @@ function App() {
       setWarModeCompletionReady(false)
       setWarModeHonestyMessage('')
       setInstallEligible(true)
+      void refreshDailyChallengeStatus()
       fireConfetti()
     } catch (error) {
       setWarModeError(error.message || 'Could not submit War Mode session.')
@@ -1557,6 +1625,7 @@ function App() {
         capped_by_daily_limit: data.capped_by_daily_limit,
       })
       recordLastTrainingResult('Quick Math', data.score, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
       shouldFireQuickMathConfettiRef.current = true
       setInstallEligible(true)
       if (sessionId === gameSessionId) {
@@ -1621,6 +1690,7 @@ function App() {
       if ((data.total_shields_awarded || 0) > 0) {
         setShieldEarnedNotice(`🛡️ Shield earned: +${data.total_shields_awarded}. Discipline pays.`)
       }
+      void refreshDailyChallengeStatus()
     } catch (error) {
       setErrorText(error.message || 'Task could not be completed.')
     } finally {
@@ -1722,6 +1792,7 @@ function App() {
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
       recordLastTrainingResult('Focus Tap', result.score, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
       setFocusTapSessionId('')
     } catch (error) {
       setFocusTapError(error.message || 'Could not submit Focus Tap result.')
@@ -1779,6 +1850,7 @@ function App() {
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
       recordLastTrainingResult('Number Recall', result.score, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
       setNumberRecallSessionId('')
       if (result.outcome === 'win') {
         fireConfetti()
@@ -1839,6 +1911,7 @@ function App() {
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
       recordLastTrainingResult('Color Count Focus', result.score, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
       setColorCountSessionId('')
       if (result.outcome === 'win') {
         fireConfetti()
@@ -1912,6 +1985,7 @@ function App() {
         cappedByDailyLimit: data.capped_by_daily_limit,
       })
       recordLastTrainingResult('Speed Pattern', result.score, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
       setSpeedPatternSessionId('')
       speedPatternSessionIdRef.current = ''
       if (result.outcome === 'win') {
@@ -1979,6 +2053,7 @@ function App() {
         setInstallEligible(true)
       }
       recordLastTrainingResult('Reverse Order', result.score, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
       return meta
     } catch (error) {
       setReverseOrderError(error.message || 'Could not submit Reverse Order result.')
@@ -2051,6 +2126,7 @@ function App() {
         setInstallEligible(true)
       }
       recordLastTrainingResult('Number Stack', result.score, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
       return meta
     } catch (error) {
       setNumberStackError(error.message || 'Could not submit Number Stack result.')
@@ -3002,6 +3078,19 @@ function App() {
       ) : (
         <div className="max-w-md mx-auto px-4 pb-24 w-full">
         <section className="space-y-6">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowDailyChallenge(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-700 shadow-sm transition hover:border-zinc-900 hover:text-zinc-900"
+              aria-label="Open daily challenge"
+            >
+              <span className="text-sm leading-none">📅</span>
+              <span>Daily Challenge</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${dailyChallengeCompleted ? 'bg-emerald-500' : 'bg-red-500'}`} />
+            </button>
+          </div>
+
           {showShieldUsedBanner ? (
             <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">🛡️ Shield Used</p>
@@ -3505,6 +3594,91 @@ function App() {
               className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
             >
               Got it
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showDailyChallenge ? (
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">Today</p>
+                <h3 className="mt-1 text-xl font-black text-white">📅 Daily Challenge</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDailyChallenge(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-zinc-500 hover:text-white"
+                aria-label="Close daily challenge"
+              >
+                ✕
+              </button>
+            </div>
+
+            {dailyChallenge?.challenge ? (
+              <>
+                <p className="text-sm font-semibold leading-relaxed text-zinc-100">
+                  {dailyChallenge.challenge.description}
+                </p>
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                  {new Date(dailyChallenge.challenge.date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </p>
+
+                <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Progress</p>
+                    <p className="text-xs font-black text-zinc-200">
+                      {Math.min(dailyChallengeProgressCurrent, dailyChallengeProgressTarget)} / {dailyChallengeProgressTarget}
+                    </p>
+                  </div>
+                  <div className="mt-2 h-2 w-full rounded-full bg-zinc-800">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-500 ${dailyChallengeCompleted ? 'bg-emerald-500' : 'bg-red-500'}`}
+                      style={{ width: `${dailyChallengeProgressPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3">
+                  <p className="text-xs font-bold text-zinc-300">Reward</p>
+                  <p className="text-sm font-black text-white">+{dailyChallenge.challenge.reward_xp || 30} XP</p>
+                </div>
+
+                {dailyChallengeCompleted ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-center">
+                    <p className="text-sm font-black text-emerald-300">Challenge completed ✓</p>
+                    {dailyChallenge.completed_at ? (
+                      <p className="mt-1 text-xs font-semibold text-emerald-200">
+                        Completed at {new Date(dailyChallenge.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center">
+                    <p className="text-sm font-black text-red-200">Not completed yet</p>
+                    <p className="mt-1 text-xs font-semibold text-red-100">Finish this challenge before the day resets.</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-4">
+                <p className="text-sm font-semibold text-zinc-200">Challenge data is unavailable right now.</p>
+                <p className="mt-1 text-xs font-semibold text-zinc-400">Try again in a few seconds.</p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowDailyChallenge(false)}
+              className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
+            >
+              Close
             </button>
           </div>
         </div>

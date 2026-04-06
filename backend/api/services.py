@@ -1,6 +1,7 @@
 import math
 from datetime import date
 
+from django.db import transaction
 from django.db.models import DateField
 from django.db.models import Count
 from django.db.models import Q
@@ -9,7 +10,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 
-from .models import DailyTaskSet, GameSession, JournalEntry, Task, User, UserTask, XPLog
+from .models import DailyChallenge, DailyChallengeCompletion, DailyTaskSet, GameSession, JournalEntry, Task, User, UserTask, XPLog
 
 
 MAX_DAILY_GAME_XP = 50
@@ -104,6 +105,29 @@ DEFAULT_TASK_TEMPLATES = [
     {"legacy_title": "Have 1 meaningful conversation", "title": "One real conversation beats 100 shallow ones.", "xp": 10},
     {"legacy_title": "Write your goals for the week", "title": "Unclear goals = guaranteed failure. Write them down.", "xp": 15},
     {"legacy_title": "Sleep before 11 PM", "title": "Recovery is part of the war. Sleep before 11.", "xp": 20},
+]
+DAILY_CHALLENGE_XP_REWARD = 30
+DAILY_CHALLENGE_POOL = [
+    {
+        "type": DailyChallenge.TYPE_COMPLETE_3_TASKS,
+        "description": "Complete 3 tasks today",
+        "target": 3,
+    },
+    {
+        "type": DailyChallenge.TYPE_EARN_20_XP_FROM_GAMES,
+        "description": "Earn 20 XP from games",
+        "target": 20,
+    },
+    {
+        "type": DailyChallenge.TYPE_WRITE_JOURNAL_ENTRY,
+        "description": "Write your journal entry",
+        "target": 1,
+    },
+    {
+        "type": DailyChallenge.TYPE_COMPLETE_MORNING_TASK,
+        "description": "Complete a task before 10:00 AM",
+        "target": 1,
+    },
 ]
 
 
@@ -443,6 +467,149 @@ def get_daily_tasks(user, date=None):
         user_tasks = list(user_tasks)
 
     return user_tasks
+
+
+def get_or_create_today_challenge(target_date=None):
+    challenge_date = target_date or timezone.localdate()
+    day_of_year = challenge_date.timetuple().tm_yday
+    template = DAILY_CHALLENGE_POOL[(day_of_year - 1) % len(DAILY_CHALLENGE_POOL)]
+
+    challenge, _ = DailyChallenge.objects.get_or_create(
+        date=challenge_date,
+        defaults={
+            "challenge_type": template["type"],
+            "description": template["description"],
+            "target_value": template["target"],
+            "reward_xp": DAILY_CHALLENGE_XP_REWARD,
+        },
+    )
+    return challenge
+
+
+def get_challenge_progress(user, challenge):
+    challenge_date = challenge.date
+    target = max(1, challenge.target_value)
+    current = 0
+
+    if challenge.challenge_type == DailyChallenge.TYPE_COMPLETE_3_TASKS:
+        current = UserTask.objects.filter(
+            user=user,
+            date=challenge_date,
+            completed=True,
+        ).count()
+    elif challenge.challenge_type == DailyChallenge.TYPE_EARN_20_XP_FROM_GAMES:
+        current = (
+            XPLog.objects.filter(
+                user=user,
+                source=XPLog.SOURCE_GAME,
+                created_at__date=challenge_date,
+            ).aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+            or 0
+        )
+    elif challenge.challenge_type == DailyChallenge.TYPE_WRITE_JOURNAL_ENTRY:
+        current = 1 if JournalEntry.objects.filter(user=user, date=challenge_date).exists() else 0
+    elif challenge.challenge_type == DailyChallenge.TYPE_COMPLETE_MORNING_TASK:
+        current = UserTask.objects.filter(
+            user=user,
+            date=challenge_date,
+            completed=True,
+            completed_at__isnull=False,
+            completed_at__date=challenge_date,
+            completed_at__hour__lt=10,
+        ).count()
+
+    return {
+        "current": int(current),
+        "target": int(target),
+        "completed": int(current) >= int(target),
+    }
+
+
+def _build_daily_challenge_payload(
+    challenge,
+    progress,
+    completion,
+    xp_awarded_now=0,
+    xp_milestone_shields_awarded=0,
+):
+    normalized_progress = {
+        "current": int(progress.get("current", 0)),
+        "target": int(progress.get("target", challenge.target_value)),
+        "completed": bool(progress.get("completed", False)),
+    }
+
+    if completion:
+        normalized_progress["current"] = max(normalized_progress["current"], normalized_progress["target"])
+        normalized_progress["completed"] = True
+
+    return {
+        "challenge": {
+            "id": str(challenge.id),
+            "date": challenge.date.isoformat(),
+            "type": challenge.challenge_type,
+            "description": challenge.description,
+            "target_value": challenge.target_value,
+            "reward_xp": challenge.reward_xp,
+        },
+        "progress": normalized_progress,
+        "completed": bool(completion),
+        "completed_at": completion.completed_at.isoformat() if completion else None,
+        "xp_awarded_now": int(xp_awarded_now),
+        "xp_milestone_shields_awarded": int(xp_milestone_shields_awarded),
+    }
+
+
+def get_daily_challenge_status(user):
+    challenge = get_or_create_today_challenge()
+    progress = get_challenge_progress(user, challenge)
+    completion = DailyChallengeCompletion.objects.filter(user=user, challenge=challenge).first()
+    return _build_daily_challenge_payload(challenge, progress, completion)
+
+
+def check_and_award_daily_challenge(user):
+    challenge = get_or_create_today_challenge()
+    progress = get_challenge_progress(user, challenge)
+    existing_completion = DailyChallengeCompletion.objects.filter(user=user, challenge=challenge).first()
+
+    if existing_completion:
+        return _build_daily_challenge_payload(challenge, progress, existing_completion)
+
+    if not progress["completed"]:
+        return _build_daily_challenge_payload(challenge, progress, completion=None)
+
+    xp_awarded_now = 0
+    xp_milestone_shields_awarded = 0
+
+    with transaction.atomic():
+        challenge = DailyChallenge.objects.select_for_update().get(id=challenge.id)
+        completion, created = DailyChallengeCompletion.objects.get_or_create(
+            user=user,
+            challenge=challenge,
+        )
+
+        if created:
+            locked_user = User.objects.select_for_update().get(id=user.id)
+            xp_awarded_now = challenge.reward_xp
+            xp_milestone_shields_awarded = increment_user_xp(locked_user, xp_awarded_now)
+            create_xp_log(locked_user, XPLog.SOURCE_DAILY_CHALLENGE, xp_awarded_now)
+
+            user.xp = locked_user.xp
+            user.level = locked_user.level
+            user.streak_shields = locked_user.streak_shields
+        else:
+            xp_awarded_now = 0
+            xp_milestone_shields_awarded = 0
+
+    updated_progress = get_challenge_progress(user, challenge)
+    completion = DailyChallengeCompletion.objects.filter(user=user, challenge=challenge).first()
+
+    return _build_daily_challenge_payload(
+        challenge,
+        updated_progress,
+        completion,
+        xp_awarded_now=xp_awarded_now,
+        xp_milestone_shields_awarded=xp_milestone_shields_awarded,
+    )
 
 
 def get_weekly_leaderboard_window(reference_time=None):

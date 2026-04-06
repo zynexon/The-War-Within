@@ -28,6 +28,7 @@ from .services import (
 	award_shield_for_perfect_week,
 	assign_daily_tasks,
 	calculate_game_session_xp_for_type,
+	check_and_award_daily_challenge,
 	check_streak_on_login,
 	create_xp_log,
 	get_daily_game_xp_cap,
@@ -244,6 +245,22 @@ class GameDailyRemainingView(APIView):
 		return Response({"remaining_by_type": remaining_by_type})
 
 
+class DailyChallengeView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		user = User.objects.get(id=request.user.id)
+		daily_challenge = check_and_award_daily_challenge(user)
+		return Response(
+			{
+				**daily_challenge,
+				"total_xp": user.xp,
+				"level": user.level,
+				"streak_shields": user.streak_shields,
+			}
+		)
+
+
 class GameSubmitView(APIView):
 	permission_classes = [IsAuthenticated]
 
@@ -312,6 +329,9 @@ class GameSubmitView(APIView):
 
 		create_xp_log(user, XPLog.SOURCE_GAME, xp_awarded)
 		update_streak(user)
+		daily_challenge = check_and_award_daily_challenge(user)
+		daily_challenge_shields_awarded = daily_challenge.get("xp_milestone_shields_awarded", 0)
+		total_shields_awarded += daily_challenge_shields_awarded
 
 		return Response(
 			{
@@ -328,7 +348,10 @@ class GameSubmitView(APIView):
 				"streak_shields": user.streak_shields,
 				"xp_milestone_shields_awarded": milestone_shields_awarded,
 				"war_mode_shields_awarded": war_mode_shields_awarded,
+				"daily_challenge_shields_awarded": daily_challenge_shields_awarded,
 				"total_shields_awarded": total_shields_awarded,
+				"daily_challenge_xp_awarded": daily_challenge.get("xp_awarded_now", 0),
+				"daily_challenge": daily_challenge,
 			}
 		)
 
@@ -404,6 +427,8 @@ class JournalView(APIView):
 			create_xp_log(user, XPLog.SOURCE_JOURNAL, xp_awarded)
 			update_streak(user)
 
+		daily_challenge = check_and_award_daily_challenge(user)
+
 		return Response(
 			{
 				"entry": JournalEntrySerializer(entry).data,
@@ -413,6 +438,8 @@ class JournalView(APIView):
 				"total_xp": user.xp,
 				"level": user.level,
 				"streak": user.streak,
+				"daily_challenge_xp_awarded": daily_challenge.get("xp_awarded_now", 0),
+				"daily_challenge": daily_challenge,
 			}
 		)
 
@@ -441,7 +468,8 @@ class CompleteTaskView(APIView):
 		xp_earned = user_task.task.xp
 		target_date = user_task.date
 		user_task.completed = True
-		user_task.save(update_fields=["completed"])
+		user_task.completed_at = timezone.now()
+		user_task.save(update_fields=["completed", "completed_at"])
 
 		user = User.objects.select_for_update().get(id=request.user.id)
 		check_streak_on_login(user)
@@ -458,6 +486,9 @@ class CompleteTaskView(APIView):
 
 		total_shields_awarded = xp_milestone_shields + perfect_week_shields
 		total_tasks_completed = user.user_tasks.filter(completed=True).count()
+		daily_challenge = check_and_award_daily_challenge(user)
+		daily_challenge_shields_awarded = daily_challenge.get("xp_milestone_shields_awarded", 0)
+		total_shields_awarded += daily_challenge_shields_awarded
 
 		return Response(
 			{
@@ -469,8 +500,11 @@ class CompleteTaskView(APIView):
 				"streak_shields": user.streak_shields,
 				"xp_milestone_shields_awarded": xp_milestone_shields,
 				"perfect_week_shields_awarded": perfect_week_shields,
+				"daily_challenge_shields_awarded": daily_challenge_shields_awarded,
 				"total_shields_awarded": total_shields_awarded,
 				"total_tasks_completed": total_tasks_completed,
+				"daily_challenge_xp_awarded": daily_challenge.get("xp_awarded_now", 0),
+				"daily_challenge": daily_challenge,
 			}
 		)
 

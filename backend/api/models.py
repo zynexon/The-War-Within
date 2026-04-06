@@ -47,6 +47,7 @@ class UserTask(models.Model):
 	task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="user_tasks")
 	date = models.DateField()
 	completed = models.BooleanField(default=False)
+	completed_at = models.DateTimeField(null=True, blank=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 
 	class Meta:
@@ -62,10 +63,12 @@ class XPLog(models.Model):
 	SOURCE_TASK = "task"
 	SOURCE_GAME = "game"
 	SOURCE_JOURNAL = "journal"
+	SOURCE_DAILY_CHALLENGE = "daily_challenge"
 	SOURCE_CHOICES = [
 		(SOURCE_TASK, "Task"),
 		(SOURCE_GAME, "Game"),
 		(SOURCE_JOURNAL, "Journal"),
+		(SOURCE_DAILY_CHALLENGE, "Daily Challenge"),
 	]
 
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -131,3 +134,45 @@ class JournalEntry(models.Model):
 			)
 		]
 		ordering = ["-date", "-updated_at"]
+
+
+class DailyChallenge(models.Model):
+	TYPE_COMPLETE_3_TASKS = "complete_3_tasks"
+	TYPE_EARN_20_XP_FROM_GAMES = "earn_20_xp_from_games"
+	TYPE_WRITE_JOURNAL_ENTRY = "write_journal_entry"
+	TYPE_COMPLETE_MORNING_TASK = "complete_morning_task_before_10am"
+	TYPE_CHOICES = [
+		(TYPE_COMPLETE_3_TASKS, "Complete 3 Tasks"),
+		(TYPE_EARN_20_XP_FROM_GAMES, "Earn 20 XP from Games"),
+		(TYPE_WRITE_JOURNAL_ENTRY, "Write Journal Entry"),
+		(TYPE_COMPLETE_MORNING_TASK, "Complete Morning Task Before 10AM"),
+	]
+
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	date = models.DateField(unique=True)
+	challenge_type = models.CharField(max_length=50, choices=TYPE_CHOICES)
+	description = models.CharField(max_length=255)
+	target_value = models.IntegerField(default=1)
+	reward_xp = models.IntegerField(default=30)
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		ordering = ["-date"]
+
+	def __str__(self):
+		return f"{self.date} - {self.challenge_type}"
+
+
+class DailyChallengeCompletion(models.Model):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="daily_challenge_completions")
+	challenge = models.ForeignKey(DailyChallenge, on_delete=models.CASCADE, related_name="completions")
+	completed_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		constraints = [
+			models.UniqueConstraint(
+				fields=["user", "challenge"],
+				name="unique_user_daily_challenge_completion",
+			)
+		]
