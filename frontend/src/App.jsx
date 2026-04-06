@@ -221,6 +221,25 @@ function getTodayStorageKeyDate() {
   return `${year}-${month}-${day}`
 }
 
+function getDailyChallengeTitle(challenge) {
+  if (!challenge) {
+    return 'Daily Challenge'
+  }
+
+  const parsedDate = new Date(challenge.date)
+  const dayLabel = Number.isNaN(parsedDate.getTime())
+    ? 'Today'
+    : parsedDate.toLocaleDateString('en-US', { weekday: 'long' })
+  const typePrefix = {
+    complete_3_tasks: 'Lock In',
+    earn_20_xp_from_games: 'Full War',
+    write_journal_entry: 'Clarity',
+    complete_morning_task_before_10am: 'First Strike',
+  }
+
+  return `${typePrefix[challenge.type] || 'Challenge'} ${dayLabel}`
+}
+
 async function readApiPayload(response) {
   const contentType = response.headers.get('content-type') || ''
 
@@ -490,6 +509,9 @@ function App() {
     100,
     Math.max(0, (Math.min(dailyChallengeProgressCurrent, dailyChallengeProgressTarget) / dailyChallengeProgressTarget) * 100),
   )
+  const activeDailyChallenge = dailyChallenge?.challenge || null
+  const dailyChallengeTitle = getDailyChallengeTitle(activeDailyChallenge)
+  const dailyChallengeRewardXp = Number(activeDailyChallenge?.reward_xp || 30)
   const dailyWisdom = useMemo(() => {
     const dayNumber = Math.floor(Date.now() / 86400000)
     return DAILY_WISDOM[dayNumber % DAILY_WISDOM.length]
@@ -3082,12 +3104,16 @@ function App() {
             <button
               type="button"
               onClick={() => setShowDailyChallenge(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-700 shadow-sm transition hover:border-zinc-900 hover:text-zinc-900"
-              aria-label="Open daily challenge"
+              className="relative flex h-11 w-11 flex-col items-center justify-center rounded-2xl border border-zinc-400 bg-white shadow-sm transition hover:border-zinc-600"
+              aria-label="Daily Challenge"
             >
-              <span className="text-sm leading-none">📅</span>
-              <span>Daily Challenge</span>
-              <span className={`h-2.5 w-2.5 rounded-full ${dailyChallengeCompleted ? 'bg-emerald-500' : 'bg-red-500'}`} />
+              <span className="text-base">⚔️</span>
+              {dailyChallenge && !dailyChallenge.completed ? (
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500" />
+              ) : null}
+              {dailyChallenge?.completed ? (
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
+              ) : null}
             </button>
           </div>
 
@@ -3599,13 +3625,16 @@ function App() {
         </div>
       ) : null}
 
-      {showDailyChallenge ? (
+      {showDailyChallenge && dailyChallenge ? (
         <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl">
+
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">Today</p>
-                <h3 className="mt-1 text-xl font-black text-white">📅 Daily Challenge</h3>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">
+                  Today's Challenge
+                </p>
+                <h3 className="mt-1 text-xl font-black text-white">{dailyChallengeTitle}</h3>
               </div>
               <button
                 type="button"
@@ -3617,68 +3646,56 @@ function App() {
               </button>
             </div>
 
-            {dailyChallenge?.challenge ? (
-              <>
-                <p className="text-sm font-semibold leading-relaxed text-zinc-100">
-                  {dailyChallenge.challenge.description}
+            <p className="text-sm font-semibold leading-relaxed text-zinc-200">
+              {activeDailyChallenge?.description || 'Complete the challenge to claim your XP.'}
+            </p>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <div className="mb-5 space-y-2">
+              <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3">
+                <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Progress</p>
+                <p className="text-xs font-black text-zinc-300">
+                  {dailyChallengeCompleted
+                    ? <span className="text-emerald-400">✓ Done</span>
+                    : `${Math.min(dailyChallengeProgressCurrent, dailyChallengeProgressTarget)} / ${dailyChallengeProgressTarget}`}
                 </p>
-                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
-                  {new Date(dailyChallenge.challenge.date).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </p>
-
-                <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Progress</p>
-                    <p className="text-xs font-black text-zinc-200">
-                      {Math.min(dailyChallengeProgressCurrent, dailyChallengeProgressTarget)} / {dailyChallengeProgressTarget}
-                    </p>
-                  </div>
-                  <div className="mt-2 h-2 w-full rounded-full bg-zinc-800">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${dailyChallengeCompleted ? 'bg-emerald-500' : 'bg-red-500'}`}
-                      style={{ width: `${dailyChallengeProgressPercent}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3">
-                  <p className="text-xs font-bold text-zinc-300">Reward</p>
-                  <p className="text-sm font-black text-white">+{dailyChallenge.challenge.reward_xp || 30} XP</p>
-                </div>
-
-                {dailyChallengeCompleted ? (
-                  <div className="mt-4 rounded-2xl border border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-center">
-                    <p className="text-sm font-black text-emerald-300">Challenge completed ✓</p>
-                    {dailyChallenge.completed_at ? (
-                      <p className="mt-1 text-xs font-semibold text-emerald-200">
-                        Completed at {new Date(dailyChallenge.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="mt-4 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center">
-                    <p className="text-sm font-black text-red-200">Not completed yet</p>
-                    <p className="mt-1 text-xs font-semibold text-red-100">Finish this challenge before the day resets.</p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-4">
-                <p className="text-sm font-semibold text-zinc-200">Challenge data is unavailable right now.</p>
-                <p className="mt-1 text-xs font-semibold text-zinc-400">Try again in a few seconds.</p>
               </div>
+
+              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${dailyChallengeCompleted ? 'bg-emerald-500' : 'bg-white'}`}
+                  style={{ width: `${dailyChallengeProgressPercent}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3">
+                <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Reward</p>
+                <p className="text-lg font-black text-white">+{dailyChallengeRewardXp} XP</p>
+              </div>
+            </div>
+
+            {dailyChallengeCompleted ? (
+              <div className="rounded-xl border border-emerald-800 bg-emerald-950 px-4 py-3 text-center">
+                <p className="text-xs font-black uppercase tracking-widest text-emerald-400">
+                  Challenge Complete ✓
+                </p>
+                <p className="mt-1 text-[10px] font-semibold text-emerald-600">
+                  +{dailyChallengeRewardXp} XP earned
+                </p>
+              </div>
+            ) : (
+              <p className="text-center text-[10px] font-semibold leading-relaxed text-zinc-500">
+                Resets at midnight. No extensions.
+              </p>
             )}
 
             <button
               type="button"
               onClick={() => setShowDailyChallenge(false)}
-              className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
+              className="mt-4 w-full rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200"
             >
-              Close
+              {dailyChallengeCompleted ? 'Close' : "Let's go"}
             </button>
           </div>
         </div>
