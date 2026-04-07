@@ -148,5 +148,6 @@ class UserTaskSerializer(serializers.ModelSerializer):
             "task_xp",
             "date",
             "completed",
+            "completed_at",
             "created_at",
         ]

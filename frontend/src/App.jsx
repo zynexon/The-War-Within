@@ -79,6 +79,18 @@ function isStandaloneMode() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
 }
 
+function getInstallContext() {
+  const ua = navigator.userAgent || ''
+  const isInstagram = ua.includes('Instagram')
+  const isFacebook = ua.includes('FBAN') || ua.includes('FBAV')
+  const isInAppBrowser = isInstagram || isFacebook || ua.includes('Twitter') || ua.includes('Line/') || ua.includes('TikTok')
+  const isAndroid = ua.includes('Android')
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream
+  const isStandalone = isStandaloneMode()
+
+  return { isInstagram, isInAppBrowser, isAndroid, isIOS, isStandalone }
+}
+
 function apiUrl(path) {
   if (!API_BASE_URL) {
     return path
@@ -232,7 +244,7 @@ function getDailyChallengeTitle(challenge) {
     : parsedDate.toLocaleDateString('en-US', { weekday: 'long' })
   const typePrefix = {
     complete_3_tasks: 'Lock In',
-    earn_20_xp_from_games: 'Full War',
+    earn_20_xp_from_games: 'Grind',
     write_journal_entry: 'Clarity',
     complete_morning_task_before_10am: 'First Strike',
   }
@@ -457,6 +469,8 @@ function App() {
   const requiresNameSetup = Boolean(user && !user.name)
   const profileDisplayName = userName || user?.name || 'User'
   const profileAvatarLetter = profileDisplayName.charAt(0).toUpperCase()
+  const homeGreetingName = (userName || user?.name || '').trim()
+  const homeGreetingFirstName = homeGreetingName ? homeGreetingName.split(/\s+/)[0] : ''
   const bestStreakStorageKey = user?.id ? `zynexon_best_streak_${user.id}` : 'zynexon_best_streak'
   const profileCurrentLevelXp = level * level * 50
   const profileNextLevelXp = (level + 1) * (level + 1) * 50
@@ -1104,7 +1118,24 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (installEligible && deferredPrompt && !isInstalled) {
+    const { isInAppBrowser, isAndroid, isIOS, isStandalone } = getInstallContext()
+
+    if (isStandalone || isInstalled || !installEligible) {
+      setShowInstallPopup(false)
+      return
+    }
+
+    if (deferredPrompt) {
+      setShowInstallPopup(true)
+      return
+    }
+
+    if (isInAppBrowser && (isAndroid || isIOS)) {
+      setShowInstallPopup(true)
+      return
+    }
+
+    if (!deferredPrompt && (isIOS || isAndroid)) {
       setShowInstallPopup(true)
     }
   }, [installEligible, deferredPrompt, isInstalled])
@@ -2382,10 +2413,6 @@ function App() {
         </div>
       ) : null}
 
-      <div className="mt-0 px-1 py-1 text-center">
-        <h1 className="text-2xl font-bold tracking-wide text-zinc-900">ZYNEXON</h1>
-      </div>
-
       {requiresNameSetup ? (
         <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-sm space-y-4">
           <div className="text-center">
@@ -3100,19 +3127,27 @@ function App() {
       ) : (
         <div className="max-w-md mx-auto px-4 pb-24 w-full">
         <section className="space-y-6">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between px-1 pt-2">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </p>
+              <h1 className="mt-0.5 text-lg font-black text-zinc-900">
+                {homeGreetingFirstName ? `Welcome back, ${homeGreetingFirstName}.` : 'The War Within.'}
+              </h1>
+            </div>
             <button
               type="button"
               onClick={() => setShowDailyChallenge(true)}
-              className="relative flex h-11 w-11 flex-col items-center justify-center rounded-2xl border border-zinc-400 bg-white shadow-sm transition hover:border-zinc-600"
+              className="relative flex h-11 w-11 flex-col items-center justify-center rounded-2xl border border-zinc-300 bg-white shadow-sm transition hover:border-zinc-500"
               aria-label="Daily Challenge"
             >
               <span className="text-base">⚔️</span>
               {dailyChallenge && !dailyChallenge.completed ? (
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500" />
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#f8f6f1] bg-red-500" />
               ) : null}
               {dailyChallenge?.completed ? (
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#f8f6f1] bg-emerald-500" />
               ) : null}
             </button>
           </div>
@@ -3235,7 +3270,7 @@ function App() {
             <p className="mt-1 text-xs font-semibold text-zinc-300">One timer. No excuses. Quit early and earn nothing.</p>
           </button>
 
-          <p className="text-sm font-bold text-zinc-800">{homeProgressContext}</p>
+          <p className="text-sm font-bold text-zinc-800 px-1">{homeProgressContext}</p>
 
           {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
         </section>
@@ -3303,27 +3338,99 @@ function App() {
         </div>
       )}
 
-      {showInstallPopup ? (
-        <div className="fixed bottom-6 left-1/2 z-50 w-[88%] max-w-[360px] -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl">
-          <h3 className="text-lg font-semibold text-zinc-900">Install Zynexon</h3>
-          <p className="mt-1 text-sm text-zinc-500">Train your mind daily. Stay consistent.</p>
+      {showInstallPopup ? (() => {
+        const { isInAppBrowser, isIOS, isAndroid } = getInstallContext()
+        const isManualInstall = isInAppBrowser || (!deferredPrompt && (isIOS || isAndroid))
 
-          <button
-            type="button"
-            onClick={handleInstallClick}
-            className="mt-4 w-full rounded-lg bg-zinc-900 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
-          >
-            Install
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowInstallPopup(false)}
-            className="mt-2 w-full rounded-lg py-2 text-sm font-semibold text-zinc-500 transition hover:bg-zinc-100"
-          >
-            Not now
-          </button>
-        </div>
-      ) : null}
+        if (isManualInstall) {
+          return (
+            <div className="fixed bottom-6 left-1/2 z-50 w-[88%] max-w-[360px] -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl">
+              <h3 className="text-base font-black text-zinc-900">Install Zynexon</h3>
+              <p className="mt-1 text-xs font-semibold text-zinc-500">
+                Open this page in your browser to install the app.
+              </p>
+
+              {isAndroid ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-black uppercase tracking-widest text-zinc-400">How to install</p>
+                  <div className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black text-zinc-600">1</span>
+                    <p className="text-xs font-semibold text-zinc-700">
+                      Tap the <span className="font-black">...</span> menu in the top right corner of Instagram
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black text-zinc-600">2</span>
+                    <p className="text-xs font-semibold text-zinc-700">
+                      Tap <span className="font-black">Open in Chrome</span> or <span className="font-black">Open in browser</span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black text-zinc-600">3</span>
+                    <p className="text-xs font-semibold text-zinc-700">
+                      Tap <span className="font-black">Add to Home Screen</span> from the browser menu
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {isIOS ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-black uppercase tracking-widest text-zinc-400">How to install on iPhone</p>
+                  <div className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black text-zinc-600">1</span>
+                    <p className="text-xs font-semibold text-zinc-700">
+                      Tap <span className="font-black">...</span> in Instagram and choose <span className="font-black">Open in Safari</span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black text-zinc-600">2</span>
+                    <p className="text-xs font-semibold text-zinc-700">
+                      Tap the <span className="font-black">Share</span> button in Safari
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black text-zinc-600">3</span>
+                    <p className="text-xs font-semibold text-zinc-700">
+                      Tap <span className="font-black">Add to Home Screen</span>
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => setShowInstallPopup(false)}
+                className="mt-4 w-full rounded-lg py-2 text-sm font-semibold text-zinc-500 transition hover:bg-zinc-100"
+              >
+                Maybe later
+              </button>
+            </div>
+          )
+        }
+
+        return (
+          <div className="fixed bottom-6 left-1/2 z-50 w-[88%] max-w-[360px] -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl">
+            <h3 className="text-lg font-semibold text-zinc-900">Install Zynexon</h3>
+            <p className="mt-1 text-sm text-zinc-500">Train your mind daily. Stay consistent.</p>
+
+            <button
+              type="button"
+              onClick={handleInstallClick}
+              className="mt-4 w-full rounded-lg bg-zinc-900 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+            >
+              Install
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowInstallPopup(false)}
+              className="mt-2 w-full rounded-lg py-2 text-sm font-semibold text-zinc-500 transition hover:bg-zinc-100"
+            >
+              Not now
+            </button>
+          </div>
+        )
+      })() : null}
 
       {showShieldInfo ? (
         <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm">

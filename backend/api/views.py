@@ -31,6 +31,7 @@ from .services import (
 	check_and_award_daily_challenge,
 	check_streak_on_login,
 	create_xp_log,
+	get_daily_challenge_status,
 	get_daily_game_xp_cap,
 	get_daily_game_remaining_by_type,
 	get_daily_tasks,
@@ -250,7 +251,7 @@ class DailyChallengeView(APIView):
 
 	def get(self, request):
 		user = User.objects.get(id=request.user.id)
-		daily_challenge = check_and_award_daily_challenge(user)
+		daily_challenge = get_daily_challenge_status(user)
 		return Response(
 			{
 				**daily_challenge,

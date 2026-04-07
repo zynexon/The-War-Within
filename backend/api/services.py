@@ -509,14 +509,17 @@ def get_challenge_progress(user, challenge):
     elif challenge.challenge_type == DailyChallenge.TYPE_WRITE_JOURNAL_ENTRY:
         current = 1 if JournalEntry.objects.filter(user=user, date=challenge_date).exists() else 0
     elif challenge.challenge_type == DailyChallenge.TYPE_COMPLETE_MORNING_TASK:
-        current = UserTask.objects.filter(
+        tasks_today = UserTask.objects.filter(
             user=user,
             date=challenge_date,
             completed=True,
             completed_at__isnull=False,
-            completed_at__date=challenge_date,
-            completed_at__hour__lt=10,
-        ).count()
+        )
+
+        for user_task in tasks_today:
+            completed_local = timezone.localtime(user_task.completed_at)
+            if completed_local.date() == challenge_date and completed_local.hour < 10:
+                current += 1
 
     return {
         "current": int(current),

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Task, User, UserTask, XPLog
+from .models import DailyChallenge, DailyChallengeCompletion, Task, User, UserTask, XPLog
 
 
 @admin.register(User)
@@ -38,3 +38,15 @@ class UserTaskAdmin(admin.ModelAdmin):
 class XPLogAdmin(admin.ModelAdmin):
 	list_display = ("user", "source", "amount", "created_at")
 	list_filter = ("source", "created_at")
+
+
+@admin.register(DailyChallenge)
+class DailyChallengeAdmin(admin.ModelAdmin):
+	list_display = ("date", "challenge_type", "description", "reward_xp")
+	list_filter = ("date", "challenge_type")
+
+
+@admin.register(DailyChallengeCompletion)
+class DailyChallengeCompletionAdmin(admin.ModelAdmin):
+	list_display = ("user", "challenge", "completed_at")
+	list_filter = ("completed_at",)
