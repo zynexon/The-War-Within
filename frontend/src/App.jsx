@@ -3229,7 +3229,7 @@ function App() {
           <div className="grid grid-cols-2 gap-4 mt-6">
             <div
               onClick={() => navigate('/tasks')}
-              className="px-4 pt-4 pb-5 rounded-2xl bg-white border border-zinc-200 shadow-[0_8px_20px_rgba(0,0,0,0.05)] cursor-pointer hover:scale-[1.02] transition-all duration-200"
+              className="px-4 pt-4 pb-5 rounded-2xl bg-white border border-zinc-900 shadow-[0_10px_24px_rgba(0,0,0,0.12)] cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_14px_28px_rgba(0,0,0,0.18)]"
               role="button"
               tabIndex={0}
               onKeyDown={(event) => {
@@ -3245,7 +3245,7 @@ function App() {
 
             <div
               onClick={() => navigate('/game')}
-              className="px-4 pt-4 pb-5 rounded-2xl bg-white border border-zinc-200 shadow-[0_8px_20px_rgba(0,0,0,0.05)] cursor-pointer hover:scale-[1.02] transition-all duration-200"
+              className="px-4 pt-4 pb-5 rounded-2xl bg-white border border-zinc-900 shadow-[0_10px_24px_rgba(0,0,0,0.12)] cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_14px_28px_rgba(0,0,0,0.18)]"
               role="button"
               tabIndex={0}
               onKeyDown={(event) => {
@@ -3255,7 +3255,7 @@ function App() {
               }}
             >
               <h3 className="font-semibold text-base">Training Hub</h3>
-              <p className="text-xs text-gray-500 mt-1">Physical training + mental training</p>
+              <p className="text-xs text-gray-500 mt-1">Cultivate your mental discipline.</p>
               <p className="text-[13px] font-semibold mt-3 text-blue-600 whitespace-nowrap">{dailyTrainingGameLabel}</p>
             </div>
           </div>
@@ -3263,11 +3263,11 @@ function App() {
           <button
             type="button"
             onClick={() => navigate('/game/war-mode')}
-            className="w-full rounded-2xl border border-zinc-900 bg-zinc-900 px-5 py-4 text-left text-white shadow-lg transition hover:bg-zinc-800"
+            className="w-full rounded-2xl border border-zinc-900 bg-white px-5 py-4 text-left text-zinc-900 shadow-[0_10px_24px_rgba(0,0,0,0.12)] transition-all duration-200 hover:bg-zinc-50 hover:shadow-[0_14px_28px_rgba(0,0,0,0.18)]"
           >
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">War Mode</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">War Mode</p>
             <p className="mt-1 text-xl font-black tracking-tight">Enter War Mode</p>
-            <p className="mt-1 text-xs font-semibold text-zinc-300">One timer. No excuses. Quit early and earn nothing.</p>
+            <p className="mt-1 text-xs font-semibold text-zinc-700">One timer. No excuses. Quit early and earn nothing.</p>
           </button>
 
           <p className="text-sm font-bold text-zinc-800 px-1">{homeProgressContext}</p>
@@ -3687,28 +3687,6 @@ function App() {
                     <p className="mt-0.5 text-[10px] font-semibold text-zinc-400">{desc}</p>
                   </div>
                   <p className="text-xs font-black text-zinc-300">{warXp}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="my-5 h-px bg-zinc-800" />
-
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
-              How It Works
-            </p>
-            <div className="space-y-2.5">
-              {[
-                { step: '1', text: 'Pick a session length and start.' },
-                { step: '2', text: 'Lock your screen. The timer runs in the background.' },
-                { step: '3', text: 'Come back when the time is up.' },
-                { step: '4', text: 'Answer honestly - did you actually work?' },
-                { step: '5', text: "Claim your XP. Or don't, if you didn't earn it." },
-              ].map(({ step, text }) => (
-                <div key={step} className="flex items-start gap-3">
-                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-black text-zinc-300">
-                    {step}
-                  </span>
-                  <p className="text-xs font-semibold leading-snug text-zinc-300">{text}</p>
                 </div>
               ))}
             </div>

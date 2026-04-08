@@ -117,7 +117,7 @@ function displayRemainingXp(game, gameRemainingXpByType, lastTrainingResult) {
 function GameCard({ game, onNavigate, lastTrainingResult, gameRemainingXpByType, isFeatured = false }) {
   return (
     <div
-      className={`rounded-2xl border cursor-pointer ${isFeatured ? 'border-zinc-700 bg-zinc-950 text-white p-5' : 'border-zinc-200 bg-white p-4'}`}
+      className={`rounded-2xl border cursor-pointer ${isFeatured ? 'border-zinc-700 bg-zinc-950 text-white p-5' : 'border-zinc-900 bg-white p-4'}`}
       onClick={() => onNavigate(game.route)}
       role="button"
       tabIndex={0}
