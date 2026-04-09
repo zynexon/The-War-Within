@@ -449,9 +449,9 @@ function ReactionTapGame({
 
       {(isSubmittingResult || submitting) && gameCompleted ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-3xl rounded-[2.75rem] border border-zinc-200 bg-zinc-50 p-8 shadow-xl text-center sm:p-10">
-            <h3 className="text-5xl font-black tracking-tight text-zinc-950">Submitting..</h3>
-            <p className="mt-3 text-xl font-semibold text-zinc-500 sm:text-2xl">Validating your result and XP.</p>
+          <div className="w-full max-w-[34rem] rounded-[2.25rem] border border-zinc-200 bg-zinc-50 p-6 shadow-xl text-center sm:p-7">
+            <h3 className="text-4xl font-black tracking-tight text-zinc-950 sm:text-[2.6rem]">Submitting..</h3>
+            <p className="mt-2.5 text-lg font-semibold text-zinc-500 sm:text-xl">Validating your result and XP.</p>
           </div>
         </div>
       ) : null}
