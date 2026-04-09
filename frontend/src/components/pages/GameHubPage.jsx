@@ -24,6 +24,18 @@ const TRAINING_GAMES = [
     resultLabel: 'Focus Tap',
   },
   {
+    id: 'reaction_tap',
+    title: 'Reaction Tap',
+    route: '/game/reaction-tap',
+    desc: 'Tap the instant WAIT changes to TAP.',
+    difficulty: { icon: '⚡', label: 'Easy', color: 'text-emerald-600' },
+    maxXp: 50,
+    gameType: 'reaction_tap',
+    category: 'speed_reaction',
+    resultType: 'score',
+    resultLabel: 'Reaction Tap',
+  },
+  {
     id: 'number_recall',
     title: 'Number Recall',
     route: '/game/number-recall',

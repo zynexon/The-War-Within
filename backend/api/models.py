@@ -81,6 +81,7 @@ class XPLog(models.Model):
 class GameSession(models.Model):
 	TYPE_QUICK_MATH = "quick_math"
 	TYPE_FOCUS_TAP = "focus_tap"
+	TYPE_REACTION_TAP = "reaction_tap"
 	TYPE_NUMBER_RECALL = "number_recall"
 	TYPE_COLOR_COUNT_FOCUS = "color_count_focus"
 	TYPE_SPEED_PATTERN = "speed_pattern"
@@ -92,6 +93,7 @@ class GameSession(models.Model):
 	TYPE_CHOICES = [
 		(TYPE_QUICK_MATH, "Quick Math"),
 		(TYPE_FOCUS_TAP, "Focus Tap"),
+		(TYPE_REACTION_TAP, "Reaction Tap"),
 		(TYPE_NUMBER_RECALL, "Number Recall"),
 		(TYPE_COLOR_COUNT_FOCUS, "Color Count Focus"),
 		(TYPE_SPEED_PATTERN, "Speed Pattern"),

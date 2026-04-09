@@ -28,6 +28,7 @@ WAR_MODE_GAME_TYPES = tuple(WAR_MODE_DURATION_BY_GAME_TYPE.keys())
 MAX_DAILY_GAME_XP_BY_TYPE = {
     "quick_math": 50,
     "focus_tap": 50,
+    "reaction_tap": 50,
     "number_recall": 50,
     "color_count_focus": 60,
     "speed_pattern": 100,
@@ -42,6 +43,7 @@ GAME_MAX_DURATION_SECONDS = 120
 GAME_MIN_DURATION_SECONDS_BY_TYPE = {
     "quick_math": 20,
     "focus_tap": 5,
+    "reaction_tap": 7,
     "number_recall": 2,
     "color_count_focus": 6,
     "speed_pattern": 2,
@@ -54,6 +56,7 @@ GAME_MIN_DURATION_SECONDS_BY_TYPE = {
 GAME_MAX_DURATION_SECONDS_BY_TYPE = {
     "quick_math": 120,
     "focus_tap": 180,
+    "reaction_tap": 300,
     "number_recall": 180,
     "color_count_focus": 180,
     "speed_pattern": 300,
@@ -66,6 +69,7 @@ GAME_MAX_DURATION_SECONDS_BY_TYPE = {
 GAME_MAX_SCORE_BY_TYPE = {
     "quick_math": 60,
     "focus_tap": 15,
+    "reaction_tap": 1,
     "number_recall": 1,
     "color_count_focus": 8,
     "speed_pattern": 1,
@@ -76,6 +80,7 @@ GAME_MAX_SCORE_BY_TYPE = {
     "war_mode_full_war": 1,
 }
 FOCUS_TAP_WIN_SCORE = 15
+REACTION_TAP_WIN_SCORE = 1
 NUMBER_RECALL_WIN_SCORE = 1
 COLOR_COUNT_FOCUS_WIN_SCORE = 8
 SPEED_PATTERN_WIN_SCORE = 1
@@ -363,6 +368,9 @@ def calculate_game_session_xp_for_type(game_type, score):
 
     if game_type == "number_stack":
         return 15 if score >= 1 else 0
+
+    if game_type == "reaction_tap":
+        return 10 if score >= REACTION_TAP_WIN_SCORE else 0
 
     if game_type in WAR_MODE_DURATION_BY_GAME_TYPE:
         duration_key = WAR_MODE_DURATION_BY_GAME_TYPE[game_type]

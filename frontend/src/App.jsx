@@ -6,6 +6,7 @@ import FocusTapGame from './components/FocusTapGame'
 import Navbar from './components/Navbar'
 import NumberRecallGame from './components/NumberRecallGame'
 import NumberStackGame from './components/NumberStackGame'
+import ReactionTapGame from './components/ReactionTapGame'
 import ReverseOrderGame from './components/ReverseOrderGame'
 import SpeedPatternGame from './components/SpeedPatternGame'
 import AuthPage from './components/pages/AuthPage'
@@ -32,6 +33,7 @@ const DAILY_WISDOM = [
 const DAILY_TRAINING_GAMES = [
   'Quick Math',
   'Focus Tap',
+  'Reaction Tap',
   'Number Recall',
   'Color Count Focus',
   'Speed Pattern',
@@ -447,6 +449,11 @@ function App() {
   const [numberStackXpAwarded, setNumberStackXpAwarded] = useState(null)
   const [numberStackResult, setNumberStackResult] = useState(null)
   const [numberStackError, setNumberStackError] = useState('')
+  const [reactionTapSessionId, setReactionTapSessionId] = useState('')
+  const [reactionTapSubmitting, setReactionTapSubmitting] = useState(false)
+  const [reactionTapXpAwarded, setReactionTapXpAwarded] = useState(null)
+  const [reactionTapResult, setReactionTapResult] = useState(null)
+  const [reactionTapError, setReactionTapError] = useState('')
   const [equippedBadge, setEquippedBadge] = useState(localStorage.getItem('badge') || null)
   const [bestStreak, setBestStreak] = useState(0)
   const [showShieldUsedBanner, setShowShieldUsedBanner] = useState(false)
@@ -1242,6 +1249,11 @@ function App() {
         setGameRoute('/game/focus-tap')
         return
       }
+      if (path === '/game/reaction-tap') {
+        setActiveTab('Game')
+        setGameRoute('/game/reaction-tap')
+        return
+      }
       if (path === '/game/number-recall') {
         setActiveTab('Game')
         setGameRoute('/game/number-recall')
@@ -1500,6 +1512,11 @@ function App() {
     setNumberStackXpAwarded(null)
     setNumberStackResult(null)
     setNumberStackError('')
+    setReactionTapSessionId('')
+    setReactionTapSubmitting(false)
+    setReactionTapXpAwarded(null)
+    setReactionTapResult(null)
+    setReactionTapError('')
     setEntry({ did_you_win_today: '', where_did_you_fail_yourself: '', mental_state: '' })
     setSavedEntry(null)
     setJournalLoading(true)
@@ -1866,6 +1883,72 @@ function App() {
       setFocusTapError(error.message || 'Could not submit Focus Tap result.')
     } finally {
       setFocusTapSubmitting(false)
+    }
+  }
+
+  async function handleReactionTapStart() {
+    try {
+      setReactionTapError('')
+      setReactionTapXpAwarded(null)
+      setReactionTapResult(null)
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'reaction_tap' }),
+      })
+      setReactionTapSessionId(data.session_id)
+      return true
+    } catch (error) {
+      setReactionTapSessionId('')
+      setReactionTapError(error.message || 'Could not start Reaction Tap session.')
+      return false
+    }
+  }
+
+  async function handleReactionTapFinish(result) {
+    if (!result || !reactionTapSessionId) {
+      return null
+    }
+
+    setReactionTapSubmitting(true)
+    try {
+      setReactionTapError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: reactionTapSessionId,
+          score: result.score,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const refreshedUser = await authedFetch('/api/auth/me/')
+      setUser(refreshedUser)
+      setStreakDays(refreshedUser.streak)
+      setReactionTapXpAwarded(data.xp_awarded)
+      const meta = {
+        xpAwarded: data.xp_awarded,
+        dailyCap: data.daily_cap,
+        remainingToday: data.remaining_today,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+        todayGameXpBefore: data.today_game_xp_before,
+      }
+      setReactionTapResult(meta)
+      setReactionTapSessionId('')
+      if (data.xp_awarded > 0) {
+        setInstallEligible(true)
+      }
+      const scoreForSummary = Number.isFinite(result.averageReaction)
+        ? result.averageReaction
+        : result.score
+      recordLastTrainingResult('Reaction Tap', scoreForSummary, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
+      return meta
+    } catch (error) {
+      setReactionTapError(error.message || 'Could not submit Reaction Tap result.')
+      return null
+    } finally {
+      setReactionTapSubmitting(false)
     }
   }
 
@@ -2888,6 +2971,17 @@ function App() {
             awardedXp={focusTapXpAwarded}
             resultMeta={focusTapResult}
             errorText={focusTapError}
+          />
+        ) : gameRoute === '/game/reaction-tap' ? (
+          <ReactionTapGame
+            onMainMenu={() => navigate('/game')}
+            onGameStart={handleReactionTapStart}
+            onGameFinished={handleReactionTapFinish}
+            submitting={reactionTapSubmitting}
+            awardedXp={reactionTapXpAwarded}
+            resultMeta={reactionTapResult}
+            errorText={reactionTapError}
+            gameRemainingEntry={gameRemainingXpByType?.reaction_tap || null}
           />
         ) : gameRoute === '/game/number-recall' ? (
           <NumberRecallGame

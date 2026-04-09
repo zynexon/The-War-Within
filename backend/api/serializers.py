@@ -8,6 +8,7 @@ class GameStartInputSerializer(serializers.Serializer):
         choices=[
             "quick_math",
             "focus_tap",
+            "reaction_tap",
             "number_recall",
             "color_count_focus",
             "speed_pattern",
@@ -32,6 +33,7 @@ class GameXPInputSerializer(serializers.Serializer):
         choices=[
             "quick_math",
             "focus_tap",
+            "reaction_tap",
             "number_recall",
             "color_count_focus",
             "speed_pattern",
