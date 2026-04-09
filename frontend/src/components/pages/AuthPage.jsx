@@ -11,6 +11,7 @@ function AuthPage({
   setPasswordInput,
   errorText,
   activeWarriorsCount,
+  guestScore = null,
 }) {
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col px-5 pt-5 pb-6">
@@ -30,6 +31,14 @@ function AuthPage({
       </section>
 
       <section className="mt-5 rounded-3xl border border-zinc-200 bg-white px-4 py-5 shadow-md transition-transform duration-200 hover:scale-[1.01] animate-[fadeIn_0.6s_ease]">
+        {guestScore !== null && authMode === 'register' ? (
+          <div className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-center text-white">
+            <p className="text-xs font-semibold text-zinc-400">Your score</p>
+            <p className="text-2xl font-black">{guestScore}</p>
+            <p className="text-xs font-semibold text-zinc-400">Create an account to save it</p>
+          </div>
+        ) : null}
+
         <div className="mb-4 grid grid-cols-2 rounded-2xl border border-zinc-200 bg-zinc-100 p-1 text-xs font-bold uppercase tracking-wider">
           <button
             type="button"

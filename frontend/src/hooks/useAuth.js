@@ -8,7 +8,7 @@ function useAuth(accessTokenKey) {
   const [streakDays, setStreakDays] = useState(0)
   const [userEmail, setUserEmail] = useState('')
   const [accessToken, setAccessToken] = useState(localStorage.getItem(accessTokenKey) || '')
-  const [authMode, setAuthMode] = useState('login')
+  const [authMode, setAuthMode] = useState('landing')
   const [nameInput, setNameInput] = useState('')
   const [emailInput, setEmailInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')

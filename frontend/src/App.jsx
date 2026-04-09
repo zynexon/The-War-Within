@@ -9,7 +9,9 @@ import NumberStackGame from './components/NumberStackGame'
 import ReverseOrderGame from './components/ReverseOrderGame'
 import SpeedPatternGame from './components/SpeedPatternGame'
 import AuthPage from './components/pages/AuthPage'
+import GuestQuickMath from './components/pages/GuestQuickMath'
 import GameHubPage from './components/pages/GameHubPage'
+import LandingPage from './components/pages/LandingPage'
 import TasksPage from './components/pages/TasksPage'
 import useAuth from './hooks/useAuth'
 import useGameSession from './hooks/useGameSession'
@@ -416,6 +418,10 @@ function App() {
   const [gameRemainingXpByType, setGameRemainingXpByType] = useState({})
   const [dailyChallenge, setDailyChallenge] = useState(null)
   const [showDailyChallenge, setShowDailyChallenge] = useState(false)
+  const [guestMode, setGuestMode] = useState(false)
+  const [guestScore, setGuestScore] = useState(null)
+  const [showGuestSignup, setShowGuestSignup] = useState(false)
+  const [guestRunId, setGuestRunId] = useState(0)
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [leaderboardPeriod, setLeaderboardPeriod] = useState('weekly')
   const [leaderboardNowMs, setLeaderboardNowMs] = useState(Date.now())
@@ -1286,9 +1292,10 @@ function App() {
     event.preventDefault()
     setAuthLoading(true)
     setErrorText('')
+    const resolvedAuthMode = authMode === 'register_intent' ? 'register' : authMode
 
     try {
-      if (authMode === 'register') {
+      if (resolvedAuthMode === 'register') {
         const registerResponse = await fetch(apiUrl('/api/auth/register/'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1314,7 +1321,10 @@ function App() {
       setActiveTab('Home')
       setGameRoute('/game')
       setPasswordInput('')
-      if (authMode === 'register') {
+      setShowGuestSignup(false)
+      setGuestMode(false)
+      setGuestScore(null)
+      if (resolvedAuthMode === 'register') {
         setNameInput('')
       }
     } catch (error) {
@@ -1430,9 +1440,14 @@ function App() {
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem('badge')
     setAccessToken('')
+    setAuthMode('landing')
     setUser(null)
     setDailyChallenge(null)
     setShowDailyChallenge(false)
+    setGuestMode(false)
+    setGuestScore(null)
+    setShowGuestSignup(false)
+    setGuestRunId(0)
     setEquippedBadge(null)
     setTasks([])
     setUserName('')
@@ -2225,19 +2240,75 @@ function App() {
   }
 
   if (!user) {
+    if (guestMode) {
+      return (
+        <GuestQuickMath
+          key={guestRunId}
+          onFinish={(mode, scoreValue) => {
+            setGuestScore(scoreValue)
+            setGuestMode(false)
+            setShowGuestSignup(true)
+            setErrorText('')
+            setNameInput('')
+            setEmailInput('')
+            setPasswordInput('')
+            setAuthMode(mode === 'login' ? 'login' : 'register_intent')
+          }}
+          onPlayAgain={() => {
+            setGuestRunId((previous) => previous + 1)
+            setGuestMode(true)
+            setShowGuestSignup(false)
+            setAuthMode('landing')
+          }}
+        />
+      )
+    }
+
+    if (showGuestSignup || authMode === 'login' || authMode === 'register' || authMode === 'register_intent') {
+      const visibleAuthMode = authMode === 'register_intent' ? 'register' : authMode
+
+      return (
+        <AuthPage
+          authMode={visibleAuthMode}
+          setAuthMode={(nextMode) => {
+            setShowGuestSignup(false)
+            setAuthMode(nextMode)
+          }}
+          handleAuthSubmit={handleAuthSubmit}
+          authLoading={authLoading}
+          nameInput={nameInput}
+          setNameInput={setNameInput}
+          emailInput={emailInput}
+          setEmailInput={setEmailInput}
+          passwordInput={passwordInput}
+          setPasswordInput={setPasswordInput}
+          errorText={errorText}
+          activeWarriorsCount={totalPlayers}
+          guestScore={guestScore}
+        />
+      )
+    }
+
     return (
-      <AuthPage
-        authMode={authMode}
-        setAuthMode={setAuthMode}
-        handleAuthSubmit={handleAuthSubmit}
-        authLoading={authLoading}
-        nameInput={nameInput}
-        setNameInput={setNameInput}
-        emailInput={emailInput}
-        setEmailInput={setEmailInput}
-        passwordInput={passwordInput}
-        setPasswordInput={setPasswordInput}
-        errorText={errorText}
+      <LandingPage
+        onTryGame={() => {
+          setGuestRunId((previous) => previous + 1)
+          setGuestMode(true)
+          setGuestScore(null)
+          setShowGuestSignup(false)
+          setErrorText('')
+          setAuthMode('landing')
+        }}
+        onLogin={() => {
+          setShowGuestSignup(false)
+          setErrorText('')
+          setAuthMode('login')
+        }}
+        onRegister={() => {
+          setShowGuestSignup(false)
+          setErrorText('')
+          setAuthMode('register_intent')
+        }}
         activeWarriorsCount={totalPlayers}
       />
     )
