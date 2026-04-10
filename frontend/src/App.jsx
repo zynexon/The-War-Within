@@ -485,7 +485,9 @@ function App() {
   const homeGreetingName = (userName || user?.name || '').trim()
   const homeGreetingFirstName = homeGreetingName ? homeGreetingName.split(/\s+/)[0] : ''
   const bestStreakStorageKey = user?.id ? `zynexon_best_streak_${user.id}` : 'zynexon_best_streak'
-  const profileCurrentLevelXp = level * level * 50
+  // Backend level formula: level = max(1, floor(sqrt(xp / 50))).
+  // Level 1 spans 0-199 XP, so its lower bound is 0 instead of 50.
+  const profileCurrentLevelXp = level <= 1 ? 0 : level * level * 50
   const profileNextLevelXp = (level + 1) * (level + 1) * 50
   const profileProgressXp = Math.max(0, xp - profileCurrentLevelXp)
   const profileNeededXp = Math.max(1, profileNextLevelXp - profileCurrentLevelXp)
@@ -867,23 +869,6 @@ function App() {
         )
         setGameRemainingXpByType(gameRemaining?.remaining_by_type || {})
         setDailyChallenge(dailyChallengeData)
-
-        if (dailyChallengeData && (typeof dailyChallengeData.total_xp === 'number' || typeof dailyChallengeData.level === 'number')) {
-          setXp(typeof dailyChallengeData.total_xp === 'number' ? dailyChallengeData.total_xp : user.xp)
-          setLevel(typeof dailyChallengeData.level === 'number' ? dailyChallengeData.level : user.level)
-          setUser((currentUser) => (
-            currentUser
-              ? {
-                ...currentUser,
-                xp: typeof dailyChallengeData.total_xp === 'number' ? dailyChallengeData.total_xp : currentUser.xp,
-                level: typeof dailyChallengeData.level === 'number' ? dailyChallengeData.level : currentUser.level,
-                streak_shields: typeof dailyChallengeData.streak_shields === 'number'
-                  ? dailyChallengeData.streak_shields
-                  : currentUser.streak_shields,
-              }
-              : currentUser
-          ))
-        }
 
         // Only on initial load, set prevLevel to user's current level so level-up popup doesn't trigger on refresh
         if (!isInitialLoadRef.current) {
@@ -1524,6 +1509,7 @@ function App() {
     setJournalSavedText('')
     setJournalLastUpdatedAt('')
     resetWarModeState()
+    isInitialLoadRef.current = false
     setLoading(false)
   }
 
@@ -3145,7 +3131,7 @@ function App() {
                 />
               </div>
               <p className="mt-2 text-center text-xs font-semibold text-zinc-200">
-                {profileProgressXp} XP into Level {level} • {profileNeededXp} total needed
+                {profileProgressXp} XP toward Level {level + 1} • {profileNeededXp} total needed
               </p>
             </div>
 
