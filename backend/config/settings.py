@@ -40,6 +40,13 @@ def _csv_env(name, default=''):
     return [item.strip() for item in raw.split(',') if item.strip()]
 
 
+def _bool_env(name, default=False):
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
@@ -172,3 +179,28 @@ REST_FRAMEWORK = {
 
 CORS_ALLOWED_ORIGINS = _csv_env('CORS_ALLOWED_ORIGINS')
 CSRF_TRUSTED_ORIGINS = _csv_env('CSRF_TRUSTED_ORIGINS')
+
+# Auth email + password reset flow settings
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@zynexon.app')
+FRONTEND_APP_URL = os.getenv('FRONTEND_APP_URL', 'http://localhost:5173').rstrip('/')
+
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+try:
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+except ValueError:
+    EMAIL_PORT = 587
+
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = _bool_env('EMAIL_USE_TLS', True)
+EMAIL_USE_SSL = _bool_env('EMAIL_USE_SSL', False)
+try:
+    EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
+except ValueError:
+    EMAIL_TIMEOUT = 20
+
+try:
+    PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS = int(os.getenv('PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS', '3600'))
+except ValueError:
+    PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS = 3600

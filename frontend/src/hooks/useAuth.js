@@ -15,9 +15,12 @@ function useAuth(accessTokenKey) {
   const [isLoading, setIsLoading] = useState(true)
   const [errorText, setErrorText] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
+  const [authNotice, setAuthNotice] = useState('')
   const [userName, setUserName] = useState('')
   const [nameUpdating, setNameUpdating] = useState(false)
   const [isProfileEditingName, setIsProfileEditingName] = useState(false)
+  const [resetPasswordToken, setResetPasswordToken] = useState('')
+  const [resetPasswordConfirmInput, setResetPasswordConfirmInput] = useState('')
 
   return {
     user,
@@ -48,12 +51,18 @@ function useAuth(accessTokenKey) {
     setErrorText,
     authLoading,
     setAuthLoading,
+    authNotice,
+    setAuthNotice,
     userName,
     setUserName,
     nameUpdating,
     setNameUpdating,
     isProfileEditingName,
     setIsProfileEditingName,
+    resetPasswordToken,
+    setResetPasswordToken,
+    resetPasswordConfirmInput,
+    setResetPasswordConfirmInput,
   }
 }
 

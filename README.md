@@ -22,6 +22,9 @@ Full-stack starter using React (Vite) + Django REST Framework + JWT auth.
     - `ALLOWED_HOSTS`
     - `CORS_ALLOWED_ORIGINS`
     - `CSRF_TRUSTED_ORIGINS`
+    - `FRONTEND_APP_URL` (used to build password reset links)
+    - `EMAIL_BACKEND`, `DEFAULT_FROM_EMAIL`, `PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS`
+    - For real email delivery in production: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_TIMEOUT`
 
 ## Run Locally
 

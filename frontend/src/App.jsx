@@ -314,12 +314,18 @@ function App() {
     setErrorText,
     authLoading,
     setAuthLoading,
+    authNotice,
+    setAuthNotice,
     userName,
     setUserName,
     nameUpdating,
     setNameUpdating,
     isProfileEditingName,
     setIsProfileEditingName,
+    resetPasswordToken,
+    setResetPasswordToken,
+    resetPasswordConfirmInput,
+    setResetPasswordConfirmInput,
   } = useAuth(ACCESS_TOKEN_KEY)
 
   const {
@@ -693,6 +699,18 @@ function App() {
     }
 
     setActiveTab('Home')
+  }
+
+  function clearResetTokenParam() {
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has('reset_token')) {
+      return
+    }
+
+    url.searchParams.delete('reset_token')
+    const query = url.searchParams.toString()
+    const nextPath = `${url.pathname}${query ? `?${query}` : ''}${url.hash}`
+    window.history.replaceState({}, '', nextPath)
   }
 
   function rankMeta(rank) {
@@ -1285,13 +1303,150 @@ function App() {
     return () => window.removeEventListener('popstate', syncRouteFromPath)
   }, [])
 
+  useEffect(() => {
+    if (user) {
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const tokenFromUrl = params.get('reset_token')
+    if (!tokenFromUrl) {
+      return
+    }
+
+    if (authMode === 'reset_password' && resetPasswordToken === tokenFromUrl) {
+      return
+    }
+
+    setGuestMode(false)
+    setShowGuestSignup(false)
+    setGuestScore(null)
+    setErrorText('')
+    setAuthNotice('Set your new password below.')
+    setPasswordInput('')
+    setResetPasswordConfirmInput('')
+    setResetPasswordToken(tokenFromUrl)
+    setAuthMode('reset_password')
+  }, [
+    user,
+    authMode,
+    resetPasswordToken,
+    setErrorText,
+    setAuthNotice,
+    setPasswordInput,
+    setResetPasswordConfirmInput,
+    setResetPasswordToken,
+    setAuthMode,
+  ])
+
   async function handleAuthSubmit(event) {
     event.preventDefault()
     setAuthLoading(true)
     setErrorText('')
+    setAuthNotice('')
     const resolvedAuthMode = authMode === 'register_intent' ? 'register' : authMode
 
     try {
+      if (resolvedAuthMode === 'forgot_password') {
+        const forgotResponse = await fetch(apiUrl('/api/auth/forgot-password/'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: emailInput }),
+        })
+        const forgotData = await readApiPayload(forgotResponse)
+        if (!forgotResponse.ok) {
+          throw new Error(forgotData?.email?.[0] || forgotData?.error || 'Could not send reset link.')
+        }
+
+        setAuthNotice(forgotData?.message || 'If an account exists for this email, a reset link has been sent.')
+        let tokenFromResponse = forgotData?.reset_token || ''
+        if (!tokenFromResponse && forgotData?.reset_url) {
+          try {
+            const parsed = new URL(forgotData.reset_url)
+            tokenFromResponse = parsed.searchParams.get('reset_token') || ''
+          } catch {
+            tokenFromResponse = ''
+          }
+        }
+
+        if (tokenFromResponse) {
+          setResetPasswordToken(tokenFromResponse)
+          setAuthNotice('Reset token loaded. Set your new password now.')
+          setAuthMode('reset_password')
+        } else {
+          setAuthMode('login')
+        }
+        return
+      }
+
+      if (resolvedAuthMode === 'reset_password') {
+        let normalizedResetToken = (resetPasswordToken || '').trim()
+
+        if (normalizedResetToken) {
+          try {
+            const parsedUrl = new URL(normalizedResetToken)
+            const fromUrl = parsedUrl.searchParams.get('reset_token')
+            if (fromUrl) {
+              normalizedResetToken = fromUrl
+            }
+          } catch {
+            // Token may not be a full URL; continue with raw value.
+          }
+
+          if (normalizedResetToken.includes('reset_token=')) {
+            const queryPart = normalizedResetToken.includes('?')
+              ? normalizedResetToken.split('?')[1]
+              : normalizedResetToken
+            const params = new URLSearchParams(queryPart)
+            const fromQuery = params.get('reset_token')
+            if (fromQuery) {
+              normalizedResetToken = fromQuery
+            }
+          }
+
+          // Handle quoted-printable artifacts often seen in console-emitted emails.
+          normalizedResetToken = normalizedResetToken
+            .replace(/=\r?\n/g, '')
+            .replace(/=([A-Fa-f0-9]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+            .trim()
+
+          if (normalizedResetToken.startsWith('3Dey')) {
+            normalizedResetToken = normalizedResetToken.slice(2)
+          }
+          if (normalizedResetToken.startsWith('=3D')) {
+            normalizedResetToken = normalizedResetToken.slice(3)
+          }
+          if (normalizedResetToken.startsWith('=')) {
+            normalizedResetToken = normalizedResetToken.slice(1)
+          }
+        }
+
+        if (!normalizedResetToken) {
+          throw new Error('Reset token is required.')
+        }
+        if (passwordInput !== resetPasswordConfirmInput) {
+          throw new Error('Passwords do not match.')
+        }
+
+        const resetResponse = await fetch(apiUrl('/api/auth/reset-password/'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: normalizedResetToken, password: passwordInput }),
+        })
+        const resetData = await readApiPayload(resetResponse)
+        if (!resetResponse.ok) {
+          throw new Error(resetData?.error || 'Could not reset password.')
+        }
+
+        setAuthNotice(resetData?.message || 'Password reset successful. Please log in with your new password.')
+        setPasswordInput('')
+        setResetPasswordConfirmInput('')
+        setResetPasswordToken('')
+        clearResetTokenParam()
+        setAuthMode('login')
+        return
+      }
+
       if (resolvedAuthMode === 'register') {
         const registerResponse = await fetch(apiUrl('/api/auth/register/'), {
           method: 'POST',
@@ -1318,6 +1473,9 @@ function App() {
       setActiveTab('Home')
       setGameRoute('/game')
       setPasswordInput('')
+      setResetPasswordConfirmInput('')
+      setResetPasswordToken('')
+      clearResetTokenParam()
       setShowGuestSignup(false)
       setGuestMode(false)
       setGuestScore(null)
@@ -1437,6 +1595,9 @@ function App() {
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem('badge')
     setAccessToken('')
+    setAuthNotice('')
+    setResetPasswordToken('')
+    setResetPasswordConfirmInput('')
     setAuthMode('landing')
     setUser(null)
     setDailyChallenge(null)
@@ -1510,6 +1671,7 @@ function App() {
     setJournalLastUpdatedAt('')
     resetWarModeState()
     isInitialLoadRef.current = false
+    clearResetTokenParam()
     setLoading(false)
   }
 
@@ -2318,22 +2480,37 @@ function App() {
             setGuestMode(false)
             setShowGuestSignup(true)
             setErrorText('')
+            setAuthNotice('')
             setNameInput('')
             setEmailInput('')
             setPasswordInput('')
+            setResetPasswordToken('')
+            setResetPasswordConfirmInput('')
+            clearResetTokenParam()
             setAuthMode(mode === 'login' ? 'login' : 'register_intent')
           }}
           onPlayAgain={() => {
             setGuestRunId((previous) => previous + 1)
             setGuestMode(true)
             setShowGuestSignup(false)
+            setAuthNotice('')
+            setResetPasswordToken('')
+            setResetPasswordConfirmInput('')
+            clearResetTokenParam()
             setAuthMode('landing')
           }}
         />
       )
     }
 
-    if (showGuestSignup || authMode === 'login' || authMode === 'register' || authMode === 'register_intent') {
+    if (
+      showGuestSignup
+      || authMode === 'login'
+      || authMode === 'register'
+      || authMode === 'register_intent'
+      || authMode === 'forgot_password'
+      || authMode === 'reset_password'
+    ) {
       const visibleAuthMode = authMode === 'register_intent' ? 'register' : authMode
 
       return (
@@ -2341,16 +2518,28 @@ function App() {
           authMode={visibleAuthMode}
           setAuthMode={(nextMode) => {
             setShowGuestSignup(false)
+            setErrorText('')
+            setAuthNotice('')
+            if (nextMode !== 'reset_password') {
+              setResetPasswordToken('')
+              setResetPasswordConfirmInput('')
+              clearResetTokenParam()
+            }
             setAuthMode(nextMode)
           }}
           handleAuthSubmit={handleAuthSubmit}
           authLoading={authLoading}
+          authNotice={authNotice}
           nameInput={nameInput}
           setNameInput={setNameInput}
           emailInput={emailInput}
           setEmailInput={setEmailInput}
           passwordInput={passwordInput}
           setPasswordInput={setPasswordInput}
+          resetPasswordToken={resetPasswordToken}
+          setResetPasswordToken={setResetPasswordToken}
+          resetPasswordConfirmInput={resetPasswordConfirmInput}
+          setResetPasswordConfirmInput={setResetPasswordConfirmInput}
           errorText={errorText}
           activeWarriorsCount={totalPlayers}
           guestScore={guestScore}
@@ -2366,16 +2555,28 @@ function App() {
           setGuestScore(null)
           setShowGuestSignup(false)
           setErrorText('')
+          setAuthNotice('')
+          setResetPasswordToken('')
+          setResetPasswordConfirmInput('')
+          clearResetTokenParam()
           setAuthMode('landing')
         }}
         onLogin={() => {
           setShowGuestSignup(false)
           setErrorText('')
+          setAuthNotice('')
+          setResetPasswordToken('')
+          setResetPasswordConfirmInput('')
+          clearResetTokenParam()
           setAuthMode('login')
         }}
         onRegister={() => {
           setShowGuestSignup(false)
           setErrorText('')
+          setAuthNotice('')
+          setResetPasswordToken('')
+          setResetPasswordConfirmInput('')
+          clearResetTokenParam()
           setAuthMode('register_intent')
         }}
         activeWarriorsCount={totalPlayers}

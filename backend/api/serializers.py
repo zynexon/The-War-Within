@@ -99,6 +99,15 @@ class RegisterInputSerializer(serializers.Serializer):
         return cleaned
 
 
+class ForgotPasswordInputSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordInputSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=2048)
+    password = serializers.CharField(min_length=8, max_length=128, write_only=True)
+
+
 class UpdateNameInputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=30)
 

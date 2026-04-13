@@ -1,3 +1,12 @@
+import logging
+import quopri
+from urllib.parse import parse_qs, quote, unquote, urlparse
+
+from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
+from django.core import signing
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
@@ -19,7 +28,9 @@ from .serializers import (
 	JournalEntryInputSerializer,
 	JournalEntrySerializer,
 	LeaderboardQuerySerializer,
+	ForgotPasswordInputSerializer,
 	RegisterInputSerializer,
+	ResetPasswordInputSerializer,
 	UpdateNameInputSerializer,
 	UserSerializer,
 	UserTaskSerializer,
@@ -50,6 +61,8 @@ from .services import (
 
 
 JOURNAL_DAILY_XP = 20
+PASSWORD_RESET_SIGNING_SALT = "api.password-reset"
+logger = logging.getLogger(__name__)
 
 
 def get_validation_error_message(exc, fallback="Request failed."):
@@ -68,6 +81,100 @@ def get_validation_error_message(exc, fallback="Request failed."):
 		return str(detail)
 
 	return str(exc) if str(exc) else fallback
+
+
+def decode_quoted_printable_value(value):
+	if not value:
+		return ""
+
+	try:
+		return quopri.decodestring(value.encode("utf-8")).decode("utf-8")
+	except Exception:
+		return value
+
+
+def normalize_reset_token(raw_token):
+	if not raw_token:
+		return ""
+
+	token = str(raw_token).strip().strip('"').strip("'")
+	token = token.replace("\r", "").replace("\n", "")
+	if not token:
+		return ""
+
+	token = decode_quoted_printable_value(token).strip()
+
+	# Allow users to paste a full reset URL instead of just the token.
+	try:
+		parsed = urlparse(token)
+		if parsed.scheme and parsed.netloc:
+			query_token = parse_qs(parsed.query).get("reset_token", [""])[0]
+			if query_token:
+				token = query_token.strip()
+	except Exception:
+		pass
+
+	if "reset_token=" in token:
+		query_part = token.split("?", 1)[-1]
+		query_token = parse_qs(query_part).get("reset_token", [""])[0]
+		if query_token:
+			token = query_token.strip()
+
+	token = decode_quoted_printable_value(token).strip()
+
+	# Common artifact when copying from quoted-printable console output.
+	if token.startswith("3Dey"):
+		token = token[2:]
+	if token.startswith("=3D"):
+		token = token[3:]
+	if token.startswith("="):
+		token = token[1:]
+
+	return token.strip().strip('"').strip("'")
+
+
+def load_reset_payload(token):
+	clean_token = normalize_reset_token(token)
+	candidates = []
+
+	def add_candidate(value):
+		if value and value not in candidates:
+			candidates.append(value)
+
+	add_candidate(clean_token)
+	add_candidate(unquote(clean_token))
+	add_candidate(decode_quoted_printable_value(clean_token))
+	add_candidate(clean_token.replace(" ", "+"))
+
+	for candidate in list(candidates):
+		normalized = normalize_reset_token(candidate)
+		add_candidate(normalized)
+		add_candidate(unquote(normalized))
+		add_candidate(decode_quoted_printable_value(normalized))
+		add_candidate(normalized.replace(" ", "+"))
+		if normalized.startswith("3D"):
+			add_candidate(normalized[2:])
+		if normalized.startswith("=3D"):
+			add_candidate(normalized[3:])
+		if normalized.startswith("="):
+			add_candidate(normalized[1:])
+
+	for candidate in candidates:
+		if not candidate:
+			continue
+		try:
+			payload = signing.loads(
+				candidate,
+				salt=PASSWORD_RESET_SIGNING_SALT,
+				max_age=getattr(settings, "PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS", 3600),
+			)
+			return payload
+		except signing.SignatureExpired:
+			raise
+		except signing.BadSignature:
+			continue
+
+	raise signing.BadSignature("Invalid token.")
 
 
 class HelloView(APIView):
@@ -118,6 +225,122 @@ class RegisterView(APIView):
 				"user": UserSerializer(user).data,
 			},
 			status=status.HTTP_201_CREATED,
+		)
+
+
+class ForgotPasswordView(APIView):
+	permission_classes = [AllowAny]
+
+	def post(self, request):
+		serializer = ForgotPasswordInputSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		email = serializer.validated_data["email"].lower().strip()
+		response_payload = {
+			"success": True,
+			"message": "If an account exists for this email, a reset link has been sent.",
+		}
+
+		user = User.objects.filter(email=email).first()
+		if not user:
+			return Response(response_payload)
+
+		token = signing.dumps(
+			{"uid": str(user.id), "pwd": user.password},
+			salt=PASSWORD_RESET_SIGNING_SALT,
+		)
+		frontend_base_url = (getattr(settings, "FRONTEND_APP_URL", "") or "").rstrip("/")
+		reset_url = f"{frontend_base_url}/?reset_token={quote(token, safe='')}" if frontend_base_url else ""
+
+		subject = "Reset your Zynexon password"
+		message_lines = [
+			"You requested a password reset for your Zynexon account.",
+			"",
+		]
+		if reset_url:
+			message_lines.extend([
+				"Use this link to set a new password:",
+				reset_url,
+			])
+		else:
+			message_lines.extend([
+				"Use this reset token in the app:",
+				token,
+			])
+
+		message_lines.extend([
+			"",
+			"If you did not request this, you can ignore this email.",
+		])
+		message = "\n".join(message_lines)
+
+		try:
+			send_mail(
+				subject,
+				message,
+				getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@zynexon.app"),
+				[email],
+				fail_silently=False,
+			)
+		except Exception:
+			logger.exception("Password reset email send failed for %s", email)
+
+		email_backend = getattr(settings, "EMAIL_BACKEND", "")
+		is_console_backend = email_backend.endswith("console.EmailBackend")
+		if is_console_backend:
+			# Dev convenience: frontend can auto-fill a guaranteed-valid token.
+			response_payload["reset_token"] = token
+			if reset_url:
+				response_payload["reset_url"] = reset_url
+
+		return Response(response_payload)
+
+
+class ResetPasswordView(APIView):
+	permission_classes = [AllowAny]
+
+	def post(self, request):
+		serializer = ResetPasswordInputSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		token = serializer.validated_data["token"]
+		new_password = serializer.validated_data["password"]
+
+		try:
+			payload = load_reset_payload(token)
+			user_id = payload.get("uid")
+			password_snapshot = payload.get("pwd")
+			if not user_id or not password_snapshot:
+				raise signing.BadSignature("Malformed token payload.")
+
+			user = User.objects.filter(id=user_id).first()
+			if not user or user.password != password_snapshot:
+				raise signing.BadSignature("Stale token.")
+		except signing.SignatureExpired:
+			return Response(
+				{"error": "This reset link has expired. Request a new one."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+		except signing.BadSignature:
+			return Response(
+				{"error": "Invalid reset link. Request a new one."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		try:
+			validate_password(new_password, user=user)
+		except DjangoValidationError as exc:
+			messages = getattr(exc, "messages", None) or ["Password does not meet requirements."]
+			return Response({"error": messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+
+		user.set_password(new_password)
+		user.save(update_fields=["password"])
+
+		return Response(
+			{
+				"success": True,
+				"message": "Password reset successful. Please log in with your new password.",
+			}
 		)
 
 
