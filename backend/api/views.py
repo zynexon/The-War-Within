@@ -217,7 +217,6 @@ class RegisterView(APIView):
 			level=1,
 			streak=0,
 		)
-		seed_task_templates()
 		assign_daily_tasks(user)
 
 		return Response(
