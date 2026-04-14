@@ -2,6 +2,9 @@ import TaskCard from '../TaskCard'
 
 function TasksPage({
   onBack,
+  onChangeFocus,
+  focusCategory,
+  focusOptions,
   completedCount,
   tasks,
   isLoading,
@@ -11,6 +14,8 @@ function TasksPage({
   dailyStatusMessage,
   errorText,
 }) {
+  const currentFocus = focusOptions?.find((option) => option.key === focusCategory) || null
+
   return (
     <>
       <section className="relative flex items-center pt-1">
@@ -22,6 +27,29 @@ function TasksPage({
           ← Back
         </button>
       </section>
+
+      {currentFocus ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">{currentFocus.icon}</span>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Focus</p>
+                <p className="text-sm font-black text-zinc-900">{currentFocus.label}</p>
+              </div>
+            </div>
+            {onChangeFocus ? (
+              <button
+                type="button"
+                onClick={onChangeFocus}
+                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-600 transition hover:bg-zinc-100"
+              >
+                Change
+              </button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <section className="text-center pt-2">
         <h2 className="text-5xl font-black leading-[1.05] tracking-tighter text-zinc-950">

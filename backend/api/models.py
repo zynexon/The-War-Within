@@ -5,6 +5,19 @@ from django.db import models
 
 
 class User(AbstractUser):
+	FOCUS_STUDY = "study"
+	FOCUS_FITNESS = "fitness"
+	FOCUS_DISCIPLINE = "discipline"
+	FOCUS_WORK = "work"
+	FOCUS_LOGIC = "logic"
+	FOCUS_CHOICES = [
+		(FOCUS_STUDY, "Study / Learning"),
+		(FOCUS_FITNESS, "Fitness"),
+		(FOCUS_DISCIPLINE, "Discipline / Focus"),
+		(FOCUS_WORK, "Work / Productivity"),
+		(FOCUS_LOGIC, "Logic"),
+	]
+
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	name = models.CharField(max_length=100, null=True, blank=True)
 	email = models.EmailField(unique=True)
@@ -12,6 +25,7 @@ class User(AbstractUser):
 	level = models.IntegerField(default=1)
 	streak = models.IntegerField(default=0)
 	equipped_badge = models.CharField(max_length=50, null=True, blank=True)
+	focus_category = models.CharField(max_length=20, choices=FOCUS_CHOICES, null=True, blank=True)
 	streak_shields = models.IntegerField(default=0)
 	shield_used_today = models.BooleanField(default=False)
 	last_perfect_week_shield_date = models.DateField(null=True, blank=True)
@@ -20,9 +34,25 @@ class User(AbstractUser):
 
 
 class Task(models.Model):
+	CATEGORY_STUDY = "study"
+	CATEGORY_FITNESS = "fitness"
+	CATEGORY_DISCIPLINE = "discipline"
+	CATEGORY_WORK = "work"
+	CATEGORY_LOGIC = "logic"
+	CATEGORY_GENERAL = "general"
+	CATEGORY_CHOICES = [
+		(CATEGORY_STUDY, "Study / Learning"),
+		(CATEGORY_FITNESS, "Fitness"),
+		(CATEGORY_DISCIPLINE, "Discipline / Focus"),
+		(CATEGORY_WORK, "Work / Productivity"),
+		(CATEGORY_LOGIC, "Logic"),
+		(CATEGORY_GENERAL, "General"),
+	]
+
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	title = models.CharField(max_length=255)
 	xp = models.IntegerField()
+	category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_GENERAL)
 
 	def __str__(self):
 		return self.title
@@ -30,15 +60,22 @@ class Task(models.Model):
 
 class DailyTaskSet(models.Model):
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-	date = models.DateField(unique=True)
+	date = models.DateField()
+	category = models.CharField(max_length=20, default=Task.CATEGORY_GENERAL)
 	tasks = models.ManyToManyField(Task, related_name="daily_sets")
 	created_at = models.DateTimeField(auto_now_add=True)
 
 	class Meta:
 		ordering = ["-date"]
+		constraints = [
+			models.UniqueConstraint(
+				fields=["date", "category"],
+				name="unique_daily_task_set_per_date_category",
+			)
+		]
 
 	def __str__(self):
-		return f"Daily tasks for {self.date}"
+		return f"Daily tasks for {self.date} ({self.category})"
 
 
 class UserTask(models.Model):

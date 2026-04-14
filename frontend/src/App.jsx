@@ -40,6 +40,13 @@ const DAILY_TRAINING_GAMES = [
   'Reverse Order',
   'Number Stack',
 ]
+const FOCUS_OPTIONS = [
+  { key: 'study', icon: '📚', label: 'Study / Learning', desc: 'Deep work, reading, skill building' },
+  { key: 'fitness', icon: '💪', label: 'Fitness', desc: 'Training, nutrition, recovery' },
+  { key: 'discipline', icon: '🧠', label: 'Discipline / Focus', desc: 'Habits, mindset, consistency' },
+  { key: 'work', icon: '💼', label: 'Work / Productivity', desc: 'Output, goals, execution' },
+  { key: 'logic', icon: '⚡', label: 'Logic', desc: 'Problem solving, strategy, reasoning' },
+]
 const LEVEL_TITLES = {
   1: 'Civilian',
   2: 'Recruit',
@@ -284,6 +291,15 @@ async function readApiPayload(response) {
   }
 }
 
+function mapDailyTasksToUi(dailyTasks) {
+  return (dailyTasks || []).map((task) => ({
+    id: task.id,
+    name: task.task_title,
+    xp: task.task_xp,
+    completed: task.completed,
+  }))
+}
+
 function App() {
   const {
     user,
@@ -430,6 +446,8 @@ function App() {
   const [guestScore, setGuestScore] = useState(null)
   const [showGuestSignup, setShowGuestSignup] = useState(false)
   const [guestRunId, setGuestRunId] = useState(0)
+  const [showFocusPicker, setShowFocusPicker] = useState(false)
+  const [focusUpdating, setFocusUpdating] = useState(false)
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [leaderboardPeriod, setLeaderboardPeriod] = useState('weekly')
   const [leaderboardNowMs, setLeaderboardNowMs] = useState(Date.now())
@@ -877,14 +895,8 @@ function App() {
         setXp(user.xp)
         setStreakDays(user.streak)
 
-        setTasks(
-          dailyTasks.map((task) => ({
-            id: task.id,
-            name: task.task_title,
-            xp: task.task_xp,
-            completed: task.completed,
-          })),
-        )
+        setTasks(mapDailyTasksToUi(dailyTasks))
+        setShowFocusPicker(false)
         setGameRemainingXpByType(gameRemaining?.remaining_by_type || {})
         setDailyChallenge(dailyChallengeData)
 
@@ -1606,6 +1618,8 @@ function App() {
     setGuestScore(null)
     setShowGuestSignup(false)
     setGuestRunId(0)
+    setShowFocusPicker(false)
+    setFocusUpdating(false)
     setEquippedBadge(null)
     setTasks([])
     setUserName('')
@@ -1933,6 +1947,36 @@ function App() {
 
   function handleConfirmNo() {
     setSelectedTask(null)
+  }
+
+  async function handleSelectFocus(categoryKey) {
+    setFocusUpdating(true)
+    try {
+      setErrorText('')
+      const data = await authedFetch('/api/user/update-focus/', {
+        method: 'PATCH',
+        body: JSON.stringify({ focus_category: categoryKey }),
+      })
+
+      setUser(data)
+      if (typeof data.xp === 'number') {
+        setXp(data.xp)
+      }
+      if (typeof data.level === 'number') {
+        setLevel(data.level)
+      }
+      if (typeof data.streak === 'number') {
+        setStreakDays(data.streak)
+      }
+
+      const dailyTasks = await authedFetch('/api/daily-tasks/')
+      setTasks(mapDailyTasksToUi(dailyTasks))
+      setShowFocusPicker(false)
+    } catch (error) {
+      setErrorText(error.message || 'Could not update focus.')
+    } finally {
+      setFocusUpdating(false)
+    }
   }
 
   async function handleToggleBadge(badgeId, earned) {
@@ -3465,17 +3509,61 @@ function App() {
           {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
         </section>
       ) : activeTab === 'Tasks' ? (
-        <TasksPage
-          onBack={() => navigate('/')}
-          completedCount={completedCount}
-          tasks={tasks}
-          isLoading={isLoading}
-          onCompleteTask={handleAskComplete}
-          justCompletedId={justCompletedId}
-          streakDays={streakDays}
-          dailyStatusMessage={dailyStatusMessage}
-          errorText={errorText}
-        />
+        showFocusPicker || !user?.focus_category ? (
+          <section className="space-y-5 pt-2">
+            <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Personalize</p>
+              <h2 className="mt-2 text-2xl font-black tracking-tight text-zinc-950">
+                What are you focusing on right now?
+              </h2>
+              <p className="mt-1 text-sm font-semibold text-zinc-500">
+                Your daily tasks will be tailored to your goal.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {FOCUS_OPTIONS.map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => {
+                    void handleSelectFocus(opt.key)
+                  }}
+                  disabled={focusUpdating}
+                  className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-left shadow-sm transition hover:border-zinc-900 hover:shadow-md disabled:opacity-60"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="text-3xl">{opt.icon}</span>
+                    <div>
+                      <p className="text-base font-black text-zinc-950">{opt.label}</p>
+                      <p className="mt-0.5 text-xs font-semibold text-zinc-500">{opt.desc}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {focusUpdating ? (
+              <p className="text-center text-xs font-semibold text-zinc-400">Updating your tasks...</p>
+            ) : null}
+            {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+          </section>
+        ) : (
+          <TasksPage
+            onBack={() => navigate('/')}
+            onChangeFocus={() => setShowFocusPicker(true)}
+            focusCategory={user?.focus_category}
+            focusOptions={FOCUS_OPTIONS}
+            completedCount={completedCount}
+            tasks={tasks}
+            isLoading={isLoading}
+            onCompleteTask={handleAskComplete}
+            justCompletedId={justCompletedId}
+            streakDays={streakDays}
+            dailyStatusMessage={dailyStatusMessage}
+            errorText={errorText}
+          />
+        )
       ) : (
         <div className="max-w-md mx-auto px-4 pb-24 w-full">
         <section className="space-y-6">

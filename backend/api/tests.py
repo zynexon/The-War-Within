@@ -4,9 +4,11 @@ from urllib.parse import quote
 from django.contrib.auth import get_user_model
 from django.core import mail, signing
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from django.urls import reverse
 
 from .views import PASSWORD_RESET_SIGNING_SALT
+from .services import DAILY_TASK_COUNT, get_daily_tasks, seed_task_templates
 
 
 class PasswordResetFlowTests(TestCase):
@@ -146,3 +148,63 @@ class PasswordResetFlowTests(TestCase):
 		self.assertEqual(response_qp_token.status_code, 200)
 		self.user.refresh_from_db()
 		self.assertTrue(self.user.check_password('QpPass123!'))
+
+
+class FocusCategoryTaskAssignmentTests(TestCase):
+	def setUp(self):
+		self.user_email = "focus-user@example.com"
+		self.user_password = "StrongPass123!"
+		self.user = get_user_model().objects.create_user(
+			username=self.user_email,
+			email=self.user_email,
+			password=self.user_password,
+			name="Focus User",
+		)
+		seed_task_templates()
+
+	def _auth_client(self):
+		client = self.client
+		login_response = client.post(
+			reverse("auth-login"),
+			data=json.dumps({"username": self.user_email, "password": self.user_password}),
+			content_type="application/json",
+		)
+		self.assertEqual(login_response.status_code, 200)
+		token = login_response.json()["access"]
+		client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+		return client
+
+	def test_daily_tasks_default_to_discipline_when_focus_not_set(self):
+		tasks = list(get_daily_tasks(self.user))
+		self.assertEqual(len(tasks), DAILY_TASK_COUNT)
+		self.assertTrue(all(task.task.category == "discipline" for task in tasks))
+
+	def test_update_focus_reassigns_incomplete_tasks_and_preserves_completed(self):
+		today = timezone.localdate()
+		initial_tasks = list(get_daily_tasks(self.user, today))
+		self.assertEqual(len(initial_tasks), DAILY_TASK_COUNT)
+
+		completed_task = initial_tasks[0]
+		completed_task.completed = True
+		completed_task.completed_at = timezone.now()
+		completed_task.save(update_fields=["completed", "completed_at"])
+
+		client = self._auth_client()
+		update_response = client.patch(
+			reverse("user-update-focus"),
+			data=json.dumps({"focus_category": "study"}),
+			content_type="application/json",
+		)
+		self.assertEqual(update_response.status_code, 200)
+		self.user.refresh_from_db()
+		self.assertEqual(self.user.focus_category, "study")
+
+		tasks_after = list(get_daily_tasks(self.user, today))
+		self.assertEqual(len(tasks_after), DAILY_TASK_COUNT)
+
+		completed_after = [task for task in tasks_after if task.completed]
+		incomplete_after = [task for task in tasks_after if not task.completed]
+
+		self.assertEqual(len(completed_after), 1)
+		self.assertEqual(str(completed_after[0].id), str(completed_task.id))
+		self.assertTrue(all(task.task.category == "study" for task in incomplete_after))

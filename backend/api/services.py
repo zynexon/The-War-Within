@@ -86,30 +86,73 @@ COLOR_COUNT_FOCUS_WIN_SCORE = 8
 SPEED_PATTERN_WIN_SCORE = 1
 GAME_XP_PER_SCORE = 2
 GAME_XP_PER_SESSION_CAP = 30
+FOCUS_CATEGORIES = [
+    User.FOCUS_STUDY,
+    User.FOCUS_FITNESS,
+    User.FOCUS_DISCIPLINE,
+    User.FOCUS_WORK,
+    User.FOCUS_LOGIC,
+]
 DEFAULT_TASK_TEMPLATES = [
-    {"legacy_title": "Deep work: 45 minutes", "title": "Lock in. 45 minutes. No excuses.", "xp": 20},
-    {"legacy_title": "No social scroll before noon", "title": "Don't let the feed steal your morning.", "xp": 15},
-    {"legacy_title": "Workout or walk", "title": "Train the body. The mind follows.", "xp": 25},
-    {"legacy_title": "Read 10 pages", "title": "Feed your mind. 10 pages minimum.", "xp": 10},
-    {"legacy_title": "Plan tomorrow in 5 mins", "title": "Winners plan tonight. Losers react tomorrow.", "xp": 10},
+    # Study / Learning
+    {"title": "Lock in. 45 minutes. No excuses.", "xp": 20, "category": Task.CATEGORY_STUDY},
+    {"title": "Feed your mind. 10 pages minimum.", "xp": 10, "category": Task.CATEGORY_STUDY},
+    {"title": "Grow or decay. 15 mins of real learning.", "xp": 10, "category": Task.CATEGORY_STUDY},
+    {"title": "Study/work 60 minutes distraction-free.", "xp": 20, "category": Task.CATEGORY_STUDY},
+    {"title": "Write 5 key learnings from today.", "xp": 10, "category": Task.CATEGORY_STUDY},
+    {"title": "Teach someone what you learned today.", "xp": 15, "category": Task.CATEGORY_STUDY},
+    {"title": "Review yesterday's notes for 10 minutes.", "xp": 10, "category": Task.CATEGORY_STUDY},
+    {"title": "No phone for first 30 mins of study.", "xp": 15, "category": Task.CATEGORY_STUDY},
+    {"title": "Complete one hard problem you've been avoiding.", "xp": 25, "category": Task.CATEGORY_STUDY},
+    {"title": "Write a summary of what you studied today.", "xp": 10, "category": Task.CATEGORY_STUDY},
 
-    {"legacy_title": "Wake up before 7 AM", "title": "Own the morning before the world wakes up.", "xp": 15},
-    {"legacy_title": "No phone for first 30 mins", "title": "Your first 30 mins belong to you. Not the algorithm.", "xp": 15},
-    {"legacy_title": "Drink 2L of water", "title": "Fuel the machine. 2L. No negotiation.", "xp": 10},
-    {"legacy_title": "Meditate for 10 minutes", "title": "Silence the noise. 10 minutes of stillness.", "xp": 15},
-    {"legacy_title": "Write 5 key learnings today", "title": "What did today teach you? Write 5 truths.", "xp": 10},
+    # Fitness
+    {"title": "Train the body. The mind follows.", "xp": 25, "category": Task.CATEGORY_FITNESS},
+    {"title": "Do 50 push-ups (or equivalent).", "xp": 20, "category": Task.CATEGORY_FITNESS},
+    {"title": "Fuel the machine. 2L of water. No negotiation.", "xp": 10, "category": Task.CATEGORY_FITNESS},
+    {"title": "Avoid junk food today.", "xp": 15, "category": Task.CATEGORY_FITNESS},
+    {"title": "30-minute walk. No excuses.", "xp": 15, "category": Task.CATEGORY_FITNESS},
+    {"title": "Sleep before 11 PM. Recovery is part of war.", "xp": 20, "category": Task.CATEGORY_FITNESS},
+    {"title": "No sugar for the entire day.", "xp": 20, "category": Task.CATEGORY_FITNESS},
+    {"title": "5-minute cold shower. Do it.", "xp": 15, "category": Task.CATEGORY_FITNESS},
+    {"title": "Stretch for 10 minutes.", "xp": 10, "category": Task.CATEGORY_FITNESS},
+    {"title": "Track your calories today.", "xp": 10, "category": Task.CATEGORY_FITNESS},
 
-    {"legacy_title": "Study/work 60 minutes distraction-free", "title": "60 minutes. Full focus. Phone face down.", "xp": 20},
-    {"legacy_title": "Avoid junk food today", "title": "Discipline on the plate. Discipline in life.", "xp": 15},
-    {"legacy_title": "Do 50 push-ups (or equivalent)", "title": "50 reps. Your comfort zone ends here.", "xp": 20},
-    {"legacy_title": "Spend 15 mins learning something new", "title": "Grow or decay. 15 mins of real learning.", "xp": 10},
-    {"legacy_title": "Clean your workspace", "title": "Chaotic desk. Chaotic mind. Fix it.", "xp": 10},
+    # Discipline / Focus
+    {"title": "Don't let the feed steal your morning.", "xp": 15, "category": Task.CATEGORY_DISCIPLINE},
+    {"title": "Silence the noise. 10 minutes of stillness.", "xp": 15, "category": Task.CATEGORY_DISCIPLINE},
+    {"title": "No social media after 9 PM.", "xp": 15, "category": Task.CATEGORY_DISCIPLINE},
+    {"title": "Own the morning before the world wakes up.", "xp": 15, "category": Task.CATEGORY_DISCIPLINE},
+    {"title": "Winners plan tonight. Losers react tomorrow.", "xp": 10, "category": Task.CATEGORY_DISCIPLINE},
+    {"title": "Do one thing you've been avoiding all week.", "xp": 25, "category": Task.CATEGORY_DISCIPLINE},
+    {"title": "No complaints for the entire day.", "xp": 20, "category": Task.CATEGORY_DISCIPLINE},
+    {"title": "Write your goals for the week.", "xp": 15, "category": Task.CATEGORY_DISCIPLINE},
+    {"title": "Single task for 1 hour. No switching.", "xp": 20, "category": Task.CATEGORY_DISCIPLINE},
+    {"title": "Spend 0 minutes on short-form video today.", "xp": 20, "category": Task.CATEGORY_DISCIPLINE},
 
-    {"legacy_title": "No social media after 9 PM", "title": "Cut the noise after 9. Protect your mind.", "xp": 15},
-    {"legacy_title": "Track your expenses today", "title": "Know where your money goes. Control follows awareness.", "xp": 10},
-    {"legacy_title": "Have 1 meaningful conversation", "title": "One real conversation beats 100 shallow ones.", "xp": 10},
-    {"legacy_title": "Write your goals for the week", "title": "Unclear goals = guaranteed failure. Write them down.", "xp": 15},
-    {"legacy_title": "Sleep before 11 PM", "title": "Recovery is part of the war. Sleep before 11.", "xp": 20},
+    # Work / Productivity
+    {"title": "Chaotic desk. Chaotic mind. Fix it.", "xp": 10, "category": Task.CATEGORY_WORK},
+    {"title": "Know where your money goes. Track expenses.", "xp": 10, "category": Task.CATEGORY_WORK},
+    {"title": "Unclear goals = guaranteed failure. Write them down.", "xp": 15, "category": Task.CATEGORY_WORK},
+    {"title": "Complete your 3 most important tasks today.", "xp": 25, "category": Task.CATEGORY_WORK},
+    {"title": "Reply to every pending message before noon.", "xp": 15, "category": Task.CATEGORY_WORK},
+    {"title": "Do a full weekly review in 15 minutes.", "xp": 15, "category": Task.CATEGORY_WORK},
+    {"title": "Identify one task to eliminate or delegate.", "xp": 10, "category": Task.CATEGORY_WORK},
+    {"title": "Deep work block: 90 minutes, zero interruptions.", "xp": 25, "category": Task.CATEGORY_WORK},
+    {"title": "Set a hard stop time and stick to it.", "xp": 10, "category": Task.CATEGORY_WORK},
+    {"title": "Send one email you've been putting off.", "xp": 10, "category": Task.CATEGORY_WORK},
+
+    # Logic
+    {"title": "Solve one logic puzzle or brain teaser.", "xp": 15, "category": Task.CATEGORY_LOGIC},
+    {"title": "Play one full round of a strategy game.", "xp": 15, "category": Task.CATEGORY_LOGIC},
+    {"title": "Read about a topic completely outside your field.", "xp": 10, "category": Task.CATEGORY_LOGIC},
+    {"title": "Write down 3 assumptions you currently hold and challenge them.", "xp": 15, "category": Task.CATEGORY_LOGIC},
+    {"title": "Explain a complex concept to yourself simply.", "xp": 10, "category": Task.CATEGORY_LOGIC},
+    {"title": "Identify one cognitive bias you fell for this week.", "xp": 15, "category": Task.CATEGORY_LOGIC},
+    {"title": "Do mental math for all calculations today.", "xp": 10, "category": Task.CATEGORY_LOGIC},
+    {"title": "Write a pros/cons list for a decision you're avoiding.", "xp": 10, "category": Task.CATEGORY_LOGIC},
+    {"title": "Spend 20 minutes on a coding or math challenge.", "xp": 20, "category": Task.CATEGORY_LOGIC},
+    {"title": "Debate both sides of an argument in your journal.", "xp": 15, "category": Task.CATEGORY_LOGIC},
 ]
 DAILY_CHALLENGE_XP_REWARD = 30
 DAILY_CHALLENGE_POOL = [
@@ -395,34 +438,48 @@ def seed_task_templates():
     created_count = 0
     for template in DEFAULT_TASK_TEMPLATES:
         legacy_title = template.get("legacy_title")
+        category = template.get("category", Task.CATEGORY_GENERAL)
         if legacy_title:
             Task.objects.filter(title=legacy_title).update(
                 title=template["title"],
                 xp=template["xp"],
+                category=category,
             )
 
         _, created = Task.objects.update_or_create(
             title=template["title"],
-            defaults={"xp": template["xp"]},
+            defaults={
+                "xp": template["xp"],
+                "category": category,
+            },
         )
         if created:
             created_count += 1
     return created_count
 
 
-def get_or_create_daily_task_set(target_date=None):
+def get_or_create_daily_task_set(target_date=None, category=Task.CATEGORY_GENERAL):
     """
-    Get or create a DailyTaskSet for the given date.
-    If it doesn't exist, randomly select DAILY_TASK_COUNT tasks.
-    All users get the same tasks for a given day.
+    Get or create a DailyTaskSet for the given date and category.
+    If no category pool has enough tasks, falls back to any available tasks.
     """
     if target_date is None:
         target_date = timezone.localdate()
 
-    daily_set, created = DailyTaskSet.objects.get_or_create(date=target_date)
+    if category not in FOCUS_CATEGORIES:
+        category = Task.CATEGORY_GENERAL
+
+    daily_set, created = DailyTaskSet.objects.get_or_create(
+        date=target_date,
+        category=category,
+    )
 
     if created:
-        available_tasks = list(Task.objects.order_by("?")[: DAILY_TASK_COUNT])
+        available_tasks = list(
+            Task.objects.filter(category=category).order_by("?")[:DAILY_TASK_COUNT]
+        )
+        if len(available_tasks) < DAILY_TASK_COUNT:
+            available_tasks = list(Task.objects.order_by("?")[:DAILY_TASK_COUNT])
         if len(available_tasks) < DAILY_TASK_COUNT:
             raise ValidationError(
                 f"Not enough tasks available. Need {DAILY_TASK_COUNT}, found {len(available_tasks)}."
@@ -434,25 +491,63 @@ def get_or_create_daily_task_set(target_date=None):
 
 def assign_daily_tasks(user, date=None):
     """
-    Assign today's global task set to a user.
-    Uses get_or_create to avoid duplicates.
+    Assign today's category task set to a user.
+    Keeps already assigned tasks and only fills remaining slots.
     """
     target_date = date or timezone.localdate()
-    daily_set = get_or_create_daily_task_set(target_date)
+    category = user.focus_category or User.FOCUS_DISCIPLINE
+    daily_set = get_or_create_daily_task_set(target_date, category)
 
-    assigned = []
+    existing_user_tasks = list(
+        UserTask.objects.filter(user=user, date=target_date).select_related("task")
+    )
+    existing_task_ids = {user_task.task_id for user_task in existing_user_tasks}
+    slots_remaining = max(0, DAILY_TASK_COUNT - len(existing_user_tasks))
+
+    if slots_remaining == 0:
+        return existing_user_tasks, 0
+
+    candidate_tasks = list(daily_set.tasks.exclude(id__in=existing_task_ids))
+    if len(candidate_tasks) < slots_remaining:
+        fallback_tasks = list(
+            Task.objects.filter(category=category)
+            .exclude(id__in=existing_task_ids)
+            .order_by("?")
+        )
+        seen_ids = {task.id for task in candidate_tasks}
+        for task in fallback_tasks:
+            if task.id in seen_ids:
+                continue
+            candidate_tasks.append(task)
+            seen_ids.add(task.id)
+
+    if len(candidate_tasks) < slots_remaining:
+        fallback_all = list(
+            Task.objects.exclude(id__in=existing_task_ids).order_by("?")
+        )
+        seen_ids = {task.id for task in candidate_tasks}
+        for task in fallback_all:
+            if task.id in seen_ids:
+                continue
+            candidate_tasks.append(task)
+            seen_ids.add(task.id)
+
     created_count = 0
-    for task in daily_set.tasks.all():
+    for task in candidate_tasks:
+        if created_count >= slots_remaining:
+            break
         user_task, created = UserTask.objects.get_or_create(
             user=user,
             task=task,
             date=target_date,
             defaults={"completed": False},
         )
-        assigned.append(user_task)
         if created:
             created_count += 1
 
+    assigned = list(
+        UserTask.objects.filter(user=user, date=target_date).select_related("task")
+    )
     return assigned, created_count
 
 

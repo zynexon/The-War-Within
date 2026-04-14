@@ -19,6 +19,7 @@ from .views import (
     RegisterView,
     ResetPasswordView,
     SeedTasksView,
+    UpdateFocusCategoryView,
     UpdateNameView,
     UserView,
 )
@@ -39,6 +40,7 @@ urlpatterns = [
     path("user/", UserView.as_view(), name="user"),
     path("user/equip-badge/", EquipBadgeView.as_view(), name="equip-badge"),
     path("user/update-name/", UpdateNameView.as_view(), name="user-update-name"),
+    path("user/update-focus/", UpdateFocusCategoryView.as_view(), name="user-update-focus"),
     path("seed-tasks/", SeedTasksView.as_view(), name="seed-tasks"),
     path("assign-daily-tasks/", AssignDailyTasksView.as_view(), name="assign-daily-tasks"),
     path("daily-tasks/", DailyTasksView.as_view(), name="daily-tasks"),

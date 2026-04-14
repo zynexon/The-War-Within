@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .models import GameSession, JournalEntry, User, XPLog
+from .models import GameSession, JournalEntry, User, UserTask, XPLog
 from .serializers import (
 	AssignDailyTasksInputSerializer,
 	CompleteTaskInputSerializer,
@@ -31,6 +31,7 @@ from .serializers import (
 	ForgotPasswordInputSerializer,
 	RegisterInputSerializer,
 	ResetPasswordInputSerializer,
+	UpdateFocusCategoryInputSerializer,
 	UpdateNameInputSerializer,
 	UserSerializer,
 	UserTaskSerializer,
@@ -386,6 +387,34 @@ class UpdateNameView(APIView):
 
 		request.user.name = serializer.validated_data["name"]
 		request.user.save(update_fields=["name"])
+		user_data = UserSerializer(request.user).data
+		user_data.update(get_user_stats(request.user))
+		return Response(user_data)
+
+
+class UpdateFocusCategoryView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	@transaction.atomic
+	def patch(self, request):
+		serializer = UpdateFocusCategoryInputSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		new_category = serializer.validated_data["focus_category"]
+		old_category = request.user.focus_category
+
+		request.user.focus_category = new_category
+		request.user.save(update_fields=["focus_category"])
+
+		if old_category != new_category:
+			today = timezone.localdate()
+			UserTask.objects.filter(
+				user=request.user,
+				date=today,
+				completed=False,
+			).delete()
+			assign_daily_tasks(request.user, today)
+
 		user_data = UserSerializer(request.user).data
 		user_data.update(get_user_stats(request.user))
 		return Response(user_data)

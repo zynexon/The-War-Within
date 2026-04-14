@@ -118,6 +118,12 @@ class UpdateNameInputSerializer(serializers.Serializer):
         return cleaned
 
 
+class UpdateFocusCategoryInputSerializer(serializers.Serializer):
+    focus_category = serializers.ChoiceField(
+        choices=["study", "fitness", "discipline", "work", "logic"],
+    )
+
+
 class EquipBadgeInputSerializer(serializers.Serializer):
     badge_id = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
 
@@ -140,6 +146,7 @@ class UserSerializer(serializers.ModelSerializer):
             "equipped_badge",
             "streak_shields",
             "shield_used_today",
+            "focus_category",
             "total_tasks_completed",
             "last_active_date",
             "created_at",
