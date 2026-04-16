@@ -95,6 +95,18 @@ const TRAINING_GAMES = [
     resultType: 'binary',
     resultLabel: 'Reverse Order',
   },
+  {
+    id: 'logic_grid',
+    title: 'Logic Grid',
+    route: '/game/logic-grid',
+    desc: 'Use clues to solve each logic matrix puzzle.',
+    difficulty: { icon: '💀', label: 'Hard', color: 'text-rose-600' },
+    maxXp: 100,
+    gameType: 'logic_grid',
+    category: 'logic_reasoning',
+    resultType: 'binary',
+    resultLabel: 'Logic Grid',
+  },
 ]
 
 const CATEGORY_SECTIONS = [

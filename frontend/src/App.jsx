@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti'
 import ConfirmationModal from './components/ConfirmationModal'
 import ColorCountFocusGame from './components/ColorCountFocusGame'
 import FocusTapGame from './components/FocusTapGame'
+import LogicGridGame from './components/LogicGridGame'
 import Navbar from './components/Navbar'
 import NumberRecallGame from './components/NumberRecallGame'
 import NumberStackGame from './components/NumberStackGame'
@@ -39,6 +40,7 @@ const DAILY_TRAINING_GAMES = [
   'Speed Pattern',
   'Reverse Order',
   'Number Stack',
+  'Logic Grid',
 ]
 const FOCUS_OPTIONS = [
   { key: 'study', icon: '📚', label: 'Study / Learning', desc: 'Deep work, reading, skill building' },
@@ -473,6 +475,11 @@ function App() {
   const [numberStackXpAwarded, setNumberStackXpAwarded] = useState(null)
   const [numberStackResult, setNumberStackResult] = useState(null)
   const [numberStackError, setNumberStackError] = useState('')
+  const [logicGridSessionId, setLogicGridSessionId] = useState('')
+  const [logicGridSubmitting, setLogicGridSubmitting] = useState(false)
+  const [logicGridXpAwarded, setLogicGridXpAwarded] = useState(null)
+  const [logicGridResult, setLogicGridResult] = useState(null)
+  const [logicGridError, setLogicGridError] = useState('')
   const [reactionTapSessionId, setReactionTapSessionId] = useState('')
   const [reactionTapSubmitting, setReactionTapSubmitting] = useState(false)
   const [reactionTapXpAwarded, setReactionTapXpAwarded] = useState(null)
@@ -539,7 +546,9 @@ function App() {
   const showNumberRecallResult = activeTab === 'Game' && gameRoute === '/game/number-recall' && (Boolean(numberRecallResult) || numberRecallSubmitting)
   const showColorCountResult = activeTab === 'Game' && gameRoute === '/game/color-count-focus' && (Boolean(colorCountResult) || colorCountSubmitting)
   const showSpeedPatternResult = activeTab === 'Game' && gameRoute === '/game/speed-pattern' && (Boolean(speedPatternResult) || speedPatternSubmitting)
-  const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult || showColorCountResult || showSpeedPatternResult
+  const showLogicGridResult = activeTab === 'Game' && gameRoute === '/game/logic-grid' && (Boolean(logicGridResult) || logicGridSubmitting)
+  const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult || showColorCountResult || showSpeedPatternResult || showLogicGridResult
+  const shouldLockBodyScroll = showLevelUp || showDailyChallenge || (showGameResult && !showLogicGridResult)
   const hasJournalEntryToday = Boolean(savedEntry)
   const taskCounterColorClass = completedCount === 0
     ? 'text-zinc-500'
@@ -1069,7 +1078,7 @@ function App() {
   }, [pendingLevelUpLevel, showLevelUp, showGameResult, selectedTask, showInstallPopup])
 
   useEffect(() => {
-    if (showLevelUp || showGameResult || showDailyChallenge) {
+    if (shouldLockBodyScroll) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'auto'
@@ -1078,7 +1087,7 @@ function App() {
     return () => {
       document.body.style.overflow = 'auto'
     }
-  }, [showLevelUp, showGameResult, showDailyChallenge])
+  }, [shouldLockBodyScroll])
 
   useEffect(() => {
     if (gameStarted && timeLeft === 0) {
@@ -1672,6 +1681,11 @@ function App() {
     setNumberStackXpAwarded(null)
     setNumberStackResult(null)
     setNumberStackError('')
+    setLogicGridSessionId('')
+    setLogicGridSubmitting(false)
+    setLogicGridXpAwarded(null)
+    setLogicGridResult(null)
+    setLogicGridError('')
     setReactionTapSessionId('')
     setReactionTapSubmitting(false)
     setReactionTapXpAwarded(null)
@@ -2479,6 +2493,69 @@ function App() {
     }
   }
 
+  async function handleLogicGridStart() {
+    try {
+      setLogicGridError('')
+      setLogicGridXpAwarded(null)
+      setLogicGridResult(null)
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'logic_grid' }),
+      })
+      setLogicGridSessionId(data.session_id)
+      return true
+    } catch (error) {
+      setLogicGridSessionId('')
+      setLogicGridError(error.message || 'Could not start Logic Grid session.')
+      return false
+    }
+  }
+
+  async function handleLogicGridFinish(result) {
+    if (!result || !logicGridSessionId) {
+      return null
+    }
+
+    setLogicGridSubmitting(true)
+    try {
+      setLogicGridError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: logicGridSessionId,
+          score: result.score,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      const refreshedUser = await authedFetch('/api/auth/me/')
+      setUser(refreshedUser)
+      setStreakDays(refreshedUser.streak)
+      setLogicGridXpAwarded(data.xp_awarded)
+      const meta = {
+        xpAwarded: data.xp_awarded,
+        dailyCap: data.daily_cap,
+        remainingToday: data.remaining_today,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+        todayGameXpBefore: data.today_game_xp_before,
+      }
+      setLogicGridResult(meta)
+      setLogicGridSessionId('')
+      if (data.xp_awarded > 0) {
+        setInstallEligible(true)
+      }
+      recordLastTrainingResult('Logic Grid', result.score, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
+      return meta
+    } catch (error) {
+      setLogicGridError(error.message || 'Could not submit Logic Grid result.')
+      return null
+    } finally {
+      setLogicGridSubmitting(false)
+    }
+  }
+
   if (loading) {
     return (
       <main className="mx-auto flex min-h-[100dvh] w-full max-w-[400px] flex-col items-center justify-center px-5 py-8 bg-[#f8f6f1]">
@@ -3263,6 +3340,16 @@ function App() {
             awardedXp={numberStackXpAwarded}
             resultMeta={numberStackResult}
             errorText={numberStackError}
+          />
+        ) : gameRoute === '/game/logic-grid' ? (
+          <LogicGridGame
+            onMainMenu={() => navigate('/game')}
+            onGameStart={handleLogicGridStart}
+            onGameFinished={handleLogicGridFinish}
+            submitting={logicGridSubmitting}
+            awardedXp={logicGridXpAwarded}
+            resultMeta={logicGridResult}
+            errorText={logicGridError}
           />
         ) : (
           <GameHubPage
