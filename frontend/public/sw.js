@@ -1,10 +1,66 @@
-self.addEventListener('install', (event) => {
-  self.skipWaiting()
-})
+// frontend/public/sw.js  — replace your existing sw.js with this
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
-})
+self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()))
 
-// A fetch handler is required by some mobile installability checks.
+// Required for PWA installability
 self.addEventListener('fetch', () => {})
+
+// ─── Push notification handler ───────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  if (!event.data) return
+
+  let payload = {}
+  try {
+    payload = event.data.json()
+  } catch {
+    payload = {
+      title: 'Zynexon',
+      body: event.data.text(),
+      url: '/',
+    }
+  }
+
+  const title = payload.title || 'Zynexon — The War Within'
+  const options = {
+    body:    payload.body  || 'Your weekly war report is ready.',
+    icon:    payload.icon  || '/icons/icon-192.png',
+    badge:   payload.badge || '/icons/icon-192.png',
+    tag:     'weekly-war-report',          // replaces previous notification of same tag
+    renotify: false,
+    requireInteraction: false,
+    data: { url: payload.url || '/' },
+    actions: [
+      { action: 'view',    title: 'View Report' },
+      { action: 'dismiss', title: 'Dismiss'     },
+    ],
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+// ─── Notification click handler ──────────────────────────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  if (event.action === 'dismiss') return
+
+  const targetUrl = event.notification.data?.url || '/'
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If app is already open, focus it and navigate
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.focus()
+          client.postMessage({ type: 'NAVIGATE', url: targetUrl })
+          return
+        }
+      }
+      // Otherwise open a new window
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl)
+      }
+    })
+  )
+})

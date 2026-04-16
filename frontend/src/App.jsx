@@ -10,6 +10,7 @@ import NumberStackGame from './components/NumberStackGame'
 import ReactionTapGame from './components/ReactionTapGame'
 import ReverseOrderGame from './components/ReverseOrderGame'
 import SpeedPatternGame from './components/SpeedPatternGame'
+import WeeklyWarReport from './components/WeeklyWarReport'
 import AuthPage from './components/pages/AuthPage'
 import GuestQuickMath from './components/pages/GuestQuickMath'
 import GameHubPage from './components/pages/GameHubPage'
@@ -492,6 +493,7 @@ function App() {
   const [showShieldInfo, setShowShieldInfo] = useState(false)
   const [showLevelInfo, setShowLevelInfo] = useState(false)
   const [showWarModeInfo, setShowWarModeInfo] = useState(false)
+  const [showWeeklyReport, setShowWeeklyReport] = useState(false)
   const [entry, setEntry] = useState({
     did_you_win_today: '',
     where_did_you_fail_yourself: '',
@@ -548,7 +550,7 @@ function App() {
   const showSpeedPatternResult = activeTab === 'Game' && gameRoute === '/game/speed-pattern' && (Boolean(speedPatternResult) || speedPatternSubmitting)
   const showLogicGridResult = activeTab === 'Game' && gameRoute === '/game/logic-grid' && (Boolean(logicGridResult) || logicGridSubmitting)
   const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult || showColorCountResult || showSpeedPatternResult || showLogicGridResult
-  const shouldLockBodyScroll = showLevelUp || showDailyChallenge || (showGameResult && !showLogicGridResult)
+  const shouldLockBodyScroll = showLevelUp || showDailyChallenge || showWeeklyReport || (showGameResult && !showLogicGridResult)
   const hasJournalEntryToday = Boolean(savedEntry)
   const taskCounterColorClass = completedCount === 0
     ? 'text-zinc-500'
@@ -693,39 +695,58 @@ function App() {
   }
 
   function navigate(path) {
+    const normalizedPath = (path || '').toLowerCase()
+
     window.history.pushState({}, '', path)
-    if (path === '/' || path === '') {
+    const isWeeklyReportPath = normalizedPath === '/weekly-report' || normalizedPath === '/weekly-report/'
+    setShowWeeklyReport(isWeeklyReportPath)
+
+    if (isWeeklyReportPath) {
       setActiveTab('Home')
       return
     }
 
-    if (path === '/journal') {
+    if (normalizedPath === '/' || normalizedPath === '') {
+      setActiveTab('Home')
+      return
+    }
+
+    if (normalizedPath === '/journal') {
       setActiveTab('Journal')
       return
     }
 
-    if (path === '/leaderboard') {
+    if (normalizedPath === '/leaderboard') {
       setActiveTab('Leaderboard')
       return
     }
 
-    if (path === '/profile') {
+    if (normalizedPath === '/profile') {
       setActiveTab('Profile')
       return
     }
 
-    if (path === '/tasks') {
+    if (normalizedPath === '/tasks') {
       setActiveTab('Tasks')
       return
     }
 
-    if (path.startsWith('/game')) {
-      setGameRoute(path)
+    if (normalizedPath.startsWith('/game')) {
+      setGameRoute(normalizedPath)
       setActiveTab('Game')
       return
     }
 
     setActiveTab('Home')
+  }
+
+  function closeWeeklyReport() {
+    setShowWeeklyReport(false)
+
+    const currentPath = window.location.pathname.toLowerCase()
+    if (currentPath === '/weekly-report' || currentPath === '/weekly-report/') {
+      window.history.replaceState({}, '', '/')
+    }
   }
 
   function clearResetTokenParam() {
@@ -1243,6 +1264,14 @@ function App() {
   useEffect(() => {
     function syncRouteFromPath() {
       const path = window.location.pathname.toLowerCase()
+      const isWeeklyReportPath = path === '/weekly-report' || path === '/weekly-report/'
+      setShowWeeklyReport(isWeeklyReportPath)
+
+      if (isWeeklyReportPath) {
+        setActiveTab('Home')
+        return
+      }
+
       if (path === '/' || path === '') {
         setActiveTab('Home')
         return
@@ -1322,6 +1351,25 @@ function App() {
     syncRouteFromPath()
     window.addEventListener('popstate', syncRouteFromPath)
     return () => window.removeEventListener('popstate', syncRouteFromPath)
+  }, [])
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) {
+      return undefined
+    }
+
+    function handleServiceWorkerMessage(event) {
+      const data = event?.data
+      if (!data || data.type !== 'NAVIGATE' || typeof data.url !== 'string' || !data.url.startsWith('/')) {
+        return
+      }
+
+      window.history.pushState({}, '', data.url)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
+
+    navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage)
   }, [])
 
   useEffect(() => {
@@ -3663,20 +3711,30 @@ function App() {
                 {homeGreetingFirstName ? `Welcome back, ${homeGreetingFirstName}.` : 'The War Within.'}
               </h1>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowDailyChallenge(true)}
-              className="relative flex h-11 w-11 flex-col items-center justify-center rounded-2xl border border-zinc-300 bg-white shadow-sm transition hover:border-zinc-500"
-              aria-label="Daily Challenge"
-            >
-              <span className="text-base">⚔️</span>
-              {dailyChallenge && !dailyChallenge.completed ? (
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#f8f6f1] bg-red-500" />
-              ) : null}
-              {dailyChallenge?.completed ? (
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#f8f6f1] bg-emerald-500" />
-              ) : null}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/weekly-report')}
+                className="relative flex h-11 w-11 flex-col items-center justify-center rounded-2xl border border-zinc-300 bg-white shadow-sm transition hover:border-zinc-500"
+                aria-label="Weekly Report"
+              >
+                <span className="text-base">📊</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDailyChallenge(true)}
+                className="relative flex h-11 w-11 flex-col items-center justify-center rounded-2xl border border-zinc-300 bg-white shadow-sm transition hover:border-zinc-500"
+                aria-label="Daily Challenge"
+              >
+                <span className="text-base">⚔️</span>
+                {dailyChallenge && !dailyChallenge.completed ? (
+                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#f8f6f1] bg-red-500" />
+                ) : null}
+                {dailyChallenge?.completed ? (
+                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#f8f6f1] bg-emerald-500" />
+                ) : null}
+              </button>
+            </div>
           </div>
 
           {showShieldUsedBanner ? (
@@ -4311,6 +4369,14 @@ function App() {
             </button>
           </div>
         </div>
+      ) : null}
+
+      {showWeeklyReport ? (
+        <WeeklyWarReport
+          authedFetch={authedFetch}
+          onClose={closeWeeklyReport}
+          userName={homeGreetingFirstName}
+        />
       ) : null}
     </main>
   )

@@ -217,3 +217,15 @@ class DailyChallengeCompletion(models.Model):
 				name="unique_user_daily_challenge_completion",
 			)
 		]
+
+
+class PushSubscription(models.Model):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="push_subscriptions")
+	endpoint = models.TextField(unique=True)
+	p256dh = models.TextField()
+	auth = models.TextField()
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		ordering = ["-created_at"]

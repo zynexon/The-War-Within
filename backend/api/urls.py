@@ -15,6 +15,7 @@ from .views import (
     JournalView,
     LeaderboardView,
     LoginView,
+    PushSubscriptionView,
     RefreshTokenView,
     RegisterView,
     ResetPasswordView,
@@ -22,6 +23,7 @@ from .views import (
     UpdateFocusCategoryView,
     UpdateNameView,
     UserView,
+    WeeklyWarReportView,
 )
 
 urlpatterns = [
@@ -46,4 +48,6 @@ urlpatterns = [
     path("daily-tasks/", DailyTasksView.as_view(), name="daily-tasks"),
     path("journal/", JournalView.as_view(), name="journal"),
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
+    path("weekly-report/", WeeklyWarReportView.as_view(), name="weekly-report"),
+    path("push/subscribe/", PushSubscriptionView.as_view(), name="push-subscribe"),
 ]

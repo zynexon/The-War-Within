@@ -171,3 +171,9 @@ class UserTaskSerializer(serializers.ModelSerializer):
             "completed_at",
             "created_at",
         ]
+
+
+class PushSubscriptionSerializer(serializers.Serializer):
+    endpoint = serializers.CharField()
+    p256dh = serializers.CharField()
+    auth = serializers.CharField()

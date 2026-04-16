@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .models import GameSession, JournalEntry, User, UserTask, XPLog
+from .models import GameSession, JournalEntry, PushSubscription, User, UserTask, XPLog
 from .serializers import (
 	AssignDailyTasksInputSerializer,
 	CompleteTaskInputSerializer,
@@ -29,6 +29,7 @@ from .serializers import (
 	JournalEntrySerializer,
 	LeaderboardQuerySerializer,
 	ForgotPasswordInputSerializer,
+	PushSubscriptionSerializer,
 	RegisterInputSerializer,
 	ResetPasswordInputSerializer,
 	UpdateFocusCategoryInputSerializer,
@@ -55,6 +56,7 @@ from .services import (
 	get_today_game_xp,
 	increment_user_xp,
 	seed_task_templates,
+	get_weekly_war_report,
 	update_streak,
 	validate_game_duration,
 	validate_game_score,
@@ -511,6 +513,39 @@ class DailyChallengeView(APIView):
 				"streak_shields": user.streak_shields,
 			}
 		)
+
+
+class WeeklyWarReportView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		report = get_weekly_war_report(request.user)
+		return Response(report)
+
+
+class PushSubscriptionView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def post(self, request):
+		serializer = PushSubscriptionSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		PushSubscription.objects.update_or_create(
+			endpoint=serializer.validated_data["endpoint"],
+			defaults={
+				"user": request.user,
+				"p256dh": serializer.validated_data["p256dh"],
+				"auth": serializer.validated_data["auth"],
+			},
+		)
+
+		return Response({"success": True}, status=status.HTTP_201_CREATED)
+
+	def delete(self, request):
+		endpoint = request.data.get("endpoint")
+		if endpoint:
+			PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
+		return Response({"success": True})
 
 
 class GameSubmitView(APIView):

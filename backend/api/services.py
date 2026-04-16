@@ -1,5 +1,5 @@
 import math
-from datetime import date
+from datetime import date, timedelta
 
 from django.db import transaction
 from django.db.models import DateField
@@ -818,6 +818,111 @@ def get_leaderboard(current_user=None, limit=20, period="weekly"):
             entries.append(entry)
 
     return entries, current_user_rank, total_users
+
+
+def get_weekly_war_report(user, reference_date=None):
+    """
+    Build the weekly war report for the most recently ended week.
+    Week boundaries are Monday 00:00 through Sunday 23:59:59.999999 (server local time).
+    """
+    today = reference_date or timezone.localdate()
+    days_since_sunday = (today.weekday() + 1) % 7
+    week_end_date = today - timedelta(days=days_since_sunday)
+    week_start_date = week_end_date - timedelta(days=6)
+
+    week_start_dt = timezone.make_aware(
+        timezone.datetime.combine(week_start_date, timezone.datetime.min.time())
+    )
+    week_end_dt = timezone.make_aware(
+        timezone.datetime.combine(week_end_date, timezone.datetime.max.time())
+    )
+
+    xp_logs = XPLog.objects.filter(
+        user=user,
+        created_at__gte=week_start_dt,
+        created_at__lte=week_end_dt,
+    )
+    total_xp_earned = xp_logs.aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+    xp_from_tasks = xp_logs.filter(source=XPLog.SOURCE_TASK).aggregate(t=Coalesce(Sum("amount"), 0))["t"]
+    xp_from_games = xp_logs.filter(source=XPLog.SOURCE_GAME).aggregate(t=Coalesce(Sum("amount"), 0))["t"]
+    xp_from_journal = xp_logs.filter(source=XPLog.SOURCE_JOURNAL).aggregate(t=Coalesce(Sum("amount"), 0))["t"]
+    xp_from_challenges = xp_logs.filter(source=XPLog.SOURCE_DAILY_CHALLENGE).aggregate(t=Coalesce(Sum("amount"), 0))["t"]
+
+    tasks_this_week = UserTask.objects.filter(
+        user=user,
+        date__gte=week_start_date,
+        date__lte=week_end_date,
+        completed=True,
+    ).count()
+
+    active_days = UserTask.objects.filter(
+        user=user,
+        date__gte=week_start_date,
+        date__lte=week_end_date,
+        completed=True,
+    ).values("date").distinct().count()
+
+    sessions = GameSession.objects.filter(
+        user=user,
+        ended_at__gte=week_start_dt,
+        ended_at__lte=week_end_dt,
+        ended_at__isnull=False,
+    )
+    games_played = sessions.count()
+    game_type_breakdown = list(
+        sessions.values("game_type")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:3]
+    )
+
+    journal_entries = JournalEntry.objects.filter(
+        user=user,
+        date__gte=week_start_date,
+        date__lte=week_end_date,
+    ).count()
+
+    _, current_user_rank, total_users = get_leaderboard(user, limit=200, period="weekly")
+    current_rank = current_user_rank["rank"] if current_user_rank else None
+
+    task_score = min(40, round(tasks_this_week / 35 * 40))
+    game_score = min(30, round(games_played / 14 * 30))
+    journal_score = min(20, round(journal_entries / 7 * 20))
+    xp_score = min(10, round(total_xp_earned / 500 * 10))
+    performance = task_score + game_score + journal_score + xp_score
+
+    if performance >= 90:
+        grade, verdict = "S", "Legendary week. You showed up every day."
+    elif performance >= 75:
+        grade, verdict = "A", "Strong week. The discipline is building."
+    elif performance >= 55:
+        grade, verdict = "B", "Decent week. More to give next time."
+    elif performance >= 35:
+        grade, verdict = "C", "You survived. Now come back harder."
+    else:
+        grade, verdict = "D", "You lost this week. Win the next one."
+
+    return {
+        "week_start": week_start_date.isoformat(),
+        "week_end": week_end_date.isoformat(),
+        "total_xp_earned": total_xp_earned,
+        "xp_from_tasks": xp_from_tasks,
+        "xp_from_games": xp_from_games,
+        "xp_from_journal": xp_from_journal,
+        "xp_from_challenges": xp_from_challenges,
+        "tasks_completed": tasks_this_week,
+        "active_days": active_days,
+        "games_played": games_played,
+        "game_type_breakdown": game_type_breakdown,
+        "journal_entries": journal_entries,
+        "current_rank": current_rank,
+        "total_users": total_users,
+        "performance_score": performance,
+        "grade": grade,
+        "verdict": verdict,
+        "current_xp": user.xp,
+        "current_level": user.level,
+        "current_streak": user.streak,
+    }
 
 
 def get_user_stats(user):
