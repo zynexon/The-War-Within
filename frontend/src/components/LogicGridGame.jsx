@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import confetti from 'canvas-confetti'
 
 // --- Puzzle Data ------------------------------------------------------------
 const PUZZLES = [
@@ -151,6 +152,24 @@ const PUZZLES = [
 const YES = 'yes'
 const NO = 'no'
 const EMPTY = 'empty'
+
+function fireConfetti() {
+  confetti({
+    particleCount: 80,
+    spread: 60,
+    origin: { y: 0.6 },
+    zIndex: 11000,
+  })
+
+  window.setTimeout(() => {
+    confetti({
+      particleCount: 60,
+      spread: 100,
+      origin: { y: 0.4 },
+      zIndex: 11000,
+    })
+  }, 300)
+}
 
 function cellKey(a, b) {
   return [a, b].sort().join('___')
@@ -388,6 +407,7 @@ export default function LogicGridGame({ onMainMenu, onGameStart, onGameFinished,
   const [elapsed, setElapsed] = useState(0)
   const [activeTab, setActiveTab] = useState(0)
   const [completionMeta, setMeta] = useState(null)
+  const [isSubmittingResult, setIsSubmittingResult] = useState(false)
   const timerRef = useRef(null)
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -416,6 +436,7 @@ export default function LogicGridGame({ onMainMenu, onGameStart, onGameFinished,
     setElapsed(0)
     setActiveTab(0)
     setMeta(null)
+    setIsSubmittingResult(false)
     setScreen('intro')
   }, [])
 
@@ -439,9 +460,12 @@ export default function LogicGridGame({ onMainMenu, onGameStart, onGameFinished,
     if (result.perfect) {
       clearInterval(timerRef.current)
       let meta = null
+      setIsSubmittingResult(true)
       if (onGameFinished) meta = await onGameFinished({ score: 1, elapsed })
+      setIsSubmittingResult(false)
       setMeta(meta)
       setScreen('result')
+      fireConfetti()
     }
   }, [puzzle, grid, elapsed, onGameFinished])
 
@@ -847,6 +871,15 @@ export default function LogicGridGame({ onMainMenu, onGameStart, onGameFinished,
       </div>
 
       {errorText && <p className="text-xs font-semibold text-red-600">{errorText}</p>}
+
+      {(isSubmittingResult || submitting) ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl text-center space-y-2">
+            <h3 className="text-xl font-black text-zinc-950">Submitting..</h3>
+            <p className="text-sm font-semibold text-zinc-500">Validating your result and XP.</p>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }
