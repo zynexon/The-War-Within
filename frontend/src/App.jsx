@@ -508,6 +508,7 @@ function App() {
   const shouldFireTaskConfettiRef = useRef(false)
   const shouldFireQuickMathConfettiRef = useRef(false)
   const isInitialLoadRef = useRef(false)
+  const hasLoadedRef = useRef(false)
   const speedPatternSessionIdRef = useRef('')
   const numberStackSessionIdRef = useRef('')
   const warModeCompletionGuardRef = useRef(false)
@@ -821,7 +822,12 @@ function App() {
       throw new Error(data?.detail || 'Session refresh failed.')
     }
 
-    persistTokens(data.access, data.refresh)
+    // Keep refresh silent: update storage only so gameplay state never re-renders.
+    localStorage.setItem(ACCESS_TOKEN_KEY, data.access)
+    if (data.refresh) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh)
+    }
+
     return data.access
   }
 
@@ -837,7 +843,7 @@ function App() {
       })
     }
 
-    const currentToken = localStorage.getItem(ACCESS_TOKEN_KEY) || accessToken
+    const currentToken = localStorage.getItem(ACCESS_TOKEN_KEY) || ''
     let response = await execute(currentToken)
 
     if (response.status === 401 && retryOnAuth) {
@@ -857,6 +863,26 @@ function App() {
     }
 
     return data
+  }
+
+  async function silentRefreshUser() {
+    try {
+      const userData = await authedFetch('/api/auth/me/')
+      setUser(userData)
+      setStreakDays(userData.streak)
+      setXp(userData.xp)
+      setLevel(userData.level)
+      setUserName(userData.name || '')
+      const persistedBadge = userData.equipped_badge || null
+      setEquippedBadge(persistedBadge)
+      if (persistedBadge) {
+        localStorage.setItem('badge', persistedBadge)
+      } else {
+        localStorage.removeItem('badge')
+      }
+    } catch {
+      // Keep the active game/result UI stable even if profile refresh fails.
+    }
   }
 
   async function refreshDailyChallengeStatus() {
@@ -893,11 +919,19 @@ function App() {
 
   useEffect(() => {
     async function loadDashboard() {
-      if (!accessToken) {
+      const token = localStorage.getItem(ACCESS_TOKEN_KEY) || ''
+
+      if (!token) {
+        hasLoadedRef.current = false
         setIsLoading(false)
         setLoading(false)
         return
       }
+
+      if (hasLoadedRef.current) {
+        return
+      }
+      hasLoadedRef.current = true
 
       setIsLoading(true)
       setLoading(true)
@@ -936,8 +970,11 @@ function App() {
           isInitialLoadRef.current = true
         }
       } catch (error) {
+        hasLoadedRef.current = false
         setErrorText(error.message || 'Could not connect to backend.')
-        handleLogout()
+        if (error.message?.includes('Session expired')) {
+          handleLogout()
+        }
       } finally {
         setIsLoading(false)
         setLoading(false)
@@ -1539,6 +1576,7 @@ function App() {
       }
 
       persistTokens(loginData.access, loginData.refresh)
+      hasLoadedRef.current = false
       setActiveTab('Home')
       setGameRoute('/game')
       setPasswordInput('')
@@ -1663,6 +1701,7 @@ function App() {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem('badge')
+    hasLoadedRef.current = false
     setAccessToken('')
     setAuthNotice('')
     setResetPasswordToken('')
@@ -1787,9 +1826,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const refreshedUser = await authedFetch('/api/auth/me/')
-      setUser(refreshedUser)
-      setStreakDays(refreshedUser.streak)
+      await silentRefreshUser()
       setWarModeResult({
         xpAwarded: data.xp_awarded,
         cappedByDailyLimit: data.capped_by_daily_limit,
@@ -1919,9 +1956,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const user = await authedFetch('/api/auth/me/')
-      setUser(user)
-      setStreakDays(user.streak)
+      await silentRefreshUser()
       if (data.score > bestGameScore) {
         setBestGameScore(data.score)
         localStorage.setItem(BEST_GAME_SCORE_KEY, String(data.score))
@@ -2120,9 +2155,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const refreshedUser = await authedFetch('/api/auth/me/')
-      setUser(refreshedUser)
-      setStreakDays(refreshedUser.streak)
+      await silentRefreshUser()
       setFocusTapXpAwarded(data.xp_awarded)
       setFocusTapResult({
         xpAwarded: data.xp_awarded,
@@ -2176,9 +2209,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const refreshedUser = await authedFetch('/api/auth/me/')
-      setUser(refreshedUser)
-      setStreakDays(refreshedUser.streak)
+      await silentRefreshUser()
       setReactionTapXpAwarded(data.xp_awarded)
       const meta = {
         xpAwarded: data.xp_awarded,
@@ -2244,9 +2275,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const refreshedUser = await authedFetch('/api/auth/me/')
-      setUser(refreshedUser)
-      setStreakDays(refreshedUser.streak)
+      await silentRefreshUser()
       setNumberRecallXpAwarded(data.xp_awarded)
       setNumberRecallResult({
         xpAwarded: data.xp_awarded,
@@ -2305,9 +2334,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const refreshedUser = await authedFetch('/api/auth/me/')
-      setUser(refreshedUser)
-      setStreakDays(refreshedUser.streak)
+      await silentRefreshUser()
       setColorCountXpAwarded(data.xp_awarded)
       setColorCountResult({
         xpAwarded: data.xp_awarded,
@@ -2375,13 +2402,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      try {
-        const refreshedUser = await authedFetch('/api/auth/me/')
-        setUser(refreshedUser)
-        setStreakDays(refreshedUser.streak)
-      } catch {
-        // Submission already succeeded; profile refresh can recover later.
-      }
+      await silentRefreshUser()
       setSpeedPatternXpAwarded(data.xp_awarded)
       setSpeedPatternResult({
         xpAwarded: data.xp_awarded,
@@ -2441,9 +2462,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const refreshedUser = await authedFetch('/api/auth/me/')
-      setUser(refreshedUser)
-      setStreakDays(refreshedUser.streak)
+      await silentRefreshUser()
       setReverseOrderXpAwarded(data.xp_awarded)
       const meta = {
         xpAwarded: data.xp_awarded,
@@ -2513,9 +2532,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const refreshedUser = await authedFetch('/api/auth/me/')
-      setUser(refreshedUser)
-      setStreakDays(refreshedUser.streak)
+      await silentRefreshUser()
       setNumberStackXpAwarded(data.xp_awarded)
       const meta = {
         xpAwarded: data.xp_awarded,
@@ -2577,9 +2594,7 @@ function App() {
 
       setXp(data.total_xp)
       setLevel(data.level)
-      const refreshedUser = await authedFetch('/api/auth/me/')
-      setUser(refreshedUser)
-      setStreakDays(refreshedUser.streak)
+      await silentRefreshUser()
       setLogicGridXpAwarded(data.xp_awarded)
       const meta = {
         xpAwarded: data.xp_awarded,
