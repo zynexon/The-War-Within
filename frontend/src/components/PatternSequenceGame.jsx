@@ -560,7 +560,8 @@ function DiffPill({ diff }) {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TOTAL_ROUNDS   = 9   // 3 easy + 3 medium + 3 hard
 const MAX_ATTEMPTS   = 3   // wrong attempts per round before forced advance
-const XP_PER_CORRECT = 5   // tracked locally for result display
+const XP_PER_SUBMISSION = 20
+const DAILY_XP_CAP = 80
 const REVEAL_DELAY   = 900 // ms to show correct/wrong before next round
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -640,7 +641,6 @@ export default function PatternSequenceGame({
     if (round >= TOTAL_ROUNDS) {
       // Game complete — submit
       clearInterval(timerRef.current)
-      const finalXp = correctCount * XP_PER_CORRECT
       let meta = null
       if (onGameFinished) {
         meta = await onGameFinished({ score: correctCount, elapsed })
@@ -669,7 +669,6 @@ export default function PatternSequenceGame({
     if (isCorrect) {
       setFeedback('correct')
       setCorrectCount(c => c + 1)
-      setXpLocal(x => x + XP_PER_CORRECT)
       setShowExplain(true)
 
       setTimeout(() => {
@@ -759,7 +758,7 @@ export default function PatternSequenceGame({
           <div className="space-y-1.5 text-xs font-semibold text-zinc-700 leading-relaxed">
             <p>• See 3 items — figure out the pattern — pick the 4th</p>
             <p>• <span className="text-zinc-900">{MAX_ATTEMPTS} attempts</span> per round before it auto-advances</p>
-            <p>• <span className="text-zinc-900">+{XP_PER_CORRECT} XP</span> per correct answer (up to {TOTAL_ROUNDS * XP_PER_CORRECT} XP total)</p>
+            <p>• <span className="text-zinc-900">+{XP_PER_SUBMISSION} XP</span> on successful submission (up to {DAILY_XP_CAP} XP today)</p>
             <p>• After wrong answer: the rule is revealed — learn from it</p>
           </div>
         </div>

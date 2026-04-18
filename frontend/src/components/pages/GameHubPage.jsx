@@ -101,7 +101,7 @@ const TRAINING_GAMES = [
     route: '/game/pattern-sequence',
     desc: 'See 3 items. Spot the rule. Pick the 4th.',
     difficulty: { icon: '🔥', label: 'Medium', color: 'text-amber-600' },
-    maxXp: 45,
+    maxXp: 80,
     gameType: 'pattern_sequence',
     category: 'logic_reasoning',
     resultType: 'score',

@@ -35,7 +35,7 @@ MAX_DAILY_GAME_XP_BY_TYPE = {
     "reverse_order": 75,
     "number_stack": 75,
     "logic_grid": 100,
-    "pattern_sequence": 45,
+    "pattern_sequence": 80,
 }
 DAILY_TASK_COUNT = 5
 MAX_STREAK_SHIELDS = 3
@@ -425,7 +425,7 @@ def calculate_game_session_xp_for_type(game_type, score):
         return 25 if score >= LOGIC_GRID_WIN_SCORE else 0
 
     if game_type == "pattern_sequence":
-        return score * 5
+        return 20
 
     if game_type == "reaction_tap":
         return 10 if score >= REACTION_TAP_WIN_SCORE else 0
