@@ -35,6 +35,7 @@ MAX_DAILY_GAME_XP_BY_TYPE = {
     "reverse_order": 75,
     "number_stack": 75,
     "logic_grid": 100,
+    "pattern_sequence": 45,
 }
 DAILY_TASK_COUNT = 5
 MAX_STREAK_SHIELDS = 3
@@ -51,6 +52,7 @@ GAME_MIN_DURATION_SECONDS_BY_TYPE = {
     "reverse_order": 0,
     "number_stack": 0,
     "logic_grid": 30,
+    "pattern_sequence": 15,
     "war_mode_skirmish": 1400,
     "war_mode_battle": 2600,
     "war_mode_full_war": 3500,
@@ -65,6 +67,7 @@ GAME_MAX_DURATION_SECONDS_BY_TYPE = {
     "reverse_order": 600,
     "number_stack": 600,
     "logic_grid": 900,
+    "pattern_sequence": 600,
     "war_mode_skirmish": 2400,
     "war_mode_battle": 4200,
     "war_mode_full_war": 5400,
@@ -79,6 +82,7 @@ GAME_MAX_SCORE_BY_TYPE = {
     "reverse_order": 1,
     "number_stack": 1,
     "logic_grid": 1,
+    "pattern_sequence": 9,
     "war_mode_skirmish": 1,
     "war_mode_battle": 1,
     "war_mode_full_war": 1,
@@ -419,6 +423,9 @@ def calculate_game_session_xp_for_type(game_type, score):
 
     if game_type == "logic_grid":
         return 25 if score >= LOGIC_GRID_WIN_SCORE else 0
+
+    if game_type == "pattern_sequence":
+        return score * 5
 
     if game_type == "reaction_tap":
         return 10 if score >= REACTION_TAP_WIN_SCORE else 0

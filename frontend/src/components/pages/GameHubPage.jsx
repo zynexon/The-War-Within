@@ -96,6 +96,18 @@ const TRAINING_GAMES = [
     resultLabel: 'Reverse Order',
   },
   {
+    id: 'pattern_sequence',
+    title: 'Pattern Sequence',
+    route: '/game/pattern-sequence',
+    desc: 'See 3 items. Spot the rule. Pick the 4th.',
+    difficulty: { icon: '🔥', label: 'Medium', color: 'text-amber-600' },
+    maxXp: 45,
+    gameType: 'pattern_sequence',
+    category: 'logic_reasoning',
+    resultType: 'score',
+    resultLabel: 'Pattern Sequence',
+  },
+  {
     id: 'logic_grid',
     title: 'Logic Grid',
     route: '/game/logic-grid',

@@ -7,6 +7,7 @@ import LogicGridGame from './components/LogicGridGame'
 import Navbar from './components/Navbar'
 import NumberRecallGame from './components/NumberRecallGame'
 import NumberStackGame from './components/NumberStackGame'
+import PatternSequenceGame from './components/PatternSequenceGame'
 import ReactionTapGame from './components/ReactionTapGame'
 import ReverseOrderGame from './components/ReverseOrderGame'
 import SpeedPatternGame from './components/SpeedPatternGame'
@@ -41,6 +42,7 @@ const DAILY_TRAINING_GAMES = [
   'Speed Pattern',
   'Reverse Order',
   'Number Stack',
+  'Pattern Sequence',
   'Logic Grid',
 ]
 const FOCUS_OPTIONS = [
@@ -476,6 +478,11 @@ function App() {
   const [numberStackXpAwarded, setNumberStackXpAwarded] = useState(null)
   const [numberStackResult, setNumberStackResult] = useState(null)
   const [numberStackError, setNumberStackError] = useState('')
+  const [patternSeqSessionId, setPatternSeqSessionId] = useState('')
+  const [patternSeqSubmitting, setPatternSeqSubmitting] = useState(false)
+  const [patternSeqXpAwarded, setPatternSeqXpAwarded] = useState(null)
+  const [patternSeqResult, setPatternSeqResult] = useState(null)
+  const [patternSeqError, setPatternSeqError] = useState('')
   const [logicGridSessionId, setLogicGridSessionId] = useState('')
   const [logicGridSubmitting, setLogicGridSubmitting] = useState(false)
   const [logicGridXpAwarded, setLogicGridXpAwarded] = useState(null)
@@ -729,6 +736,12 @@ function App() {
 
     if (normalizedPath === '/tasks') {
       setActiveTab('Tasks')
+      return
+    }
+
+    if (normalizedPath === '/game/pattern-sequence') {
+      setGameRoute('/game/pattern-sequence')
+      setActiveTab('Game')
       return
     }
 
@@ -1369,6 +1382,11 @@ function App() {
         setGameRoute('/game/number-stack')
         return
       }
+      if (path === '/game/pattern-sequence') {
+        setActiveTab('Game')
+        setGameRoute('/game/pattern-sequence')
+        return
+      }
       if (path === '/game/war-mode') {
         setActiveTab('Game')
         setGameRoute('/game/war-mode')
@@ -1768,6 +1786,11 @@ function App() {
     setNumberStackXpAwarded(null)
     setNumberStackResult(null)
     setNumberStackError('')
+    setPatternSeqSessionId('')
+    setPatternSeqSubmitting(false)
+    setPatternSeqXpAwarded(null)
+    setPatternSeqResult(null)
+    setPatternSeqError('')
     setLogicGridSessionId('')
     setLogicGridSubmitting(false)
     setLogicGridXpAwarded(null)
@@ -2555,6 +2578,63 @@ function App() {
       return null
     } finally {
       setNumberStackSubmitting(false)
+    }
+  }
+
+  async function handlePatternSeqStart() {
+    try {
+      setPatternSeqError('')
+      setPatternSeqXpAwarded(null)
+      setPatternSeqResult(null)
+      const data = await authedFetch('/api/game/start/', {
+        method: 'POST',
+        body: JSON.stringify({ game_type: 'pattern_sequence' }),
+      })
+      setPatternSeqSessionId(data.session_id)
+      return true
+    } catch (error) {
+      setPatternSeqSessionId('')
+      setPatternSeqError(error.message || 'Could not start Pattern Sequence session.')
+      return false
+    }
+  }
+
+  async function handlePatternSeqFinish(result) {
+    if (!result || !patternSeqSessionId) {
+      return null
+    }
+
+    setPatternSeqSubmitting(true)
+    try {
+      setPatternSeqError('')
+      const data = await authedFetch('/api/game/submit/', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: patternSeqSessionId,
+          score: result.score,
+        }),
+      })
+
+      setXp(data.total_xp)
+      setLevel(data.level)
+      await silentRefreshUser()
+      setPatternSeqXpAwarded(data.xp_awarded)
+      const meta = {
+        xpAwarded: data.xp_awarded,
+        dailyCap: data.daily_cap,
+        remainingToday: data.remaining_today,
+        cappedByDailyLimit: data.capped_by_daily_limit,
+      }
+      setPatternSeqResult(meta)
+      setPatternSeqSessionId('')
+      recordLastTrainingResult('Pattern Sequence', result.score, data.remaining_today, data.daily_cap, data.game_type)
+      void refreshDailyChallengeStatus()
+      return meta
+    } catch (error) {
+      setPatternSeqError(error.message || 'Could not submit Pattern Sequence result.')
+      return null
+    } finally {
+      setPatternSeqSubmitting(false)
     }
   }
 
@@ -3403,6 +3483,16 @@ function App() {
             awardedXp={numberStackXpAwarded}
             resultMeta={numberStackResult}
             errorText={numberStackError}
+          />
+        ) : gameRoute === '/game/pattern-sequence' ? (
+          <PatternSequenceGame
+            onMainMenu={() => navigate('/game')}
+            onGameStart={handlePatternSeqStart}
+            onGameFinished={handlePatternSeqFinish}
+            submitting={patternSeqSubmitting}
+            awardedXp={patternSeqXpAwarded}
+            resultMeta={patternSeqResult}
+            errorText={patternSeqError}
           />
         ) : gameRoute === '/game/logic-grid' ? (
           <LogicGridGame
