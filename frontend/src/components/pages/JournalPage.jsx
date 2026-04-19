@@ -21,13 +21,20 @@ function scoreToTextColor(score) {
   return 'text-emerald-400'
 }
 
+function formatLocalDateKey(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // Day labels for 7-day row
 function getLast7Days() {
   const days = []
   for (let i = 6; i >= 0; i--) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    const iso  = d.toISOString().split('T')[0]
+    const iso  = formatLocalDateKey(d)
     const day  = d.toLocaleDateString('en-US', { weekday: 'short' })
     days.push({ iso, day })
   }
@@ -160,7 +167,7 @@ export default function JournalPage({
   onJournalSaved,
   onXpEarned, // callback(xpAmount, totalXp, level, streak) from App
 }) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = formatLocalDateKey(new Date())
   const last7 = useMemo(() => getLast7Days(), [])
 
   // Entry state
@@ -193,21 +200,24 @@ export default function JournalPage({
         }
 
         if (journalData.entry) {
+          const entryDate = journalData.entry.date || today
           const m = Number(journalData.entry.mood_score)
           const e = Number(journalData.entry.energy_score)
           const o = journalData.entry.objective || ''
           if (!isNaN(m) && m >= 1 && m <= 5) setMood(m)
           if (!isNaN(e) && e >= 1 && e <= 5) setEnergy(e)
           setObjective(o)
-          setSavedToday(true)
+          setSavedToday(entryDate === today)
           setHistory((current) => ({
             ...current,
-            [today]: {
+            [entryDate]: {
               mood: !isNaN(m) && m >= 1 && m <= 5 ? m : 0,
               energy: !isNaN(e) && e >= 1 && e <= 5 ? e : 0,
               objective: o,
             },
           }))
+        } else {
+          setSavedToday(false)
         }
       } catch {
         // silently fail — user can still fill today
@@ -239,12 +249,13 @@ export default function JournalPage({
       setSavedToday(true)
 
       if (data.entry) {
+        const entryDate = data.entry.date || today
         const nextMood = Number(data.entry.mood_score)
         const nextEnergy = Number(data.entry.energy_score)
         const nextObjective = data.entry.objective || objective.trim()
         setHistory((current) => ({
           ...current,
-          [today]: {
+          [entryDate]: {
             mood: !isNaN(nextMood) && nextMood >= 1 && nextMood <= 5 ? nextMood : 0,
             energy: !isNaN(nextEnergy) && nextEnergy >= 1 && nextEnergy <= 5 ? nextEnergy : 0,
             objective: nextObjective,
