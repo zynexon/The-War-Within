@@ -668,11 +668,6 @@ class LeaderboardView(APIView):
 
 class JournalView(APIView):
 	permission_classes = [IsAuthenticated]
-	JOURNAL_FIELD_MAP = {
-		"did_you_win_today": "mood",
-		"where_did_you_fail_yourself": "weather",
-		"mental_state": "activity",
-	}
 
 	def get(self, request):
 		today = timezone.localdate()
@@ -696,12 +691,18 @@ class JournalView(APIView):
 				"mood": "",
 				"weather": "",
 				"activity": "",
+				"mood_score": None,
+				"energy_score": None,
+				"objective": "",
 			},
 		)
 
-		for input_field, model_field in self.JOURNAL_FIELD_MAP.items():
-			if input_field in serializer.validated_data:
-				setattr(entry, model_field, serializer.validated_data[input_field])
+		if "mood_score" in serializer.validated_data:
+			entry.mood_score = serializer.validated_data["mood_score"]
+		if "energy_score" in serializer.validated_data:
+			entry.energy_score = serializer.validated_data["energy_score"]
+		if "objective" in serializer.validated_data:
+			entry.objective = serializer.validated_data["objective"]
 
 		entry.save()
 
@@ -729,6 +730,14 @@ class JournalView(APIView):
 				"daily_challenge": daily_challenge,
 			}
 		)
+
+
+class JournalHistoryView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		entries = JournalEntry.objects.filter(user=request.user).order_by("-date")[:7]
+		return Response(JournalEntrySerializer(entries, many=True).data)
 
 
 class CompleteTaskView(APIView):

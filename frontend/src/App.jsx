@@ -15,6 +15,7 @@ import WeeklyWarReport from './components/WeeklyWarReport'
 import AuthPage from './components/pages/AuthPage'
 import GuestQuickMath from './components/pages/GuestQuickMath'
 import GameHubPage from './components/pages/GameHubPage'
+import JournalPage from './components/pages/JournalPage'
 import LandingPage from './components/pages/LandingPage'
 import TasksPage from './components/pages/TasksPage'
 import useAuth from './hooks/useAuth'
@@ -149,35 +150,6 @@ function getBadgeIcon(badgeId) {
   return BADGES.find((badge) => badge.id === badgeId)?.icon || null
 }
 
-function OptionGrid({ title, options, value, onSelect }) {
-  return (
-    <div className="p-4 rounded-2xl border mb-4 bg-white">
-      <h3 className="font-semibold mb-3">{title}</h3>
-
-      <div className="grid grid-cols-2 gap-3">
-        {options.map((opt) => (
-          <div
-            key={opt}
-            onClick={() => onSelect(opt)}
-            className={`p-4 rounded-xl border text-center cursor-pointer transition ${
-              value === opt ? 'border-black bg-black text-white shadow-md' : 'border-zinc-200 bg-white text-zinc-900 hover:border-zinc-400'
-            }`}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                onSelect(opt)
-              }
-            }}
-          >
-            {opt}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function fireConfetti() {
   confetti({
     particleCount: 80,
@@ -194,35 +166,6 @@ function fireConfetti() {
       zIndex: 11000,
     })
   }, 300)
-}
-
-function formatRelativeTime(isoTime) {
-  if (!isoTime) {
-    return ''
-  }
-
-  const then = new Date(isoTime).getTime()
-  if (Number.isNaN(then)) {
-    return ''
-  }
-
-  const diffMs = Date.now() - then
-  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000))
-
-  if (diffMinutes < 1) {
-    return 'just now'
-  }
-  if (diffMinutes < 60) {
-    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`
-  }
-
-  const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) {
-    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
-  }
-
-  const diffDays = Math.floor(diffHours / 24)
-  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
 }
 
 function getWeeklyResetCountdownLabel(nowMs = Date.now()) {
@@ -501,16 +444,6 @@ function App() {
   const [showLevelInfo, setShowLevelInfo] = useState(false)
   const [showWarModeInfo, setShowWarModeInfo] = useState(false)
   const [showWeeklyReport, setShowWeeklyReport] = useState(false)
-  const [entry, setEntry] = useState({
-    did_you_win_today: '',
-    where_did_you_fail_yourself: '',
-    mental_state: '',
-  })
-  const [journalLoading, setJournalLoading] = useState(true)
-  const [journalSaving, setJournalSaving] = useState(false)
-  const [journalSavedText, setJournalSavedText] = useState('')
-  const [journalLastUpdatedAt, setJournalLastUpdatedAt] = useState('')
-  const [savedEntry, setSavedEntry] = useState(null)
   const previousCompletedCountRef = useRef(null)
   const shouldFireTaskConfettiRef = useRef(false)
   const shouldFireQuickMathConfettiRef = useRef(false)
@@ -559,7 +492,6 @@ function App() {
   const showLogicGridResult = activeTab === 'Game' && gameRoute === '/game/logic-grid' && (Boolean(logicGridResult) || logicGridSubmitting)
   const showGameResult = showQuickMathResult || showFocusTapResult || showNumberRecallResult || showColorCountResult || showSpeedPatternResult || showLogicGridResult
   const shouldLockBodyScroll = showLevelUp || showDailyChallenge || showWeeklyReport || (showGameResult && !showLogicGridResult)
-  const hasJournalEntryToday = Boolean(savedEntry)
   const taskCounterColorClass = completedCount === 0
     ? 'text-zinc-500'
     : completedCount >= 5
@@ -1275,43 +1207,6 @@ function App() {
   }, [equippedBadge, earnedBadges])
 
   useEffect(() => {
-    async function fetchJournalEntry() {
-      if (!user || activeTab !== 'Journal') {
-        return
-      }
-
-      setJournalLoading(true)
-      try {
-        const data = await authedFetch('/api/journal/')
-        if (data.entry) {
-          setEntry({
-            did_you_win_today: data.entry.did_you_win_today || '',
-            where_did_you_fail_yourself: data.entry.where_did_you_fail_yourself || '',
-            mental_state: data.entry.mental_state || '',
-          })
-          setSavedEntry(data.entry)
-          setJournalLastUpdatedAt(data.entry.updated_at || '')
-        } else {
-          setEntry({
-            did_you_win_today: '',
-            where_did_you_fail_yourself: '',
-            mental_state: '',
-          })
-          setSavedEntry(null)
-          setJournalLastUpdatedAt('')
-        }
-        setJournalSavedText('')
-      } catch (error) {
-        setJournalSavedText(error.message || 'Could not load journal entry.')
-      } finally {
-        setJournalLoading(false)
-      }
-    }
-
-    void fetchJournalEntry()
-  }, [activeTab, user])
-
-  useEffect(() => {
     function syncRouteFromPath() {
       const path = window.location.pathname.toLowerCase()
       const isWeeklyReportPath = path === '/weekly-report' || path === '/weekly-report/'
@@ -1661,45 +1556,6 @@ function App() {
     }
   }
 
-  async function saveJournalEntry() {
-    setJournalSaving(true)
-    setJournalSavedText('')
-
-    try {
-      const data = await authedFetch('/api/journal/', {
-        method: 'POST',
-        body: JSON.stringify(entry),
-      })
-
-      if (data.entry) {
-        setSavedEntry(data.entry)
-        setJournalLastUpdatedAt(data.entry.updated_at || '')
-      }
-
-      if (typeof data.total_xp === 'number') {
-        setXp(data.total_xp)
-      }
-      if (typeof data.level === 'number') {
-        setLevel(data.level)
-      }
-      if (typeof data.streak === 'number') {
-        setStreakDays(data.streak)
-      }
-
-      if ((data.xp_awarded || 0) > 0) {
-        setJournalSavedText(`Saved ✅ +${data.xp_awarded} XP`)
-      } else {
-        setJournalSavedText('Entry updated. XP already claimed today.')
-      }
-
-      void refreshDailyChallengeStatus()
-    } catch (error) {
-      setJournalSavedText(error.message || 'Could not save journal entry.')
-    } finally {
-      setJournalSaving(false)
-    }
-  }
-
   async function handleInstallClick() {
     if (!deferredPrompt) {
       return
@@ -1801,12 +1657,6 @@ function App() {
     setReactionTapXpAwarded(null)
     setReactionTapResult(null)
     setReactionTapError('')
-    setEntry({ did_you_win_today: '', where_did_you_fail_yourself: '', mental_state: '' })
-    setSavedEntry(null)
-    setJournalLoading(true)
-    setJournalSaving(false)
-    setJournalSavedText('')
-    setJournalLastUpdatedAt('')
     resetWarModeState()
     isInitialLoadRef.current = false
     clearResetTokenParam()
@@ -3182,80 +3032,22 @@ function App() {
           </div>
         </section>
       ) : activeTab === 'Journal' ? (
-        <section className="space-y-5">
-          {journalLoading ? (
-            <div className="py-6 text-center text-sm font-semibold text-zinc-500">Loading journal...</div>
-          ) : null}
-
-          {!journalLoading ? (
-            <>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Daily Debrief</p>
-            <h1 className="mt-2 text-2xl font-black tracking-tight text-zinc-950">Honest answers only.</h1>
-            <p className="mt-1 text-sm font-semibold text-zinc-500">No lying to yourself here.</p>
-          </div>
-
-          <OptionGrid
-            title="Did you win today?"
-            options={['Crushed It', 'Solid Day', 'Average', 'Lost The Day', 'Wasted It', 'Barely Survived']}
-            value={entry.did_you_win_today}
-            onSelect={(val) => setEntry({ ...entry, did_you_win_today: val })}
-          />
-
-          <OptionGrid
-            title="Where did you fail yourself?"
-            options={['Procrastinated', 'Poor Focus', 'Bad Diet', 'No Training', 'Bad Mindset', 'None']}
-            value={entry.where_did_you_fail_yourself}
-            onSelect={(val) => setEntry({ ...entry, where_did_you_fail_yourself: val })}
-          />
-
-          <OptionGrid
-            title="What's your mental state right now?"
-            options={['Locked In', 'Motivated', 'Drained', 'Anxious', 'Numb', 'At Peace']}
-            value={entry.mental_state}
-            onSelect={(val) => setEntry({ ...entry, mental_state: val })}
-          />
-
-          <button
-            className="w-full mt-4 bg-zinc-900 text-white p-3 rounded-xl font-bold transition hover:bg-zinc-800"
-            onClick={saveJournalEntry}
-            type="button"
-            disabled={journalSaving}
-          >
-            {journalSaving ? 'Saving...' : hasJournalEntryToday ? 'Update Entry' : 'Save Entry'}
-          </button>
-
-          {journalSavedText ? <p className="text-xs text-center text-zinc-500">{journalSavedText}</p> : null}
-
-          {journalLastUpdatedAt ? (
-            <p className="text-xs text-center text-zinc-500">
-              Last updated: {new Date(journalLastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({formatRelativeTime(journalLastUpdatedAt)})
-            </p>
-          ) : null}
-
-          {savedEntry ? (
-            <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-4">
-              <h3 className="mb-3 font-semibold text-zinc-900">Today's Entry</h3>
-              <div className="grid gap-3">
-                {[
-                  ['Did you win today?', savedEntry.did_you_win_today],
-                  ['Where did you fail yourself?', savedEntry.where_did_you_fail_yourself],
-                  ["What's your mental state right now?", savedEntry.mental_state],
-                ].map(([label, value]) => (
-                  <div key={label} className="grid grid-cols-[1.4fr_1fr] gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-                    <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">{label}</p>
-                    <p className="text-sm font-semibold text-right text-zinc-900">{value || '—'}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
-          <div className="h-2" />
-            </>
-          ) : null}
-        </section>
+        <JournalPage
+          authedFetch={authedFetch}
+          onJournalSaved={() => {
+            void refreshDailyChallengeStatus()
+          }}
+          onXpEarned={(xpAmount, totalXp, newLevel, newStreak) => {
+            setXp(totalXp)
+            setLevel(newLevel)
+            setStreakDays(newStreak)
+            setUser((current) => (
+              current
+                ? { ...current, xp: totalXp, level: newLevel, streak: newStreak }
+                : current
+            ))
+          }}
+        />
       ) : activeTab === 'Game' ? (
         gameRoute === '/game/war-mode' ? (
           <section className="space-y-5">

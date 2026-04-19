@@ -58,19 +58,15 @@ class GameSubmitInputSerializer(serializers.Serializer):
 
 
 class JournalEntryInputSerializer(serializers.Serializer):
-    did_you_win_today = serializers.CharField(required=False, allow_blank=True, max_length=50)
-    where_did_you_fail_yourself = serializers.CharField(required=False, allow_blank=True, max_length=50)
-    mental_state = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    mood_score = serializers.IntegerField(min_value=1, max_value=5, required=False, allow_null=True)
+    energy_score = serializers.IntegerField(min_value=1, max_value=5, required=False, allow_null=True)
+    objective = serializers.CharField(required=False, allow_blank=True, max_length=160)
 
 
-class JournalEntrySerializer(serializers.Serializer):
-    id = serializers.UUIDField()
-    date = serializers.DateField()
-    did_you_win_today = serializers.CharField(source="mood")
-    where_did_you_fail_yourself = serializers.CharField(source="weather")
-    mental_state = serializers.CharField(source="activity")
-    created_at = serializers.DateTimeField()
-    updated_at = serializers.DateTimeField()
+class JournalEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JournalEntry
+        fields = ["id", "date", "mood_score", "energy_score", "objective", "created_at", "updated_at"]
 
 
 class AssignDailyTasksInputSerializer(serializers.Serializer):
