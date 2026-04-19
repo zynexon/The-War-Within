@@ -3511,6 +3511,10 @@ function App() {
             dailyTrainingGameLabel={dailyTrainingGameLabel}
             lastTrainingResult={lastTrainingResult}
             gameRemainingXpByType={gameRemainingXpByType}
+            user={user}
+            streakDays={streakDays}
+            level={level}
+            xp={xp}
           />
         )
       ) : activeTab === 'Profile' ? (
