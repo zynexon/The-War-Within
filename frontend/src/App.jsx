@@ -55,15 +55,35 @@ const FOCUS_OPTIONS = [
 ]
 const LEVEL_TITLES = {
   1: 'Civilian',
-  2: 'Recruit',
-  3: 'Soldier',
-  4: 'Warrior',
-  5: 'Veteran',
-  6: 'Elite',
-  7: 'Commander',
-  8: 'General',
-  9: 'Legend',
-  10: 'ZYNEXON',
+  2: 'Conscript',
+  3: 'Recruit',
+  4: 'Cadet',
+  5: 'Private',
+  6: 'Soldier',
+  7: 'Corporal',
+  8: 'Sergeant',
+  9: 'Lieutenant',
+  10: 'Captain',
+  11: 'Veteran',
+  12: 'Specialist',
+  13: 'Operative',
+  14: 'Ranger',
+  15: 'Commander',
+  16: 'Warlord',
+  17: 'Enforcer',
+  18: 'Phantom',
+  19: 'Shadow',
+  20: 'Legend',
+  21: 'Mythic',
+  22: 'Titan',
+  23: 'Conqueror',
+  24: 'Immortal',
+  25: 'Ghost',
+  26: 'Apex',
+  27: 'Sovereign',
+  28: 'Supreme',
+  29: 'Eternal',
+  30: 'ZYNEXON',
 }
 const LEADERBOARD_CHASE_WARNING_XP = 100
 // Keep this in sync with backend/api/services.py MAX_STREAK_SHIELDS.
@@ -120,7 +140,7 @@ function getAvatarColor(name) {
 }
 
 function getLevelTitle(level) {
-  if (level >= 10) return 'ZYNEXON'
+  if (level >= 30) return 'ZYNEXON'
   return LEVEL_TITLES[level] || 'Civilian'
 }
 
@@ -132,7 +152,9 @@ const BADGES = [
   { id: 'tasks_50', icon: '⚔️', title: 'Disciplined', desc: 'Complete 50 tasks.', check: (s) => s.totalTasksCompleted >= 50 },
   { id: 'tasks_100', icon: '🛡️', title: 'Iron Discipline', desc: 'Complete 100 tasks.', check: (s) => s.totalTasksCompleted >= 100 },
   { id: 'level_5', icon: '🎖️', title: 'Veteran', desc: 'Reach Level 5.', check: (s) => s.level >= 5 },
-  { id: 'level_10', icon: '🏴', title: 'ZYNEXON', desc: 'Reach Level 10. The final rank.', check: (s) => s.level >= 10 },
+  { id: 'level_10', icon: '⭐', title: 'Captain', desc: 'Reach Level 10.', check: (s) => s.level >= 10 },
+  { id: 'level_20', icon: '👑', title: 'Legend', desc: 'Reach Level 20. The elite tier.', check: (s) => s.level >= 20 },
+  { id: 'level_30', icon: '🏴', title: 'ZYNEXON', desc: 'Reach Level 30. The final rank. The war is won.', check: (s) => s.level >= 30 },
   { id: 'war_1', icon: '🪖', title: 'First Blood', desc: 'Complete your first War Mode.', check: (s) => s.warModeSessions >= 1 },
   { id: 'war_5', icon: '🔫', title: 'Warmonger', desc: 'Complete 5 War Mode sessions.', check: (s) => s.warModeSessions >= 5 },
   { id: 'war_full_5', icon: '💣', title: 'Full War', desc: 'Complete 5 Full War sessions.', check: (s) => s.fullWarSessions >= 5 },
@@ -3001,7 +3023,7 @@ function App() {
                         {entry.is_current_user ? ' (You)' : ''}
                       </p>
                       <p className="text-[11px] font-semibold text-zinc-500">
-                        <span className={`font-black uppercase ${entry.level >= 10 ? 'text-amber-500' : 'text-zinc-600'}`}>
+                        <span className={`font-black uppercase ${entry.level >= 30 ? 'text-amber-500' : 'text-zinc-600'}`}>
                           {getLevelTitle(entry.level)}
                         </span>
                         {' '}• 🔥 {entry.streak}
@@ -3393,7 +3415,7 @@ function App() {
                 </div>
                 <div className="mt-1 flex items-end gap-2">
                   <p className="text-2xl font-black leading-none">{level}</p>
-                  <p className={`text-[10px] font-black uppercase tracking-[0.14em] ${level >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                  <p className={`text-[10px] font-black uppercase tracking-[0.14em] ${level >= 30 ? 'text-amber-400' : 'text-zinc-400'}`}>
                     {getLevelTitle(level)}
                   </p>
                 </div>
@@ -3661,7 +3683,7 @@ function App() {
               <div className="flex items-center gap-2">
                 <div>
                   <h2 className="text-xl font-semibold text-white">Level {level}</h2>
-                  <p className={`mt-0.5 text-xs font-black uppercase tracking-[0.18em] ${level >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                  <p className={`mt-0.5 text-xs font-black uppercase tracking-[0.18em] ${level >= 30 ? 'text-amber-400' : 'text-zinc-400'}`}>
                     {getLevelTitle(level)}
                   </p>
                 </div>
@@ -3801,17 +3823,19 @@ function App() {
               Level Up
             </p>
             <p className="mt-3 text-5xl">⚔️</p>
-            <h2 className={`mt-3 text-2xl font-black tracking-tight ${level >= 10 ? 'text-amber-400' : 'text-white'}`}>
+            <h2 className={`mt-3 text-2xl font-black tracking-tight ${level >= 30 ? 'text-amber-400' : 'text-white'}`}>
               {getLevelTitle(level)}
             </h2>
             <p className="mt-1 text-sm font-semibold text-zinc-400">
               Level {level} reached.
             </p>
             <p className="mt-3 text-xs font-semibold text-zinc-500">
-              {level >= 10
-                ? 'You are Zynexon. There is nothing left to prove - except doing it again tomorrow.'
-                : level >= 7
-                  ? 'Few make it this far. Keep going.'
+              {level >= 30
+                ? 'You are Zynexon. The war is won - now defend the throne every day.'
+                : level >= 20
+                  ? 'Legend tier unlocked. Few reach this zone. Keep pressing.'
+                  : level >= 10
+                    ? 'Captain rank earned. Lead from the front and keep climbing.'
                   : 'Keep stacking wins.'}
             </p>
             <button
@@ -4046,7 +4070,7 @@ function App() {
                 const numLevel = Number(lvl)
                 const isCurrent = numLevel === level
                 const isAchieved = numLevel < level
-                const isZynexon = numLevel === 10
+                const isZynexon = numLevel === 30
 
                 return (
                   <div
@@ -4091,7 +4115,7 @@ function App() {
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Your Rank</p>
                 <p className={`mt-0.5 text-sm font-black uppercase tracking-[0.1em] ${
-                  level >= 10 ? 'text-amber-400' : 'text-white'
+                  level >= 30 ? 'text-amber-400' : 'text-white'
                 }`}>
                   {getLevelTitle(level)}
                 </p>
@@ -4102,7 +4126,7 @@ function App() {
               </div>
             </div>
 
-            {level < 10 ? (
+            {level < 30 ? (
               <p className="mt-3 text-center text-xs font-semibold text-zinc-500">
                 Next rank:{' '}
                 <span className="font-black uppercase text-zinc-300">
@@ -4112,7 +4136,7 @@ function App() {
               </p>
             ) : (
               <p className="mt-3 text-center text-xs font-semibold text-amber-600">
-                You are Zynexon. The war never ends.
+                You are Zynexon. The war is won. Hold the line.
               </p>
             )}
 
