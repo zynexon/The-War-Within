@@ -267,6 +267,7 @@ function mapDailyTasksToUi(dailyTasks) {
     name: task.task_title,
     xp: task.task_xp,
     completed: task.completed,
+    category: task.task_category || 'general',
   }))
 }
 
@@ -3620,6 +3621,8 @@ function App() {
             streakDays={streakDays}
             dailyStatusMessage={dailyStatusMessage}
             errorText={errorText}
+            streakShields={streakShields}
+            dailyChallenge={dailyChallenge}
           />
         )
       ) : (

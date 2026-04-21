@@ -156,6 +156,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserTaskSerializer(serializers.ModelSerializer):
     task_title = serializers.CharField(source="task.title", read_only=True)
     task_xp = serializers.IntegerField(source="task.xp", read_only=True)
+    task_category = serializers.CharField(source="task.category", read_only=True)
 
     class Meta:
         model = UserTask
@@ -164,6 +165,7 @@ class UserTaskSerializer(serializers.ModelSerializer):
             "task",
             "task_title",
             "task_xp",
+            "task_category",
             "date",
             "completed",
             "completed_at",
