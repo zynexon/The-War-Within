@@ -209,6 +209,7 @@ function WeeklyWarReport({ authedFetch, onClose, userName }) {
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
   const [tab, setTab]         = useState('overview') // overview | xp | games | journal
+  const { pushStatus, pushLoading, subscribe, unsubscribe } = usePushNotifications(authedFetch)
 
   // Animated numbers
   const animXP     = useCountUp(report?.total_xp_earned  || 0)
@@ -277,6 +278,13 @@ function WeeklyWarReport({ authedFetch, onClose, userName }) {
     d.setDate(d.getDate() + i)
     return d.toISOString().split('T')[0]
   })
+
+  function pushIcon() {
+    if (pushStatus === 'subscribed') return '🔔'
+    if (pushStatus === 'denied') return '🚫'
+    if (pushStatus === 'unsupported') return '⚠️'
+    return '🔕'
+  }
 
   return (
     <div className="fixed inset-0 z-[9999] overflow-y-auto bg-zinc-950">
@@ -556,6 +564,45 @@ function WeeklyWarReport({ authedFetch, onClose, userName }) {
             </div>
           </div>
         )}
+
+        {/* ── Push notification toggle ── */}
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-black text-zinc-200">
+                {pushIcon()} Sunday Notifications
+              </p>
+              <p className="mt-0.5 text-[10px] font-semibold text-zinc-500 leading-relaxed">
+                {pushStatus === 'subscribed'
+                  ? 'You\'ll get your weekly report every Sunday at 8pm.'
+                  : pushStatus === 'denied'
+                    ? 'Notifications blocked. Enable in browser settings.'
+                    : pushStatus === 'unsupported'
+                      ? 'Your browser doesn\'t support push notifications.'
+                      : 'Get your weekly war report delivered every Sunday.'}
+              </p>
+            </div>
+            {pushStatus !== 'unsupported' && pushStatus !== 'denied' && (
+              <button
+                type="button"
+                disabled={pushLoading}
+                onClick={pushStatus === 'subscribed' ? unsubscribe : subscribe}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition disabled:opacity-60 ${
+                  pushStatus === 'subscribed'
+                    ? 'border-zinc-600 bg-transparent text-zinc-400 hover:border-red-700 hover:text-red-400'
+                    : 'border-white bg-white text-zinc-950 hover:bg-zinc-200'
+                }`}
+              >
+                {pushLoading ? '...' : pushStatus === 'subscribed' ? 'Turn Off' : 'Enable'}
+              </button>
+            )}
+          </div>
+          {!VAPID_PUBLIC_KEY && (
+            <p className="mt-2 text-[10px] font-semibold text-amber-600">
+              ⚠ Add VITE_VAPID_PUBLIC_KEY to frontend/.env to enable push notifications.
+            </p>
+          )}
+        </div>
 
         {/* ── Motivational closer ── */}
         <div className="rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-4 text-center">
