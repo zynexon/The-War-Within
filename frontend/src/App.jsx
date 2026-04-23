@@ -17,6 +17,7 @@ import GuestQuickMath from './components/pages/GuestQuickMath'
 import GameHubPage from './components/pages/GameHubPage'
 import JournalPage from './components/pages/JournalPage'
 import LandingPage from './components/pages/LandingPage'
+import ProfilePage from './components/pages/ProfilePage'
 import TasksPage from './components/pages/TasksPage'
 import useAuth from './hooks/useAuth'
 import useGameSession from './hooks/useGameSession'
@@ -1577,6 +1578,17 @@ function App() {
     } finally {
       setNameUpdating(false)
     }
+  }
+
+  function handleProfileEditName(nextEditingState) {
+    if (nextEditingState === false) {
+      setIsProfileEditingName(false)
+      setNameInput('')
+      return
+    }
+
+    setNameInput(profileDisplayName)
+    setIsProfileEditingName(true)
   }
 
   async function handleInstallClick() {
@@ -3333,240 +3345,35 @@ function App() {
           />
         )
       ) : activeTab === 'Profile' ? (
-        <section className="space-y-5">
-          <div className="relative flex items-center justify-center pt-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab('Home')}
-              className="absolute left-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100"
-            >
-              Back
-            </button>
-            <h2 className="text-xl font-black tracking-tight text-zinc-900">Profile</h2>
-          </div>
-
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold mx-auto ${getAvatarColor(profileDisplayName)}`}>
-            {profileAvatarLetter}
-          </div>
-
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-center mt-3">{profileDisplayName}</h2>
-            {!isProfileEditingName ? (
-              <button
-                type="button"
-                className="mt-3 inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-100"
-                onClick={() => {
-                  setNameInput(profileDisplayName)
-                  setIsProfileEditingName(true)
-                }}
-              >
-                Change Name
-              </button>
-            ) : null}
-          </div>
-
-          {isProfileEditingName ? (
-            <form onSubmit={handleProfileSaveName} className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
-              <input
-                type="text"
-                required
-                maxLength={30}
-                value={nameInput}
-                onChange={(event) => setNameInput(event.target.value)}
-                placeholder="Enter your name"
-                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={nameUpdating}
-                  className="flex-1 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-60"
-                >
-                  {nameUpdating ? 'Saving...' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsProfileEditingName(false)
-                    setNameInput('')
-                  }}
-                  className="flex-1 rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-900 transition hover:bg-zinc-100"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : null}
-
-          <section className="mt-4 rounded-2xl border border-zinc-900 bg-zinc-900 px-4 py-4 text-white shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">War Room Status</p>
-
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Level</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowLevelInfo(true)}
-                    className="flex h-4 w-4 items-center justify-center rounded-full border border-zinc-600 text-[10px] font-black text-zinc-400 transition hover:border-zinc-400"
-                    aria-label="Level info"
-                  >
-                    i
-                  </button>
-                </div>
-                <div className="mt-1 flex items-end gap-2">
-                  <p className="text-2xl font-black leading-none">{level}</p>
-                  <p className={`text-[10px] font-black uppercase tracking-[0.14em] ${level >= 30 ? 'text-amber-400' : 'text-zinc-400'}`}>
-                    {getLevelTitle(level)}
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">STREAK</p>
-                <p className="mt-1 text-2xl font-black leading-none">{streakDays}</p>
-              </div>
-            </div>
-
-            <div className="mt-3">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-white/15">
-                <div
-                  className="h-2 rounded-full bg-white transition-all duration-700 ease-out"
-                  style={{ width: `${profileProgressPercent}%` }}
-                />
-              </div>
-              <p className="mt-2 text-center text-xs font-semibold text-zinc-200">
-                {profileProgressXp} XP toward Level {level + 1} • {profileNeededXp} total needed
-              </p>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Total XP</p>
-                <p className="mt-1 text-xl font-black leading-none">{xp}</p>
-              </div>
-              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-300">Best Streak</p>
-                <p className="mt-1 text-xl font-black leading-none">{bestStreak}</p>
-              </div>
-              <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Tasks Done</p>
-                <p className="mt-1 text-xl font-black leading-none">{totalTasksCompleted}</p>
-              </div>
-            </div>
-
-            <div className="mt-3 h-px bg-white/15" />
-            <div className="mt-3 rounded-xl border border-white/15 bg-white/10 px-3 py-3 text-center">
-              <div className="flex items-center justify-center gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Shields</p>
-                <button
-                  type="button"
-                  onClick={() => setShowShieldInfo(true)}
-                  className="flex h-4 w-4 items-center justify-center rounded-full border border-zinc-500 text-[10px] font-black text-zinc-400 transition hover:border-zinc-300 hover:text-zinc-200"
-                  aria-label="Shield info"
-                >
-                  i
-                </button>
-              </div>
-              <div className="mt-2 flex items-center justify-center gap-2">
-                {Array.from({ length: MAX_STREAK_SHIELDS }).map((_, index) => (
-                  index < streakShields ? (
-                    <span
-                      key={`shield-slot-${index}`}
-                      className="inline-flex h-6 w-6 items-center justify-center text-base leading-none"
-                      aria-label="filled shield"
-                    >
-                      🛡️
-                    </span>
-                  ) : (
-                    <span
-                      key={`shield-slot-${index}`}
-                      className="inline-block h-5 w-5 rounded-full border-2 border-zinc-600 bg-transparent"
-                      aria-label="empty shield slot"
-                    />
-                  )
-                ))}
-              </div>
-              <p className="mt-1 text-xs font-semibold text-zinc-200">{streakShields} / {MAX_STREAK_SHIELDS}</p>
-            </div>
-
-          </section>
-
-          <p className="-mt-1 text-center text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-            Soldier since {new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-          </p>
-
-          <h3 className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">ACHIEVEMENTS</h3>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {earnedBadgeList.map((badge) => {
-              const isEquipped = equippedBadge === badge.id
-
-              return (
-              <div
-                key={badge.id}
-                onClick={() => {
-                  void handleToggleBadge(badge.id, true)
-                }}
-                className={`flex items-center gap-2 rounded-xl border p-3 transition ${
-                  isEquipped
-                    ? 'cursor-pointer border-zinc-900 bg-zinc-900'
-                    : 'cursor-pointer border-zinc-200 bg-white hover:border-zinc-400'
-                }`}
-              >
-                <span className="text-lg">
-                  {badge.icon}
-                </span>
-                <div className="min-w-0">
-                  <p className={`text-xs font-black ${
-                    isEquipped ? 'text-white' : 'text-zinc-900'
-                  }`}>
-                    {badge.title}
-                  </p>
-                  <p className="mt-0.5 text-[10px] font-semibold leading-snug text-zinc-400">
-                    {badge.desc}
-                  </p>
-                </div>
-              </div>
-              )
-            })}
-          </div>
-
-          {lockedBadgeList.length > 0 ? (
-            <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">LOCKED</p>
-          ) : null}
-
-          {lockedBadgeList.length > 0 ? (
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {lockedBadgeList.map((badge) => (
-                <div
-                  key={badge.id}
-                  onClick={() => {
-                    void handleToggleBadge(badge.id, false)
-                  }}
-                  className="flex cursor-not-allowed items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 opacity-40 transition"
-                >
-                  <span className="text-lg grayscale">{badge.icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-black text-zinc-400">
-                      {badge.title}
-                    </p>
-                    <p className="mt-0.5 text-[10px] font-semibold leading-snug text-zinc-400">
-                      {badge.desc}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          <section className="rounded-3xl border border-zinc-200 bg-white px-4 py-3 shadow-sm flex items-center justify-between mt-6">
-            <p className="text-xs font-semibold text-zinc-500">Signed in as {userName || userEmail}</p>
-            <button type="button" className="text-xs font-bold text-zinc-900" onClick={handleLogout}>
-              Logout
-            </button>
-          </section>
-
-          {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
-        </section>
+        <ProfilePage
+          user={user}
+          userName={userName}
+          userEmail={userEmail}
+          level={level}
+          xp={xp}
+          streakDays={streakDays}
+          streakShields={streakShields}
+          equippedBadge={equippedBadge}
+          onToggleBadge={(badgeId, earned) => {
+            void handleToggleBadge(badgeId, earned)
+          }}
+          onBack={() => navigate('/')}
+          onLogout={handleLogout}
+          onEditName={handleProfileEditName}
+          isEditingName={isProfileEditingName}
+          nameInput={nameInput}
+          setNameInput={setNameInput}
+          onSaveName={handleProfileSaveName}
+          nameUpdating={nameUpdating}
+          onForgotPassword={() => {
+            const rememberedEmail = userEmail || user?.email || ''
+            handleLogout()
+            setEmailInput(rememberedEmail)
+            setAuthMode('forgot_password')
+          }}
+          authedFetch={authedFetch}
+          focusCategory={user?.focus_category}
+        />
       ) : activeTab === 'Tasks' ? (
         showFocusPicker || !user?.focus_category ? (
           <section className="space-y-5 pt-2">

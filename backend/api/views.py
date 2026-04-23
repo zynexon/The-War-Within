@@ -1,5 +1,6 @@
 import logging
 import quopri
+from datetime import timedelta
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from django.conf import settings
@@ -8,6 +9,7 @@ from django.core import signing
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
@@ -521,6 +523,48 @@ class WeeklyWarReportView(APIView):
 	def get(self, request):
 		report = get_weekly_war_report(request.user)
 		return Response(report)
+
+
+class ProfileCalendarView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		today = timezone.localdate()
+		since = today - timedelta(days=27)
+
+		active_dates = (
+			UserTask.objects
+			.filter(user=request.user, completed=True, date__gte=since, date__lte=today)
+			.values_list("date", flat=True)
+			.distinct()
+			.order_by("date")
+		)
+
+		return Response({"active_dates": [d.isoformat() for d in active_dates]})
+
+
+class ProfileFocusStatsView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		rows = (
+			UserTask.objects
+			.filter(user=request.user, completed=True)
+			.values("task__category")
+			.annotate(count=Count("id"))
+			.order_by("-count")
+		)
+
+		stats = [
+			{
+				"category": row["task__category"],
+				"count": row["count"],
+			}
+			for row in rows
+			if row["task__category"] not in ("general", None)
+		]
+
+		return Response({"stats": stats})
 
 
 class PushSubscriptionView(APIView):
