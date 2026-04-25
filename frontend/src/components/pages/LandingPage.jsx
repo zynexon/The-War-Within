@@ -5,7 +5,7 @@ function LandingPage({ onTryGame, onLogin, onRegister, activeWarriorsCount }) {
     <main className="w-full max-w-[420px] mx-auto pb-12">
 
       {/* ── HERO ────────────────────────────────────────────────────────────── */}
-      <section className="min-h-[100dvh] flex flex-col px-5 pt-6 pb-8">
+      <section className="flex flex-col px-5 pt-6 pb-8">
 
         {/* Nav */}
         <div className="flex items-center justify-between">
@@ -22,7 +22,7 @@ function LandingPage({ onTryGame, onLogin, onRegister, activeWarriorsCount }) {
         </div>
 
         {/* Hero card */}
-        <div className="mt-6 flex-1 flex flex-col">
+        <div className="mt-6 flex flex-col">
           <div className="rounded-[2rem] border border-zinc-900 bg-zinc-950 px-6 pt-8 pb-6 flex flex-col relative overflow-hidden">
 
             {/* Background texture — faint grid */}

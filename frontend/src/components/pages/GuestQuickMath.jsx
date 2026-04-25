@@ -215,13 +215,13 @@ function GuestQuickMath({ onFinish, onPlayAgain }) {
       </div>
 
       {/* Question card */}
-      <div className={`flex-1 flex flex-col rounded-3xl border-2 transition-colors duration-150 ${
+      <div className={`flex flex-col rounded-3xl border-2 transition-colors duration-150 ${
         flash === 'correct'
           ? 'border-emerald-400 bg-emerald-50'
           : flash === 'wrong'
             ? 'border-red-300 bg-red-50'
             : 'border-zinc-200 bg-white'
-      } px-6 py-8 shadow-sm`}>
+      } px-5 py-6 sm:px-6 sm:py-8 shadow-sm`}>
 
         {/* Operation labels */}
         <div className="text-center mb-4">
@@ -231,7 +231,7 @@ function GuestQuickMath({ onFinish, onPlayAgain }) {
         </div>
 
         {/* The question */}
-        <div className="flex-1 flex items-center justify-center">
+        <div className="py-8 sm:py-10 flex items-center justify-center">
           <p className="text-5xl font-black tracking-tight text-zinc-950 tabular-nums">
             {question.num1}
             <span className="mx-3 text-zinc-400">{question.operator === '*' ? '×' : question.operator}</span>
