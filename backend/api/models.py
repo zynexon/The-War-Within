@@ -234,3 +234,58 @@ class PushSubscription(models.Model):
 
 	class Meta:
 		ordering = ["-created_at"]
+
+
+class Challenge(models.Model):
+	STATUS_OPEN = "open"
+	STATUS_ACCEPTED = "accepted"
+	STATUS_COMPLETED = "completed"
+	STATUS_EXPIRED = "expired"
+	STATUS_CHOICES = [
+		(STATUS_OPEN, "Open"),
+		(STATUS_ACCEPTED, "Accepted"),
+		(STATUS_COMPLETED, "Completed"),
+		(STATUS_EXPIRED, "Expired"),
+	]
+
+	WINNER_CHALLENGER = "challenger"
+	WINNER_OPPONENT = "opponent"
+	WINNER_TIE = "tie"
+	WINNER_CHOICES = [
+		(WINNER_CHALLENGER, "Challenger"),
+		(WINNER_OPPONENT, "Opponent"),
+		(WINNER_TIE, "Tie"),
+	]
+
+	GAME_TYPE_CHOICES = [
+		("quick_math", "Quick Math"),
+		("focus_tap", "Focus Tap"),
+		("number_recall", "Number Recall"),
+		("color_count_focus", "Color Count Focus"),
+		("speed_pattern", "Speed Pattern"),
+		("reverse_order", "Reverse Order"),
+		("number_stack", "Number Stack"),
+		("pattern_sequence", "Pattern Sequence"),
+		("logic_grid", "Logic Grid"),
+		("reaction_tap", "Reaction Tap"),
+	]
+
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	challenger = models.ForeignKey(User, on_delete=models.CASCADE, related_name="challenges_sent")
+	opponent = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="challenges_received", null=True, blank=True)
+	game_type = models.CharField(max_length=30, choices=GAME_TYPE_CHOICES)
+	challenger_score = models.IntegerField()
+	challenger_xp_wager = models.IntegerField(default=0)
+	seed = models.JSONField(default=dict, blank=True)
+	status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
+	opponent_score = models.IntegerField(null=True, blank=True)
+	winner = models.CharField(max_length=20, choices=WINNER_CHOICES, null=True, blank=True)
+	created_at = models.DateTimeField(auto_now_add=True)
+	expires_at = models.DateTimeField()
+	completed_at = models.DateTimeField(null=True, blank=True)
+
+	class Meta:
+		ordering = ["-created_at"]
+
+	def __str__(self):
+		return f"{self.game_type} challenge by {self.challenger_id}"

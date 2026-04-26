@@ -9,16 +9,16 @@ from django.core import signing
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .models import GameSession, JournalEntry, PushSubscription, User, UserTask, XPLog
+from .models import Challenge, GameSession, JournalEntry, PushSubscription, User, UserTask, XPLog
 from .serializers import (
 	AssignDailyTasksInputSerializer,
 	CompleteTaskInputSerializer,
@@ -67,7 +67,87 @@ from .services import (
 
 JOURNAL_DAILY_XP = 20
 PASSWORD_RESET_SIGNING_SALT = "api.password-reset"
+CHALLENGE_EXPIRY_HOURS = 48
+CHALLENGE_GAME_TYPES = [
+	"quick_math",
+	"focus_tap",
+	"number_recall",
+	"color_count_focus",
+	"speed_pattern",
+	"reverse_order",
+	"number_stack",
+	"pattern_sequence",
+	"logic_grid",
+	"reaction_tap",
+]
+GAME_TYPE_LABELS = {
+	"quick_math": "Quick Math",
+	"focus_tap": "Focus Tap",
+	"number_recall": "Number Recall",
+	"color_count_focus": "Color Count Focus",
+	"speed_pattern": "Speed Pattern",
+	"reverse_order": "Reverse Order",
+	"number_stack": "Number Stack",
+	"pattern_sequence": "Pattern Sequence",
+	"logic_grid": "Logic Grid",
+	"reaction_tap": "Reaction Tap",
+}
 logger = logging.getLogger(__name__)
+
+
+class ChallengeCreateSerializer(serializers.Serializer):
+	game_type = serializers.ChoiceField(choices=CHALLENGE_GAME_TYPES)
+	challenger_score = serializers.IntegerField(min_value=0)
+	xp_wager = serializers.IntegerField(min_value=0, max_value=200, default=0)
+	seed = serializers.DictField(required=False, default=dict)
+
+
+class ChallengeAcceptSerializer(serializers.Serializer):
+	opponent_score = serializers.IntegerField(min_value=0)
+
+
+def serialize_challenge(challenge, request_user=None):
+	challenger = challenge.challenger
+	opponent = challenge.opponent
+	is_challenger = bool(request_user and request_user.id == challenger.id)
+	is_opponent = bool(request_user and opponent and request_user.id == opponent.id)
+
+	now = timezone.now()
+	is_expired = challenge.expires_at < now and challenge.status == Challenge.STATUS_OPEN
+
+	result = {
+		"id": str(challenge.id),
+		"game_type": challenge.game_type,
+		"game_type_label": GAME_TYPE_LABELS.get(challenge.game_type, challenge.game_type),
+		"challenger": {
+			"id": str(challenger.id),
+			"name": challenger.name or challenger.username,
+			"level": challenger.level,
+			"streak": challenger.streak,
+		},
+		"challenger_score": challenge.challenger_score,
+		"xp_wager": challenge.challenger_xp_wager,
+		"seed": challenge.seed,
+		"status": Challenge.STATUS_EXPIRED if is_expired else challenge.status,
+		"opponent_score": challenge.opponent_score,
+		"winner": challenge.winner,
+		"created_at": challenge.created_at.isoformat(),
+		"expires_at": challenge.expires_at.isoformat(),
+		"completed_at": challenge.completed_at.isoformat() if challenge.completed_at else None,
+		"is_challenger": is_challenger,
+		"is_opponent": is_opponent,
+		"hours_remaining": max(0, int((challenge.expires_at - now).total_seconds() / 3600)),
+	}
+
+	if opponent:
+		result["opponent"] = {
+			"id": str(opponent.id),
+			"name": opponent.name or opponent.username,
+			"level": opponent.level,
+			"streak": opponent.streak,
+		}
+
+	return result
 
 
 def get_validation_error_message(exc, fallback="Request failed."):
@@ -565,6 +645,156 @@ class ProfileFocusStatsView(APIView):
 		]
 
 		return Response({"stats": stats})
+
+
+class ChallengeCreateView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	@transaction.atomic
+	def post(self, request):
+		serializer = ChallengeCreateSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		data = serializer.validated_data
+		user = User.objects.select_for_update().get(id=request.user.id)
+
+		xp_wager = data.get("xp_wager", 0)
+		if xp_wager > 0 and user.xp < xp_wager:
+			return Response(
+				{"error": "You don't have enough XP to wager that amount."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		challenge = Challenge.objects.create(
+			challenger=user,
+			game_type=data["game_type"],
+			challenger_score=data["challenger_score"],
+			challenger_xp_wager=xp_wager,
+			seed=data.get("seed", {}),
+			expires_at=timezone.now() + timedelta(hours=CHALLENGE_EXPIRY_HOURS),
+			status=Challenge.STATUS_OPEN,
+		)
+
+		return Response(
+			{
+				"success": True,
+				"challenge": serialize_challenge(challenge, request.user),
+				"share_url": f"/?challenge={str(challenge.id)}",
+			},
+			status=status.HTTP_201_CREATED,
+		)
+
+
+class ChallengeDetailView(APIView):
+	permission_classes = [AllowAny]
+
+	def get(self, request, pk):
+		try:
+			challenge = Challenge.objects.select_related("challenger", "opponent").get(id=pk)
+		except Challenge.DoesNotExist:
+			return Response({"error": "Challenge not found."}, status=status.HTTP_404_NOT_FOUND)
+
+		user = request.user if request.user.is_authenticated else None
+		return Response(serialize_challenge(challenge, user))
+
+
+class ChallengeAcceptView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	@transaction.atomic
+	def post(self, request, pk):
+		serializer = ChallengeAcceptSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		try:
+			challenge = (
+				Challenge.objects
+				.select_for_update()
+				.select_related("challenger", "opponent")
+				.get(id=pk)
+			)
+		except Challenge.DoesNotExist:
+			return Response({"error": "Challenge not found."}, status=status.HTTP_404_NOT_FOUND)
+
+		now = timezone.now()
+
+		if challenge.challenger_id == request.user.id:
+			return Response(
+				{"error": "You can't accept your own challenge."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		if challenge.status == Challenge.STATUS_COMPLETED:
+			return Response(
+				{"error": "This challenge has already been completed."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		if challenge.expires_at < now:
+			challenge.status = Challenge.STATUS_EXPIRED
+			challenge.save(update_fields=["status"])
+			return Response(
+				{"error": "This challenge has expired."},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		opponent_score = serializer.validated_data["opponent_score"]
+		challenger_score = challenge.challenger_score
+		wager = challenge.challenger_xp_wager
+
+		if opponent_score > challenger_score:
+			winner = Challenge.WINNER_OPPONENT
+		elif opponent_score < challenger_score:
+			winner = Challenge.WINNER_CHALLENGER
+		else:
+			winner = Challenge.WINNER_TIE
+
+		challenge.opponent = request.user
+		challenge.opponent_score = opponent_score
+		challenge.winner = winner
+		challenge.status = Challenge.STATUS_COMPLETED
+		challenge.completed_at = now
+		challenge.save(update_fields=["opponent", "opponent_score", "winner", "status", "completed_at"])
+
+		xp_gained = 0
+		challenger_user = User.objects.select_for_update().get(id=challenge.challenger_id)
+		opponent_user = User.objects.select_for_update().get(id=request.user.id)
+
+		if wager > 0 and winner == Challenge.WINNER_OPPONENT:
+			actual_wager = min(wager, max(0, challenger_user.xp))
+			if actual_wager > 0:
+				challenger_user.xp = max(0, challenger_user.xp - actual_wager)
+				challenger_user.save(update_fields=["xp"])
+				increment_user_xp(opponent_user, actual_wager)
+				create_xp_log(opponent_user, XPLog.SOURCE_GAME, actual_wager)
+				xp_gained = actual_wager
+
+		return Response(
+			{
+				"success": True,
+				"challenge": serialize_challenge(challenge, request.user),
+				"xp_gained": xp_gained,
+				"result": winner,
+				"your_score": opponent_score,
+				"their_score": challenger_score,
+			}
+		)
+
+
+class ChallengeListView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		challenges = (
+			Challenge.objects
+			.select_related("challenger", "opponent")
+			.filter(Q(challenger=request.user) | Q(opponent=request.user))
+			.order_by("-created_at")[:20]
+		)
+
+		return Response({
+			"challenges": [serialize_challenge(c, request.user) for c in challenges],
+		})
 
 
 class PushSubscriptionView(APIView):

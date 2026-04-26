@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import DailyChallenge, DailyChallengeCompletion, Task, User, UserTask, XPLog
+from .models import Challenge, DailyChallenge, DailyChallengeCompletion, Task, User, UserTask, XPLog
 
 
 @admin.register(User)
@@ -50,3 +50,9 @@ class DailyChallengeAdmin(admin.ModelAdmin):
 class DailyChallengeCompletionAdmin(admin.ModelAdmin):
 	list_display = ("user", "challenge", "completed_at")
 	list_filter = ("completed_at",)
+
+
+@admin.register(Challenge)
+class ChallengeAdmin(admin.ModelAdmin):
+	list_display = ("challenger", "game_type", "challenger_score", "status", "winner", "created_at")
+	list_filter = ("status", "game_type", "winner", "created_at")

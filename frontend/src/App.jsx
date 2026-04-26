@@ -12,6 +12,7 @@ import ReactionTapGame from './components/ReactionTapGame'
 import ReverseOrderGame from './components/ReverseOrderGame'
 import SpeedPatternGame from './components/SpeedPatternGame'
 import WeeklyWarReport from './components/WeeklyWarReport'
+import { ChallengeCreateButton, ChallengeLandingPage, MyChallengeDashboard } from './components/ChallengeFlow'
 import AuthPage from './components/pages/AuthPage'
 import GuestQuickMath from './components/pages/GuestQuickMath'
 import GameHubPage from './components/pages/GameHubPage'
@@ -418,6 +419,8 @@ function App() {
   const [guestScore, setGuestScore] = useState(null)
   const [showGuestSignup, setShowGuestSignup] = useState(false)
   const [guestRunId, setGuestRunId] = useState(0)
+  const [activeChallengeId, setActiveChallengeId] = useState(null)
+  const [showChallengeDashboard, setShowChallengeDashboard] = useState(false)
   const [showFocusPicker, setShowFocusPicker] = useState(false)
   const [focusUpdating, setFocusUpdating] = useState(false)
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
@@ -726,6 +729,18 @@ function App() {
     }
 
     url.searchParams.delete('reset_token')
+    const query = url.searchParams.toString()
+    const nextPath = `${url.pathname}${query ? `?${query}` : ''}${url.hash}`
+    window.history.replaceState({}, '', nextPath)
+  }
+
+  function clearChallengeParam() {
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has('challenge')) {
+      return
+    }
+
+    url.searchParams.delete('challenge')
     const query = url.searchParams.toString()
     const nextPath = `${url.pathname}${query ? `?${query}` : ''}${url.hash}`
     window.history.replaceState({}, '', nextPath)
@@ -1347,6 +1362,14 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const challengeId = params.get('challenge')
+    if (challengeId) {
+      setActiveChallengeId(challengeId)
+    }
+  }, [])
+
+  useEffect(() => {
     if (user) {
       return
     }
@@ -1623,6 +1646,8 @@ function App() {
     setGuestScore(null)
     setShowGuestSignup(false)
     setGuestRunId(0)
+    setShowChallengeDashboard(false)
+    setActiveChallengeId(null)
     setShowFocusPicker(false)
     setFocusUpdating(false)
     setEquippedBadge(null)
@@ -1695,6 +1720,7 @@ function App() {
     resetWarModeState()
     isInitialLoadRef.current = false
     clearResetTokenParam()
+    clearChallengeParam()
     setLoading(false)
   }
 
@@ -2619,6 +2645,46 @@ function App() {
     )
   }
 
+  if (activeChallengeId) {
+    return (
+      <ChallengeLandingPage
+        challengeId={activeChallengeId}
+        user={user}
+        authedFetch={authedFetch}
+        onLogin={() => {
+          setActiveChallengeId(null)
+          clearChallengeParam()
+          setShowGuestSignup(false)
+          setGuestMode(false)
+          setGuestScore(null)
+          setErrorText('')
+          setAuthNotice('')
+          setResetPasswordToken('')
+          setResetPasswordConfirmInput('')
+          clearResetTokenParam()
+          setAuthMode('login')
+        }}
+        onRegister={() => {
+          setActiveChallengeId(null)
+          clearChallengeParam()
+          setShowGuestSignup(false)
+          setGuestMode(false)
+          setGuestScore(null)
+          setErrorText('')
+          setAuthNotice('')
+          setResetPasswordToken('')
+          setResetPasswordConfirmInput('')
+          clearResetTokenParam()
+          setAuthMode('register_intent')
+        }}
+        onClose={() => {
+          setActiveChallengeId(null)
+          clearChallengeParam()
+        }}
+      />
+    )
+  }
+
   if (!user) {
     if (guestMode) {
       return (
@@ -3236,6 +3302,14 @@ function App() {
                       Main Menu
                     </button>
                   </div>
+                  {user ? (
+                    <ChallengeCreateButton
+                      gameType="quick_math"
+                      score={gameResult.score}
+                      authedFetch={authedFetch}
+                      className="pt-1"
+                    />
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -3588,12 +3662,29 @@ function App() {
             <p className="mt-1 text-xs font-semibold text-zinc-700">One timer. No excuses. Quit early and earn nothing.</p>
           </button>
 
+          <button
+            type="button"
+            onClick={() => setShowChallengeDashboard(true)}
+            className="w-full rounded-2xl border border-zinc-900 bg-white px-5 py-4 text-left text-zinc-900 shadow-[0_10px_24px_rgba(0,0,0,0.12)] transition-all duration-200 hover:bg-zinc-50 hover:shadow-[0_14px_28px_rgba(0,0,0,0.18)]"
+          >
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">1v1 Duels</p>
+            <p className="mt-1 text-xl font-black tracking-tight">⚔️ My Challenges</p>
+            <p className="mt-1 text-xs font-semibold text-zinc-700">Create, share, and track your challenge wars.</p>
+          </button>
+
           <p className="text-sm font-bold text-zinc-800 px-1">{homeProgressContext}</p>
 
           {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
         </section>
         </div>
       ))}
+
+      {showChallengeDashboard && user ? (
+        <MyChallengeDashboard
+          authedFetch={authedFetch}
+          onClose={() => setShowChallengeDashboard(false)}
+        />
+      ) : null}
 
       {!requiresNameSetup ? (
         <Navbar

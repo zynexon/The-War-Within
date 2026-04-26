@@ -3,6 +3,10 @@ from django.urls import path
 from .views import (
     AssignDailyTasksView,
     AuthMeView,
+    ChallengeAcceptView,
+    ChallengeCreateView,
+    ChallengeDetailView,
+    ChallengeListView,
     CompleteTaskView,
     DailyChallengeView,
     DailyTasksView,
@@ -31,6 +35,10 @@ from .views import (
 
 urlpatterns = [
     path("hello/", HelloView.as_view(), name="hello"),
+    path("challenges/create/", ChallengeCreateView.as_view(), name="challenge-create"),
+    path("challenges/<uuid:pk>/", ChallengeDetailView.as_view(), name="challenge-detail"),
+    path("challenges/<uuid:pk>/accept/", ChallengeAcceptView.as_view(), name="challenge-accept"),
+    path("challenges/", ChallengeListView.as_view(), name="challenge-list"),
     path("auth/register/", RegisterView.as_view(), name="auth-register"),
     path("auth/login/", LoginView.as_view(), name="auth-login"),
     path("auth/forgot-password/", ForgotPasswordView.as_view(), name="auth-forgot-password"),
