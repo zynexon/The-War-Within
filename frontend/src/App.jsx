@@ -479,6 +479,7 @@ function App() {
   const speedPatternSessionIdRef = useRef('')
   const numberStackSessionIdRef = useRef('')
   const warModeCompletionGuardRef = useRef(false)
+  const pendingChallengeAcceptRef = useRef(null)
 
   const requiresNameSetup = Boolean(user && !user.name)
   const profileDisplayName = userName || user?.name || 'User'
@@ -744,6 +745,32 @@ function App() {
     const query = url.searchParams.toString()
     const nextPath = `${url.pathname}${query ? `?${query}` : ''}${url.hash}`
     window.history.replaceState({}, '', nextPath)
+  }
+
+  function clearPendingChallengeAccept(targetGamePath = null) {
+    const pending = pendingChallengeAcceptRef.current
+    if (!pending) {
+      return
+    }
+    if (targetGamePath && pending.gamePath !== targetGamePath) {
+      return
+    }
+    pendingChallengeAcceptRef.current = null
+  }
+
+  function resolvePendingChallengeAccept(gamePath, completionScore) {
+    const pending = pendingChallengeAcceptRef.current
+    if (!pending || pending.gamePath !== gamePath || typeof pending.onResultCallback !== 'function') {
+      return
+    }
+
+    pendingChallengeAcceptRef.current = null
+    pending.onResultCallback(completionScore >= 1 ? 1 : 0)
+  }
+
+  function handleGameMainMenu(gamePath) {
+    clearPendingChallengeAccept(gamePath)
+    navigate('/game')
   }
 
   function rankMeta(rank) {
@@ -1646,6 +1673,7 @@ function App() {
     setGuestScore(null)
     setShowGuestSignup(false)
     setGuestRunId(0)
+    clearPendingChallengeAccept()
     setShowChallengeDashboard(false)
     setActiveChallengeId(null)
     setShowFocusPicker(false)
@@ -2076,6 +2104,8 @@ function App() {
       return
     }
 
+    const challengeScore = result.outcome === 'won' ? 1 : 0
+
     setFocusTapSubmitting(true)
     try {
       setFocusTapError('')
@@ -2104,6 +2134,7 @@ function App() {
       setFocusTapError(error.message || 'Could not submit Focus Tap result.')
     } finally {
       setFocusTapSubmitting(false)
+      resolvePendingChallengeAccept('/game/focus-tap', challengeScore)
     }
   }
 
@@ -2129,6 +2160,8 @@ function App() {
     if (!result || !reactionTapSessionId) {
       return null
     }
+
+    const challengeScore = result.score >= 1 ? 1 : 0
 
     setReactionTapSubmitting(true)
     try {
@@ -2168,6 +2201,7 @@ function App() {
       return null
     } finally {
       setReactionTapSubmitting(false)
+      resolvePendingChallengeAccept('/game/reaction-tap', challengeScore)
     }
   }
 
@@ -2195,6 +2229,8 @@ function App() {
     if (!result || !numberRecallSessionId) {
       return
     }
+
+    const challengeScore = result.outcome === 'win' ? 1 : 0
 
     setNumberRecallSubmitting(true)
     try {
@@ -2227,6 +2263,7 @@ function App() {
       setNumberRecallError(error.message || 'Could not submit Number Recall result.')
     } finally {
       setNumberRecallSubmitting(false)
+      resolvePendingChallengeAccept('/game/number-recall', challengeScore)
     }
   }
 
@@ -2254,6 +2291,8 @@ function App() {
     if (!result || !colorCountSessionId) {
       return
     }
+
+    const challengeScore = result.outcome === 'win' ? 1 : 0
 
     setColorCountSubmitting(true)
     try {
@@ -2286,6 +2325,7 @@ function App() {
       setColorCountError(error.message || 'Could not submit Color Count Focus result.')
     } finally {
       setColorCountSubmitting(false)
+      resolvePendingChallengeAccept('/game/color-count-focus', challengeScore)
     }
   }
 
@@ -2317,6 +2357,8 @@ function App() {
     if (!result) {
       return false
     }
+
+    const challengeScore = result.outcome === 'win' ? 1 : 0
 
     if (!activeSessionId) {
       setSpeedPatternError('No active session. Please restart the game.')
@@ -2357,6 +2399,7 @@ function App() {
       return undefined
     } finally {
       setSpeedPatternSubmitting(false)
+      resolvePendingChallengeAccept('/game/speed-pattern', challengeScore)
     }
   }
 
@@ -2382,6 +2425,8 @@ function App() {
     if (!result || !reverseOrderSessionId) {
       return null
     }
+
+    const challengeScore = result.score >= 1 ? 1 : 0
 
     setReverseOrderSubmitting(true)
     try {
@@ -2418,6 +2463,7 @@ function App() {
       return null
     } finally {
       setReverseOrderSubmitting(false)
+      resolvePendingChallengeAccept('/game/reverse-order', challengeScore)
     }
   }
 
@@ -2447,6 +2493,8 @@ function App() {
     if (!result) {
       return null
     }
+
+    const challengeScore = result.score >= 1 ? 1 : 0
 
     if (!activeSessionId) {
       setNumberStackError('No active session. Please restart Number Stack.')
@@ -2489,6 +2537,7 @@ function App() {
       return null
     } finally {
       setNumberStackSubmitting(false)
+      resolvePendingChallengeAccept('/game/number-stack', challengeScore)
     }
   }
 
@@ -2514,6 +2563,8 @@ function App() {
     if (!result || !patternSeqSessionId) {
       return null
     }
+
+    const challengeScore = 1
 
     setPatternSeqSubmitting(true)
     try {
@@ -2546,6 +2597,7 @@ function App() {
       return null
     } finally {
       setPatternSeqSubmitting(false)
+      resolvePendingChallengeAccept('/game/pattern-sequence', challengeScore)
     }
   }
 
@@ -2571,6 +2623,8 @@ function App() {
     if (!result || !logicGridSessionId) {
       return null
     }
+
+    const challengeScore = 1
 
     setLogicGridSubmitting(true)
     try {
@@ -2607,6 +2661,7 @@ function App() {
       return null
     } finally {
       setLogicGridSubmitting(false)
+      resolvePendingChallengeAccept('/game/logic-grid', challengeScore)
     }
   }
 
@@ -2680,6 +2735,16 @@ function App() {
         onClose={() => {
           setActiveChallengeId(null)
           clearChallengeParam()
+        }}
+        onNavigateToGame={(route, challengeId, onResultCallback) => {
+          pendingChallengeAcceptRef.current = {
+            challengeId,
+            gamePath: route,
+            onResultCallback,
+          }
+          setActiveChallengeId(null)
+          clearChallengeParam()
+          navigate(route)
         }}
       />
     )
@@ -3316,17 +3381,24 @@ function App() {
           </section>
         ) : gameRoute === '/game/focus-tap' ? (
           <FocusTapGame
-            onMainMenu={() => navigate('/game')}
+            onMainMenu={() => handleGameMainMenu('/game/focus-tap')}
             onGameStart={handleFocusTapStart}
             onGameFinished={handleFocusTapFinish}
             submitting={focusTapSubmitting}
             awardedXp={focusTapXpAwarded}
             resultMeta={focusTapResult}
             errorText={focusTapError}
+            challengeAction={user ? (
+              <ChallengeCreateButton
+                gameType="focus_tap"
+                score={1}
+                authedFetch={authedFetch}
+              />
+            ) : null}
           />
         ) : gameRoute === '/game/reaction-tap' ? (
           <ReactionTapGame
-            onMainMenu={() => navigate('/game')}
+            onMainMenu={() => handleGameMainMenu('/game/reaction-tap')}
             onGameStart={handleReactionTapStart}
             onGameFinished={handleReactionTapFinish}
             submitting={reactionTapSubmitting}
@@ -3334,76 +3406,132 @@ function App() {
             resultMeta={reactionTapResult}
             errorText={reactionTapError}
             gameRemainingEntry={gameRemainingXpByType?.reaction_tap || null}
+            challengeAction={user ? (
+              <ChallengeCreateButton
+                gameType="reaction_tap"
+                score={1}
+                authedFetch={authedFetch}
+              />
+            ) : null}
           />
         ) : gameRoute === '/game/number-recall' ? (
           <NumberRecallGame
-            onMainMenu={() => navigate('/game')}
+            onMainMenu={() => handleGameMainMenu('/game/number-recall')}
             onGameStart={handleNumberRecallStart}
             onGameFinished={handleNumberRecallFinish}
             submitting={numberRecallSubmitting}
             awardedXp={numberRecallXpAwarded}
             resultMeta={numberRecallResult}
             errorText={numberRecallError}
+            challengeAction={user ? (
+              <ChallengeCreateButton
+                gameType="number_recall"
+                score={1}
+                authedFetch={authedFetch}
+              />
+            ) : null}
           />
         ) : gameRoute === '/game/color-count-focus' ? (
           <ColorCountFocusGame
-            onMainMenu={() => navigate('/game')}
+            onMainMenu={() => handleGameMainMenu('/game/color-count-focus')}
             onGameStart={handleColorCountStart}
             onGameFinished={handleColorCountFinish}
             submitting={colorCountSubmitting}
             awardedXp={colorCountXpAwarded}
             resultMeta={colorCountResult}
             errorText={colorCountError}
+            challengeAction={user ? (
+              <ChallengeCreateButton
+                gameType="color_count_focus"
+                score={1}
+                authedFetch={authedFetch}
+              />
+            ) : null}
           />
         ) : gameRoute === '/game/speed-pattern' ? (
           <SpeedPatternGame
-            onMainMenu={() => navigate('/game')}
+            onMainMenu={() => handleGameMainMenu('/game/speed-pattern')}
             onGameStart={handleSpeedPatternStart}
             onGameFinished={handleSpeedPatternFinish}
             submitting={speedPatternSubmitting}
             awardedXp={speedPatternXpAwarded}
             resultMeta={speedPatternResult}
             errorText={speedPatternError}
+            challengeAction={user ? (
+              <ChallengeCreateButton
+                gameType="speed_pattern"
+                score={1}
+                authedFetch={authedFetch}
+              />
+            ) : null}
           />
         ) : gameRoute === '/game/reverse-order' ? (
           <ReverseOrderGame
-            onMainMenu={() => navigate('/game')}
+            onMainMenu={() => handleGameMainMenu('/game/reverse-order')}
             onGameStart={handleReverseOrderStart}
             onGameFinished={handleReverseOrderFinish}
             submitting={reverseOrderSubmitting}
             awardedXp={reverseOrderXpAwarded}
             resultMeta={reverseOrderResult}
             errorText={reverseOrderError}
+            challengeAction={user ? (
+              <ChallengeCreateButton
+                gameType="reverse_order"
+                score={1}
+                authedFetch={authedFetch}
+              />
+            ) : null}
           />
         ) : gameRoute === '/game/number-stack' ? (
           <NumberStackGame
-            onMainMenu={() => navigate('/game')}
+            onMainMenu={() => handleGameMainMenu('/game/number-stack')}
             onGameStart={handleNumberStackStart}
             onGameFinished={handleNumberStackFinish}
             submitting={numberStackSubmitting}
             awardedXp={numberStackXpAwarded}
             resultMeta={numberStackResult}
             errorText={numberStackError}
+            challengeAction={user ? (
+              <ChallengeCreateButton
+                gameType="number_stack"
+                score={1}
+                authedFetch={authedFetch}
+              />
+            ) : null}
           />
         ) : gameRoute === '/game/pattern-sequence' ? (
           <PatternSequenceGame
-            onMainMenu={() => navigate('/game')}
+            onMainMenu={() => handleGameMainMenu('/game/pattern-sequence')}
             onGameStart={handlePatternSeqStart}
             onGameFinished={handlePatternSeqFinish}
             submitting={patternSeqSubmitting}
             awardedXp={patternSeqXpAwarded}
             resultMeta={patternSeqResult}
             errorText={patternSeqError}
+            challengeAction={user ? (
+              <ChallengeCreateButton
+                gameType="pattern_sequence"
+                score={1}
+                authedFetch={authedFetch}
+              />
+            ) : null}
           />
         ) : gameRoute === '/game/logic-grid' ? (
           <LogicGridGame
-            onMainMenu={() => navigate('/game')}
+            onMainMenu={() => handleGameMainMenu('/game/logic-grid')}
             onGameStart={handleLogicGridStart}
             onGameFinished={handleLogicGridFinish}
             submitting={logicGridSubmitting}
             awardedXp={logicGridXpAwarded}
             resultMeta={logicGridResult}
             errorText={logicGridError}
+            challengeAction={user ? (
+              <ChallengeCreateButton
+                gameType="logic_grid"
+                score={1}
+                authedFetch={authedFetch}
+              />
+            ) : null}
           />
         ) : (
           <GameHubPage

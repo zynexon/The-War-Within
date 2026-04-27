@@ -80,7 +80,7 @@ function fireConfetti() {
   }, 300)
 }
 
-function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awardedXp, resultMeta, errorText }) {
+function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awardedXp, resultMeta, errorText, challengeAction = null }) {
   const initialState = useMemo(() => generateGrid(1), [])
 
   const [round, setRound] = useState(1)
@@ -227,6 +227,7 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
               <p className="text-xs font-semibold text-amber-600">Cap reached today ✓</p>
             ) : null}
             {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+            {challengeAction ? <div className="pt-1">{challengeAction}</div> : null}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"

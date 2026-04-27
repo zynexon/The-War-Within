@@ -70,6 +70,7 @@ function ReactionTapGame({
   resultMeta = null,
   errorText = '',
   gameRemainingEntry = null,
+  challengeAction = null,
 }) {
   const initialProgress = useMemo(() => buildProgressFromSource(gameRemainingEntry), [gameRemainingEntry])
 
@@ -473,6 +474,7 @@ function ReactionTapGame({
             ) : (
               <p className="text-xs font-semibold text-amber-600">Cap reached today ✓</p>
             )}
+            {challengeAction ? <div className="pt-1">{challengeAction}</div> : null}
 
             <div className="pt-2 grid grid-cols-2 gap-3">
               <button

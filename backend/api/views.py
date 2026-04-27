@@ -80,6 +80,7 @@ CHALLENGE_GAME_TYPES = [
 	"logic_grid",
 	"reaction_tap",
 ]
+CHALLENGE_SCORE_BASED_GAME_TYPES = {"quick_math"}
 GAME_TYPE_LABELS = {
 	"quick_math": "Quick Math",
 	"focus_tap": "Focus Tap",
@@ -104,6 +105,18 @@ class ChallengeCreateSerializer(serializers.Serializer):
 
 class ChallengeAcceptSerializer(serializers.Serializer):
 	opponent_score = serializers.IntegerField(min_value=0)
+
+
+def resolve_challenge_winner(game_type, challenger_score, opponent_score):
+	if game_type in CHALLENGE_SCORE_BASED_GAME_TYPES:
+		if opponent_score > challenger_score:
+			return Challenge.WINNER_OPPONENT
+		if opponent_score < challenger_score:
+			return Challenge.WINNER_CHALLENGER
+		return Challenge.WINNER_TIE
+
+	# Completion-based challenge: opponent wins only by completing (score >= 1).
+	return Challenge.WINNER_OPPONENT if opponent_score >= 1 else Challenge.WINNER_CHALLENGER
 
 
 def serialize_challenge(challenge, request_user=None):
@@ -668,7 +681,7 @@ class ChallengeCreateView(APIView):
 		challenge = Challenge.objects.create(
 			challenger=user,
 			game_type=data["game_type"],
-			challenger_score=data["challenger_score"],
+			challenger_score=data["challenger_score"] if data["game_type"] in CHALLENGE_SCORE_BASED_GAME_TYPES else 1,
 			challenger_xp_wager=xp_wager,
 			seed=data.get("seed", {}),
 			expires_at=timezone.now() + timedelta(hours=CHALLENGE_EXPIRY_HOURS),
@@ -739,15 +752,11 @@ class ChallengeAcceptView(APIView):
 			)
 
 		opponent_score = serializer.validated_data["opponent_score"]
+		if challenge.game_type not in CHALLENGE_SCORE_BASED_GAME_TYPES:
+			opponent_score = 1 if opponent_score >= 1 else 0
 		challenger_score = challenge.challenger_score
 		wager = challenge.challenger_xp_wager
-
-		if opponent_score > challenger_score:
-			winner = Challenge.WINNER_OPPONENT
-		elif opponent_score < challenger_score:
-			winner = Challenge.WINNER_CHALLENGER
-		else:
-			winner = Challenge.WINNER_TIE
+		winner = resolve_challenge_winner(challenge.game_type, challenger_score, opponent_score)
 
 		challenge.opponent = request.user
 		challenge.opponent_score = opponent_score

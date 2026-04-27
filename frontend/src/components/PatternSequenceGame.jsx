@@ -572,6 +572,7 @@ export default function PatternSequenceGame({
   submitting,
   resultMeta,
   errorText,
+  challengeAction = null,
 }) {
   const [screen,       setScreen]       = useState('intro')     // intro | game | result
   const [round,        setRound]        = useState(1)
@@ -814,6 +815,7 @@ export default function PatternSequenceGame({
           <p className="text-xs font-semibold text-amber-500 text-center">Daily XP cap reached ✓</p>
         )}
         {errorText && <p className="text-xs font-semibold text-red-400 text-center">{errorText}</p>}
+        {challengeAction ? <div className="pt-1">{challengeAction}</div> : null}
 
         <div className="grid grid-cols-2 gap-3">
           <button type="button" onClick={handleStart}

@@ -397,7 +397,7 @@ function AnswerTable({ puzzle, grid }) {
 }
 
 // --- Main component ----------------------------------------------------------
-export default function LogicGridGame({ onMainMenu, onGameStart, onGameFinished, submitting, resultMeta, errorText }) {
+export default function LogicGridGame({ onMainMenu, onGameStart, onGameFinished, submitting, resultMeta, errorText, challengeAction = null }) {
   const [screen, setScreen] = useState('select') // select | intro | puzzle | result
   const [puzzle, setPuzzle] = useState(null)
   const [grid, setGrid] = useState({})
@@ -679,6 +679,7 @@ export default function LogicGridGame({ onMainMenu, onGameStart, onGameFinished,
 
         {completionMeta?.cappedByDailyLimit && <p className="text-xs font-semibold text-amber-600 text-center">Daily cap reached ✓</p>}
         {errorText && <p className="text-xs font-semibold text-red-600 text-center">{errorText}</p>}
+        {challengeAction ? <div className="pt-1">{challengeAction}</div> : null}
 
         <div className="grid grid-cols-2 gap-3">
           <button

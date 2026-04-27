@@ -69,7 +69,7 @@ function buildOptions(correct) {
   return options.sort(() => Math.random() - 0.5)
 }
 
-function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitting, awardedXp, resultMeta, errorText }) {
+function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitting, awardedXp, resultMeta, errorText, challengeAction = null }) {
   const [grid, setGrid] = useState(EMPTY_GRID)
   const [targetColor, setTargetColor] = useState('blue')
   const [correctCount, setCorrectCount] = useState(0)
@@ -285,6 +285,7 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
               <p className="text-xs font-semibold text-amber-600">Cap reached today ✓</p>
             ) : null}
             {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+            {result === 'win' && challengeAction ? <div className="pt-1">{challengeAction}</div> : null}
 
             <div className="pt-2 grid grid-cols-2 gap-3">
               <button

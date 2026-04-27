@@ -8,7 +8,7 @@ function createSequence(length = SEQUENCE_LENGTH) {
   return Array.from({ length }, () => Math.floor(Math.random() * 10))
 }
 
-function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting, awardedXp, resultMeta, errorText }) {
+function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting, awardedXp, resultMeta, errorText, challengeAction = null }) {
   const [sequence, setSequence] = useState([])
   const [userInput, setUserInput] = useState([])
   const [phase, setPhase] = useState('idle')
@@ -222,6 +222,7 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
               <p className="text-xs font-semibold text-amber-600">Cap reached today ✓</p>
             ) : null}
             {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+            {result === 'win' && challengeAction ? <div className="pt-1">{challengeAction}</div> : null}
 
             <div className="pt-2 grid grid-cols-2 gap-3">
               <button

@@ -241,7 +241,7 @@ function fireConfetti() {
   })
 }
 
-function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, resultMeta, errorText }) {
+function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, resultMeta, errorText, challengeAction = null }) {
   const onGameStartRef = useRef(onGameStart)
   const onGameFinishedRef = useRef(onGameFinished)
   const [startSequence, setStartSequence] = useState([])
@@ -477,6 +477,7 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
             {completionResult.cappedByDailyLimit ? (
               <p className="text-xs font-semibold text-amber-600">Cap reached today ✓</p>
             ) : null}
+            {challengeAction ? <div className="pt-1">{challengeAction}</div> : null}
 
             <div className="flex gap-3 pt-2">
               <button

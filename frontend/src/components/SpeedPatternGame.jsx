@@ -28,6 +28,7 @@ function SpeedPatternGame({
   awardedXp,
   resultMeta,
   errorText,
+  challengeAction = null,
 }) {
   const [currentRound, setCurrentRound] = useState(1)
   const [pattern, setPattern] = useState([])
@@ -408,6 +409,7 @@ function SpeedPatternGame({
               <p className="text-xs font-semibold text-amber-600">Cap reached today ✓</p>
             ) : null}
             {errorText ? <p className="text-xs font-semibold text-red-600">{errorText}</p> : null}
+            {challengeAction ? <div className="pt-1">{challengeAction}</div> : null}
 
             <div className="pt-2 grid grid-cols-2 gap-3">
               <button
