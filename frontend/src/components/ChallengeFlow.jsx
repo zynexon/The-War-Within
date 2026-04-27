@@ -93,6 +93,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import confetti from 'canvas-confetti'
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+
+function apiUrl(path) {
+  if (!API_BASE_URL) {
+    return path
+  }
+  return `${API_BASE_URL}${path}`
+}
+
 // ─── Game metadata ────────────────────────────────────────────────────────────
 
 const GAME_META = {
@@ -231,6 +240,26 @@ function timeAgo(isoString) {
 
 function fireWinConfetti() {
   confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, zIndex: 11000 })
+}
+
+async function publicFetch(path, options = {}) {
+  const response = await fetch(apiUrl(path), {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  })
+
+  const data = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(data?.error || data?.detail || 'Request failed.')
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid API response.')
+  }
+
+  return data
 }
 
 // ─── Embedded Quick Math (only used for score-based challenges) ───────────────
@@ -648,23 +677,24 @@ export function ChallengeLandingPage({
   const [yourScore, setYourScore] = useState(null)
   const [xpGained, setXpGained]  = useState(0)
   const [error, setError]         = useState('')
+  const normalizedChallengeId = String(challengeId || '').trim().replace(/\/+$/, '')
 
   const isAuthenticated = Boolean(user)
 
   const fetchChallenge = useCallback(async () => {
     setPhase('loading')
     try {
-      // Challenge detail endpoint is public — no auth needed
-      const res  = await fetch(`/api/challenges/${challengeId}/`)
-      if (!res.ok) throw new Error('Not found')
-      const data = await res.json()
+      if (!normalizedChallengeId) {
+        throw new Error('Invalid challenge id')
+      }
+      const data = await publicFetch(`/api/challenges/${encodeURIComponent(normalizedChallengeId)}/`)
       setChallenge(data)
       setPhase('preview')
     } catch {
       setError('This challenge link is invalid or has expired.')
       setPhase('error')
     }
-  }, [challengeId])
+  }, [normalizedChallengeId])
 
   useEffect(() => { fetchChallenge() }, [fetchChallenge])
 
@@ -677,7 +707,7 @@ export function ChallengeLandingPage({
     }
     setPhase('submitting')
     try {
-      const data = await authedFetch(`/api/challenges/${challengeId}/accept/`, {
+      const data = await authedFetch(`/api/challenges/${encodeURIComponent(normalizedChallengeId)}/accept/`, {
         method: 'POST',
         body: JSON.stringify({ opponent_score: score }),
       })
