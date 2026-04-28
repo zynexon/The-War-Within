@@ -47,6 +47,7 @@ function SpeedPatternGame({
   const roundRef = useRef(1)
   const patternRef = useRef([])
   const selectionRef = useRef([])
+  const attemptsRef = useRef(0)
 
   const patternSet = useMemo(() => new Set(pattern), [pattern])
   const selectionSet = useMemo(() => new Set(userSelection), [userSelection])
@@ -129,6 +130,8 @@ function SpeedPatternGame({
       return
     }
 
+    attemptsRef.current += 1
+
     const nextPattern = generatePattern(patternCount)
     setCurrentRound(roundNumber)
     roundRef.current = roundNumber
@@ -169,7 +172,9 @@ function SpeedPatternGame({
 
     let submitted
     try {
-      submitted = onGameFinished ? await onGameFinished({ outcome: 'win', score: 1 }) : false
+      submitted = onGameFinished
+        ? await onGameFinished({ outcome: 'win', score: 1, metric: attemptsRef.current })
+        : false
     } catch {
       submitted = undefined
     } finally {
@@ -281,6 +286,7 @@ function SpeedPatternGame({
     setPhaseDuration(ATTEMPT_SECONDS)
     setFeedback(null)
     hasReportedResultRef.current = false
+    attemptsRef.current = 0
     if (!silent) {
       setPhase('idle')
       phaseRef.current = 'idle'

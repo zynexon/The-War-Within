@@ -81,6 +81,7 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
   const showTimeoutRef = useRef(null)
   const nextRoundTimeoutRef = useRef(null)
   const isRoundLockedRef = useRef(false)
+  const attemptsRef = useRef(0)
 
   const targetUpper = useMemo(() => targetColor.toUpperCase(), [targetColor])
   const isTransitionPhase = phase === 'transition'
@@ -112,6 +113,8 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
       }
     }
 
+    attemptsRef.current += 1
+
     const nextGrid = buildRoundGrid()
     const activeColors = nextGrid.filter((color) => color !== null)
     const nextTargetColor = randomItem(activeColors)
@@ -136,6 +139,7 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
     setGrid(EMPTY_GRID)
     setOptions([])
     setResult(null)
+    attemptsRef.current = 0
     await startRound(1)
   }
 
@@ -146,6 +150,7 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
       await onGameFinished({
         outcome: nextResult,
         score: finalScore,
+        metric: attemptsRef.current,
       })
     }
 
@@ -176,7 +181,12 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
       return
     }
 
-    void finalizeGame('lose', Math.max(0, round - 1))
+    setPhase('round-reset')
+    setGrid(EMPTY_GRID)
+    setOptions([])
+    nextRoundTimeoutRef.current = window.setTimeout(() => {
+      void startRound(round, true)
+    }, 650)
   }
 
   return (
@@ -254,6 +264,12 @@ function ColorCountFocusGame({ onMainMenu, onGameStart, onGameFinished, submitti
               ))}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {phase === 'round-reset' ? (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-5 shadow-sm text-center">
+          <p className="text-sm font-bold text-red-700">Wrong count. Resetting round {round}...</p>
         </div>
       ) : null}
 

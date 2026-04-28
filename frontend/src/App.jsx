@@ -758,14 +758,17 @@ function App() {
     pendingChallengeAcceptRef.current = null
   }
 
-  function resolvePendingChallengeAccept(gamePath, completionScore) {
+  function resolvePendingChallengeAccept(gamePath, completionScore, completionMetric = null) {
     const pending = pendingChallengeAcceptRef.current
     if (!pending || pending.gamePath !== gamePath || typeof pending.onResultCallback !== 'function') {
       return
     }
 
     pendingChallengeAcceptRef.current = null
-    pending.onResultCallback(completionScore >= 1 ? 1 : 0)
+    pending.onResultCallback({
+      score: completionScore >= 1 ? 1 : 0,
+      metric: completionMetric,
+    })
   }
 
   function handleGameMainMenu(gamePath) {
@@ -2105,6 +2108,7 @@ function App() {
     }
 
     const challengeScore = result.outcome === 'won' ? 1 : 0
+    const challengeMetric = Number.isFinite(result.metric) ? result.metric : null
 
     setFocusTapSubmitting(true)
     try {
@@ -2126,6 +2130,7 @@ function App() {
         dailyCap: data.daily_cap,
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
+        metric: challengeMetric,
       })
       recordLastTrainingResult('Focus Tap', result.score, data.remaining_today, data.daily_cap, data.game_type)
       void refreshDailyChallengeStatus()
@@ -2134,7 +2139,7 @@ function App() {
       setFocusTapError(error.message || 'Could not submit Focus Tap result.')
     } finally {
       setFocusTapSubmitting(false)
-      resolvePendingChallengeAccept('/game/focus-tap', challengeScore)
+      resolvePendingChallengeAccept('/game/focus-tap', challengeScore, challengeMetric)
     }
   }
 
@@ -2162,6 +2167,9 @@ function App() {
     }
 
     const challengeScore = result.score >= 1 ? 1 : 0
+    const challengeMetric = Number.isFinite(result.metric)
+      ? result.metric
+      : (Number.isFinite(result.averageReaction) ? result.averageReaction : null)
 
     setReactionTapSubmitting(true)
     try {
@@ -2184,6 +2192,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
         todayGameXpBefore: data.today_game_xp_before,
+        metric: challengeMetric,
       }
       setReactionTapResult(meta)
       setReactionTapSessionId('')
@@ -2201,7 +2210,7 @@ function App() {
       return null
     } finally {
       setReactionTapSubmitting(false)
-      resolvePendingChallengeAccept('/game/reaction-tap', challengeScore)
+      resolvePendingChallengeAccept('/game/reaction-tap', challengeScore, challengeMetric)
     }
   }
 
@@ -2231,6 +2240,7 @@ function App() {
     }
 
     const challengeScore = result.outcome === 'win' ? 1 : 0
+    const challengeMetric = Number.isFinite(result.metric) ? result.metric : null
 
     setNumberRecallSubmitting(true)
     try {
@@ -2252,6 +2262,7 @@ function App() {
         dailyCap: data.daily_cap,
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
+        metric: challengeMetric,
       })
       recordLastTrainingResult('Number Recall', result.score, data.remaining_today, data.daily_cap, data.game_type)
       void refreshDailyChallengeStatus()
@@ -2263,7 +2274,7 @@ function App() {
       setNumberRecallError(error.message || 'Could not submit Number Recall result.')
     } finally {
       setNumberRecallSubmitting(false)
-      resolvePendingChallengeAccept('/game/number-recall', challengeScore)
+      resolvePendingChallengeAccept('/game/number-recall', challengeScore, challengeMetric)
     }
   }
 
@@ -2293,6 +2304,7 @@ function App() {
     }
 
     const challengeScore = result.outcome === 'win' ? 1 : 0
+    const challengeMetric = Number.isFinite(result.metric) ? result.metric : null
 
     setColorCountSubmitting(true)
     try {
@@ -2314,6 +2326,7 @@ function App() {
         dailyCap: data.daily_cap,
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
+        metric: challengeMetric,
       })
       recordLastTrainingResult('Color Count Focus', result.score, data.remaining_today, data.daily_cap, data.game_type)
       void refreshDailyChallengeStatus()
@@ -2325,7 +2338,7 @@ function App() {
       setColorCountError(error.message || 'Could not submit Color Count Focus result.')
     } finally {
       setColorCountSubmitting(false)
-      resolvePendingChallengeAccept('/game/color-count-focus', challengeScore)
+      resolvePendingChallengeAccept('/game/color-count-focus', challengeScore, challengeMetric)
     }
   }
 
@@ -2359,6 +2372,7 @@ function App() {
     }
 
     const challengeScore = result.outcome === 'win' ? 1 : 0
+    const challengeMetric = Number.isFinite(result.metric) ? result.metric : null
 
     if (!activeSessionId) {
       setSpeedPatternError('No active session. Please restart the game.')
@@ -2385,6 +2399,7 @@ function App() {
         dailyCap: data.daily_cap,
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
+        metric: challengeMetric,
       })
       recordLastTrainingResult('Speed Pattern', result.score, data.remaining_today, data.daily_cap, data.game_type)
       void refreshDailyChallengeStatus()
@@ -2399,7 +2414,7 @@ function App() {
       return undefined
     } finally {
       setSpeedPatternSubmitting(false)
-      resolvePendingChallengeAccept('/game/speed-pattern', challengeScore)
+      resolvePendingChallengeAccept('/game/speed-pattern', challengeScore, challengeMetric)
     }
   }
 
@@ -2427,6 +2442,7 @@ function App() {
     }
 
     const challengeScore = result.score >= 1 ? 1 : 0
+    const challengeMetric = Number.isFinite(result.metric) ? result.metric : null
 
     setReverseOrderSubmitting(true)
     try {
@@ -2449,6 +2465,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
         todayGameXpBefore: data.today_game_xp_before,
+        metric: challengeMetric,
       }
       setReverseOrderResult(meta)
       setReverseOrderSessionId('')
@@ -2463,7 +2480,7 @@ function App() {
       return null
     } finally {
       setReverseOrderSubmitting(false)
-      resolvePendingChallengeAccept('/game/reverse-order', challengeScore)
+      resolvePendingChallengeAccept('/game/reverse-order', challengeScore, challengeMetric)
     }
   }
 
@@ -2495,6 +2512,7 @@ function App() {
     }
 
     const challengeScore = result.score >= 1 ? 1 : 0
+    const challengeMetric = Number.isFinite(result.metric) ? result.metric : null
 
     if (!activeSessionId) {
       setNumberStackError('No active session. Please restart Number Stack.')
@@ -2522,6 +2540,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
         todayGameXpBefore: data.today_game_xp_before,
+        metric: challengeMetric,
       }
       setNumberStackResult(meta)
       setNumberStackSessionId('')
@@ -2537,7 +2556,7 @@ function App() {
       return null
     } finally {
       setNumberStackSubmitting(false)
-      resolvePendingChallengeAccept('/game/number-stack', challengeScore)
+      resolvePendingChallengeAccept('/game/number-stack', challengeScore, challengeMetric)
     }
   }
 
@@ -2565,6 +2584,9 @@ function App() {
     }
 
     const challengeScore = 1
+    const challengeMetric = Number.isFinite(result.metric)
+      ? result.metric
+      : (Number.isFinite(result.elapsed) ? Math.round(result.elapsed * 1000) : null)
 
     setPatternSeqSubmitting(true)
     try {
@@ -2586,6 +2608,7 @@ function App() {
         dailyCap: data.daily_cap,
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
+        metric: challengeMetric,
       }
       setPatternSeqResult(meta)
       setPatternSeqSessionId('')
@@ -2597,7 +2620,7 @@ function App() {
       return null
     } finally {
       setPatternSeqSubmitting(false)
-      resolvePendingChallengeAccept('/game/pattern-sequence', challengeScore)
+      resolvePendingChallengeAccept('/game/pattern-sequence', challengeScore, challengeMetric)
     }
   }
 
@@ -2625,6 +2648,9 @@ function App() {
     }
 
     const challengeScore = 1
+    const challengeMetric = Number.isFinite(result.metric)
+      ? result.metric
+      : (Number.isFinite(result.elapsed) ? Math.round(result.elapsed * 1000) : null)
 
     setLogicGridSubmitting(true)
     try {
@@ -2647,6 +2673,7 @@ function App() {
         remainingToday: data.remaining_today,
         cappedByDailyLimit: data.capped_by_daily_limit,
         todayGameXpBefore: data.today_game_xp_before,
+        metric: challengeMetric,
       }
       setLogicGridResult(meta)
       setLogicGridSessionId('')
@@ -2661,7 +2688,7 @@ function App() {
       return null
     } finally {
       setLogicGridSubmitting(false)
-      resolvePendingChallengeAccept('/game/logic-grid', challengeScore)
+      resolvePendingChallengeAccept('/game/logic-grid', challengeScore, challengeMetric)
     }
   }
 
@@ -3371,6 +3398,7 @@ function App() {
                     <ChallengeCreateButton
                       gameType="quick_math"
                       score={gameResult.score}
+                      metric={gameResult.score}
                       authedFetch={authedFetch}
                       className="pt-1"
                     />
@@ -3392,6 +3420,7 @@ function App() {
               <ChallengeCreateButton
                 gameType="focus_tap"
                 score={1}
+                metric={focusTapResult?.metric ?? null}
                 authedFetch={authedFetch}
               />
             ) : null}
@@ -3410,6 +3439,7 @@ function App() {
               <ChallengeCreateButton
                 gameType="reaction_tap"
                 score={1}
+                metric={reactionTapResult?.metric ?? null}
                 authedFetch={authedFetch}
               />
             ) : null}
@@ -3427,6 +3457,7 @@ function App() {
               <ChallengeCreateButton
                 gameType="number_recall"
                 score={1}
+                metric={numberRecallResult?.metric ?? null}
                 authedFetch={authedFetch}
               />
             ) : null}
@@ -3444,6 +3475,7 @@ function App() {
               <ChallengeCreateButton
                 gameType="color_count_focus"
                 score={1}
+                metric={colorCountResult?.metric ?? null}
                 authedFetch={authedFetch}
               />
             ) : null}
@@ -3461,6 +3493,7 @@ function App() {
               <ChallengeCreateButton
                 gameType="speed_pattern"
                 score={1}
+                metric={speedPatternResult?.metric ?? null}
                 authedFetch={authedFetch}
               />
             ) : null}
@@ -3478,6 +3511,7 @@ function App() {
               <ChallengeCreateButton
                 gameType="reverse_order"
                 score={1}
+                metric={reverseOrderResult?.metric ?? null}
                 authedFetch={authedFetch}
               />
             ) : null}
@@ -3495,6 +3529,7 @@ function App() {
               <ChallengeCreateButton
                 gameType="number_stack"
                 score={1}
+                metric={numberStackResult?.metric ?? null}
                 authedFetch={authedFetch}
               />
             ) : null}
@@ -3512,6 +3547,7 @@ function App() {
               <ChallengeCreateButton
                 gameType="pattern_sequence"
                 score={1}
+                metric={patternSeqResult?.metric ?? null}
                 authedFetch={authedFetch}
               />
             ) : null}
@@ -3529,6 +3565,7 @@ function App() {
               <ChallengeCreateButton
                 gameType="logic_grid"
                 score={1}
+                metric={logicGridResult?.metric ?? null}
                 authedFetch={authedFetch}
               />
             ) : null}

@@ -101,11 +101,13 @@ class XPLog(models.Model):
 	SOURCE_GAME = "game"
 	SOURCE_JOURNAL = "journal"
 	SOURCE_DAILY_CHALLENGE = "daily_challenge"
+	SOURCE_WAGER = "wager"
 	SOURCE_CHOICES = [
 		(SOURCE_TASK, "Task"),
 		(SOURCE_GAME, "Game"),
 		(SOURCE_JOURNAL, "Journal"),
 		(SOURCE_DAILY_CHALLENGE, "Daily Challenge"),
+		(SOURCE_WAGER, "Wager"),
 	]
 
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -275,10 +277,12 @@ class Challenge(models.Model):
 	opponent = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="challenges_received", null=True, blank=True)
 	game_type = models.CharField(max_length=30, choices=GAME_TYPE_CHOICES)
 	challenger_score = models.IntegerField()
+	challenger_metric = models.FloatField(null=True, blank=True)
 	challenger_xp_wager = models.IntegerField(default=0)
 	seed = models.JSONField(default=dict, blank=True)
 	status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
 	opponent_score = models.IntegerField(null=True, blank=True)
+	opponent_metric = models.FloatField(null=True, blank=True)
 	winner = models.CharField(max_length=20, choices=WINNER_CHOICES, null=True, blank=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	expires_at = models.DateTimeField()

@@ -461,7 +461,7 @@ export default function LogicGridGame({ onMainMenu, onGameStart, onGameFinished,
       clearInterval(timerRef.current)
       let meta = null
       setIsSubmittingResult(true)
-      if (onGameFinished) meta = await onGameFinished({ score: 1, elapsed })
+      if (onGameFinished) meta = await onGameFinished({ score: 1, elapsed, metric: Math.round(elapsed * 1000) })
       setIsSubmittingResult(false)
       setMeta(meta)
       setScreen('result')

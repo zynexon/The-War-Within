@@ -320,9 +320,11 @@ function ReactionTapGame({
 
     let submitMeta = null
     if (onGameFinished) {
+      const average = calculateAverage(finalTimes)
       submitMeta = await onGameFinished({
         score: 1,
-        averageReaction: calculateAverage(finalTimes),
+        averageReaction: average,
+        metric: average,
         bestReaction: finalTimes.length ? Math.min(...finalTimes) : null,
         reactionTimes: finalTimes,
       })

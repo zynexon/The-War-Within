@@ -241,6 +241,24 @@ def increment_user_xp(user, amount):
     return milestone_shields_awarded
 
 
+def transfer_xp_wager(from_user, to_user, amount):
+    if amount <= 0:
+        return 0
+
+    available = max(0, from_user.xp or 0)
+    actual = min(amount, available)
+    if actual <= 0:
+        return 0
+
+    from_user.xp = max(0, available - actual)
+    from_user.level = calculate_level(from_user.xp)
+    from_user.save(update_fields=["xp", "level"])
+
+    increment_user_xp(to_user, actual)
+    create_xp_log(to_user, XPLog.SOURCE_WAGER, actual)
+    return actual
+
+
 def create_xp_log(user, source, amount):
     return XPLog.objects.create(user=user, source=source, amount=amount)
 

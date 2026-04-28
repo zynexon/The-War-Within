@@ -244,6 +244,7 @@ function fireConfetti() {
 function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, resultMeta, errorText, challengeAction = null }) {
   const onGameStartRef = useRef(onGameStart)
   const onGameFinishedRef = useRef(onGameFinished)
+  const attemptsRef = useRef(0)
   const [startSequence, setStartSequence] = useState([])
   const [rules, setRules] = useState([])
   const [correctAnswer, setCorrectAnswer] = useState([])
@@ -265,6 +266,7 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
   }, [onGameStart, onGameFinished])
 
   function loadPuzzle() {
+    attemptsRef.current += 1
     const puzzle = buildPuzzle()
     setStartSequence(puzzle.startSequence)
     setRules(puzzle.rules)
@@ -281,6 +283,7 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
     setAttemptsLeft(MAX_ATTEMPTS_PER_ROUND)
     setCompletionResult(null)
     setGameOverResult(null)
+    attemptsRef.current = 0
 
     try {
       loadPuzzle()
@@ -314,9 +317,13 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
       setAttemptsLeft(nextAttempts)
       setFeedbackType('incorrect')
       if (nextAttempts <= 0) {
-        setFeedbackText('Wrong. No attempts left this round.')
+        setFeedbackText('Wrong. Resetting this round.')
         window.setTimeout(() => {
-          setGameOverResult({ round: currentRound })
+          setAttemptsLeft(MAX_ATTEMPTS_PER_ROUND)
+          setSelectedOption(null)
+          setFeedbackType('idle')
+          setFeedbackText('')
+          loadPuzzle()
         }, 500)
         return
       }
@@ -348,7 +355,9 @@ function NumberStackGame({ onMainMenu, onGameStart, onGameFinished, submitting, 
     setFeedbackType('correct')
     setFeedbackText('Correct - submitting...')
 
-    const submitMeta = onGameFinishedRef.current ? await onGameFinishedRef.current({ score: 1 }) : null
+    const submitMeta = onGameFinishedRef.current
+      ? await onGameFinishedRef.current({ score: 1, metric: attemptsRef.current })
+      : null
     if (!submitMeta && onGameFinishedRef.current) {
       setFeedbackType('incorrect')
       setFeedbackText('Could not submit result. Try again.')

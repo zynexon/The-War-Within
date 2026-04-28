@@ -54,5 +54,15 @@ class DailyChallengeCompletionAdmin(admin.ModelAdmin):
 
 @admin.register(Challenge)
 class ChallengeAdmin(admin.ModelAdmin):
-	list_display = ("challenger", "game_type", "challenger_score", "status", "winner", "created_at")
+	list_display = (
+		"challenger",
+		"game_type",
+		"challenger_score",
+		"challenger_metric",
+		"opponent_metric",
+		"challenger_xp_wager",
+		"status",
+		"winner",
+		"created_at",
+	)
 	list_filter = ("status", "game_type", "winner", "created_at")

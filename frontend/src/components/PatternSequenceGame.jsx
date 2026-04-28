@@ -644,7 +644,7 @@ export default function PatternSequenceGame({
       clearInterval(timerRef.current)
       let meta = null
       if (onGameFinished) {
-        meta = await onGameFinished({ score: correctCount, elapsed })
+        meta = await onGameFinished({ score: correctCount, elapsed, metric: Math.round(elapsed * 1000) })
       }
       setMeta(meta)
       setGameOver(true)

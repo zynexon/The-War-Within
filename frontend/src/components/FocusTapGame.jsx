@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import confetti from 'canvas-confetti'
 
 const ROWS = 4
@@ -9,6 +9,13 @@ const COLORS = ['purple', 'blue', 'red']
 
 function randomInt(max) {
   return Math.floor(Math.random() * max)
+}
+
+function nowMs() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now()
+  }
+  return Date.now()
 }
 
 function pickRandom(items) {
@@ -89,6 +96,10 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
   const [gameOver, setGameOver] = useState(false)
   const [gameWon, setGameWon] = useState(false)
   const [isSubmittingResult, setIsSubmittingResult] = useState(false)
+  const [elapsedMs, setElapsedMs] = useState(0)
+
+  const startTimeRef = useRef(null)
+  const timerRef = useRef(null)
 
   const remainingRounds = TOTAL_ROUNDS - round + 1
 
@@ -96,7 +107,29 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
     if (onGameStart) {
       void onGameStart()
     }
+    startTimer()
+    return () => stopTimer()
   }, [])
+
+  function startTimer() {
+    stopTimer()
+    startTimeRef.current = nowMs()
+    setElapsedMs(0)
+    timerRef.current = window.setInterval(() => {
+      if (startTimeRef.current === null) {
+        return
+      }
+      const nextElapsed = Math.max(0, Math.round(nowMs() - startTimeRef.current))
+      setElapsedMs(nextElapsed)
+    }, 100)
+  }
+
+  function stopTimer() {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }
 
   function restartGame() {
     const fresh = generateGrid(1)
@@ -106,6 +139,7 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
     setGameOver(false)
     setGameWon(false)
     setIsSubmittingResult(false)
+    startTimer()
     if (onGameStart) {
       void onGameStart()
     }
@@ -119,8 +153,13 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
     if (cell.color === targetColor) {
       if (round === TOTAL_ROUNDS) {
         setIsSubmittingResult(true)
+        stopTimer()
+        const completedInMs = startTimeRef.current
+          ? Math.max(0, Math.round(nowMs() - startTimeRef.current))
+          : elapsedMs
+        setElapsedMs(completedInMs)
         if (onGameFinished) {
-          await onGameFinished({ outcome: 'won', score: TOTAL_ROUNDS })
+          await onGameFinished({ outcome: 'won', score: TOTAL_ROUNDS, metric: completedInMs })
         }
         setIsSubmittingResult(false)
         setGameWon(true)
@@ -136,9 +175,10 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
       return
     }
 
+    stopTimer()
     setIsSubmittingResult(true)
     if (onGameFinished) {
-      await onGameFinished({ outcome: 'lost', score: Math.max(0, round - 1) })
+      await onGameFinished({ outcome: 'lost', score: Math.max(0, round - 1), metric: null })
     }
     setIsSubmittingResult(false)
     setGameOver(true)
@@ -162,6 +202,7 @@ function FocusTapGame({ onMainMenu, onGameStart, onGameFinished, submitting, awa
               Tap ONLY the <span className="font-black uppercase text-zinc-900">{targetColor}</span> circle. {remainingRounds} to go!
             </p>
             <p className="mt-1 text-xs font-bold uppercase tracking-widest text-zinc-400">Round {round}/{TOTAL_ROUNDS}</p>
+            <p className="mt-1 text-[11px] font-semibold text-zinc-500">Time: {(elapsedMs / 1000).toFixed(1)}s</p>
           </div>
 
           <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">

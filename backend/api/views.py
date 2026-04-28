@@ -59,6 +59,7 @@ from .services import (
 	increment_user_xp,
 	seed_task_templates,
 	get_weekly_war_report,
+	transfer_xp_wager,
 	update_streak,
 	validate_game_duration,
 	validate_game_score,
@@ -81,6 +82,19 @@ CHALLENGE_GAME_TYPES = [
 	"reaction_tap",
 ]
 CHALLENGE_SCORE_BASED_GAME_TYPES = {"quick_math"}
+CHALLENGE_TIME_BASED_GAME_TYPES = {
+	"focus_tap",
+	"pattern_sequence",
+	"logic_grid",
+	"reaction_tap",
+}
+CHALLENGE_ROUNDS_BASED_GAME_TYPES = {
+	"number_recall",
+	"speed_pattern",
+	"number_stack",
+	"reverse_order",
+	"color_count_focus",
+}
 GAME_TYPE_LABELS = {
 	"quick_math": "Quick Math",
 	"focus_tap": "Focus Tap",
@@ -99,15 +113,24 @@ logger = logging.getLogger(__name__)
 class ChallengeCreateSerializer(serializers.Serializer):
 	game_type = serializers.ChoiceField(choices=CHALLENGE_GAME_TYPES)
 	challenger_score = serializers.IntegerField(min_value=0)
+	challenger_metric = serializers.FloatField(min_value=0, required=False, allow_null=True)
 	xp_wager = serializers.IntegerField(min_value=0, max_value=200, default=0)
 	seed = serializers.DictField(required=False, default=dict)
+
+	def validate(self, attrs):
+		game_type = attrs.get("game_type")
+		metric = attrs.get("challenger_metric")
+		if game_type not in CHALLENGE_SCORE_BASED_GAME_TYPES and metric is None:
+			raise serializers.ValidationError("challenger_metric is required for this game type.")
+		return attrs
 
 
 class ChallengeAcceptSerializer(serializers.Serializer):
 	opponent_score = serializers.IntegerField(min_value=0)
+	opponent_metric = serializers.FloatField(min_value=0, required=False, allow_null=True)
 
 
-def resolve_challenge_winner(game_type, challenger_score, opponent_score):
+def resolve_challenge_winner(game_type, challenger_score, opponent_score, challenger_metric=None, opponent_metric=None):
 	if game_type in CHALLENGE_SCORE_BASED_GAME_TYPES:
 		if opponent_score > challenger_score:
 			return Challenge.WINNER_OPPONENT
@@ -115,7 +138,16 @@ def resolve_challenge_winner(game_type, challenger_score, opponent_score):
 			return Challenge.WINNER_CHALLENGER
 		return Challenge.WINNER_TIE
 
-	# Completion-based challenge: opponent wins only by completing (score >= 1).
+	if game_type in CHALLENGE_TIME_BASED_GAME_TYPES or game_type in CHALLENGE_ROUNDS_BASED_GAME_TYPES:
+		if challenger_metric is None or opponent_metric is None:
+			return Challenge.WINNER_OPPONENT if opponent_score >= 1 else Challenge.WINNER_CHALLENGER
+		if opponent_metric < challenger_metric:
+			return Challenge.WINNER_OPPONENT
+		if opponent_metric > challenger_metric:
+			return Challenge.WINNER_CHALLENGER
+		return Challenge.WINNER_TIE
+
+	# Fallback: opponent wins only by completing (score >= 1).
 	return Challenge.WINNER_OPPONENT if opponent_score >= 1 else Challenge.WINNER_CHALLENGER
 
 
@@ -139,10 +171,12 @@ def serialize_challenge(challenge, request_user=None):
 			"streak": challenger.streak,
 		},
 		"challenger_score": challenge.challenger_score,
+		"challenger_metric": challenge.challenger_metric,
 		"xp_wager": challenge.challenger_xp_wager,
 		"seed": challenge.seed,
 		"status": Challenge.STATUS_EXPIRED if is_expired else challenge.status,
 		"opponent_score": challenge.opponent_score,
+		"opponent_metric": challenge.opponent_metric,
 		"winner": challenge.winner,
 		"created_at": challenge.created_at.isoformat(),
 		"expires_at": challenge.expires_at.isoformat(),
@@ -678,10 +712,15 @@ class ChallengeCreateView(APIView):
 				status=status.HTTP_400_BAD_REQUEST,
 			)
 
+		challenger_metric = data.get("challenger_metric")
+		if data["game_type"] in CHALLENGE_SCORE_BASED_GAME_TYPES and challenger_metric is None:
+			challenger_metric = float(data["challenger_score"])
+
 		challenge = Challenge.objects.create(
 			challenger=user,
 			game_type=data["game_type"],
 			challenger_score=data["challenger_score"] if data["game_type"] in CHALLENGE_SCORE_BASED_GAME_TYPES else 1,
+			challenger_metric=challenger_metric,
 			challenger_xp_wager=xp_wager,
 			seed=data.get("seed", {}),
 			expires_at=timezone.now() + timedelta(hours=CHALLENGE_EXPIRY_HOURS),
@@ -712,7 +751,7 @@ class ChallengeDetailView(APIView):
 
 
 class ChallengeAcceptView(APIView):
-	permission_classes = [IsAuthenticated]
+	permission_classes = [AllowAny]
 
 	@transaction.atomic
 	def post(self, request, pk):
@@ -731,7 +770,8 @@ class ChallengeAcceptView(APIView):
 
 		now = timezone.now()
 
-		if challenge.challenger_id == request.user.id:
+		request_user = request.user if request.user.is_authenticated else None
+		if request_user and challenge.challenger_id == request_user.id:
 			return Response(
 				{"error": "You can't accept your own challenge."},
 				status=status.HTTP_400_BAD_REQUEST,
@@ -752,40 +792,54 @@ class ChallengeAcceptView(APIView):
 			)
 
 		opponent_score = serializer.validated_data["opponent_score"]
+		opponent_metric = serializer.validated_data.get("opponent_metric")
 		if challenge.game_type not in CHALLENGE_SCORE_BASED_GAME_TYPES:
 			opponent_score = 1 if opponent_score >= 1 else 0
+			if opponent_score >= 1 and opponent_metric is None:
+				return Response(
+					{"error": "opponent_metric is required for this game type."},
+					status=status.HTTP_400_BAD_REQUEST,
+				)
+		elif opponent_metric is None:
+			opponent_metric = float(opponent_score)
 		challenger_score = challenge.challenger_score
 		wager = challenge.challenger_xp_wager
-		winner = resolve_challenge_winner(challenge.game_type, challenger_score, opponent_score)
+		winner = resolve_challenge_winner(
+			challenge.game_type,
+			challenger_score,
+			opponent_score,
+			challenge.challenger_metric,
+			opponent_metric,
+		)
 
-		challenge.opponent = request.user
+		challenge.opponent = request_user if request_user else None
 		challenge.opponent_score = opponent_score
+		challenge.opponent_metric = opponent_metric
 		challenge.winner = winner
 		challenge.status = Challenge.STATUS_COMPLETED
 		challenge.completed_at = now
-		challenge.save(update_fields=["opponent", "opponent_score", "winner", "status", "completed_at"])
+		challenge.save(update_fields=["opponent", "opponent_score", "opponent_metric", "winner", "status", "completed_at"])
 
 		xp_gained = 0
-		challenger_user = User.objects.select_for_update().get(id=challenge.challenger_id)
-		opponent_user = User.objects.select_for_update().get(id=request.user.id)
+		guest_played = request_user is None
+		if wager > 0 and request_user and winner in (Challenge.WINNER_OPPONENT, Challenge.WINNER_CHALLENGER):
+			challenger_user = User.objects.select_for_update().get(id=challenge.challenger_id)
+			opponent_user = User.objects.select_for_update().get(id=request_user.id)
 
-		if wager > 0 and winner == Challenge.WINNER_OPPONENT:
-			actual_wager = min(wager, max(0, challenger_user.xp))
-			if actual_wager > 0:
-				challenger_user.xp = max(0, challenger_user.xp - actual_wager)
-				challenger_user.save(update_fields=["xp"])
-				increment_user_xp(opponent_user, actual_wager)
-				create_xp_log(opponent_user, XPLog.SOURCE_GAME, actual_wager)
-				xp_gained = actual_wager
+			if winner == Challenge.WINNER_OPPONENT:
+				xp_gained = transfer_xp_wager(challenger_user, opponent_user, wager)
+			elif winner == Challenge.WINNER_CHALLENGER:
+				transfer_xp_wager(opponent_user, challenger_user, wager)
 
 		return Response(
 			{
 				"success": True,
-				"challenge": serialize_challenge(challenge, request.user),
+				"challenge": serialize_challenge(challenge, request_user),
 				"xp_gained": xp_gained,
 				"result": winner,
 				"your_score": opponent_score,
 				"their_score": challenger_score,
+				"guest_played": guest_played,
 			}
 		)
 

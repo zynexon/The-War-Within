@@ -18,6 +18,7 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
   const [hasReportedResult, setHasReportedResult] = useState(false)
 
   const timerRef = useRef(null)
+  const attemptsRef = useRef(0)
   const progressText = useMemo(() => `${userInput.length}/${sequence.length}`, [userInput.length, sequence.length])
 
   useEffect(() => {
@@ -32,6 +33,8 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
     if (timerRef.current) {
       window.clearTimeout(timerRef.current)
     }
+
+    attemptsRef.current += 1
 
     const nextSequence = createSequence()
     setCurrentRound(roundNumber)
@@ -49,6 +52,7 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
     setResult(null)
     setHasReportedResult(false)
     setCurrentRound(1)
+    attemptsRef.current = 0
 
     if (onGameStart) {
       const started = await onGameStart()
@@ -73,6 +77,7 @@ function NumberRecallGame({ onMainMenu, onGameStart, onGameFinished, submitting,
       await onGameFinished({
         outcome: nextResult,
         score: nextResult === 'win' ? 1 : 0,
+        metric: attemptsRef.current,
       })
     }
 

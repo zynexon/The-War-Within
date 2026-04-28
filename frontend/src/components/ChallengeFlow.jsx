@@ -108,7 +108,7 @@ const GAME_META = {
   quick_math: {
     label: 'Quick Math',
     icon: '⚡',
-    mode: 'SCORE_BASED',
+    mode: 'SCORE',
     challengeTagline: 'Beat my score',
     acceptTagline: 'Beat their score in 30 seconds',
     route: '/game/quick-math',
@@ -116,73 +116,73 @@ const GAME_META = {
   focus_tap: {
     label: 'Focus Tap',
     icon: '🎯',
-    mode: 'COMPLETION',
-    challengeTagline: 'I completed Focus Tap — can you?',
-    acceptTagline: 'Complete all 15 rounds without tapping wrong',
+    mode: 'TIME',
+    challengeTagline: 'I finished Focus Tap fast — can you?',
+    acceptTagline: 'Finish 15 rounds faster than their time',
     route: '/game/focus-tap',
   },
   number_recall: {
     label: 'Number Recall',
     icon: '🧠',
-    mode: 'COMPLETION',
-    challengeTagline: 'I completed Number Recall — can you?',
-    acceptTagline: 'Memorise 7 digits across 3 rounds',
+    mode: 'ROUNDS',
+    challengeTagline: 'I cleared Number Recall — can you?',
+    acceptTagline: 'Finish 3 rounds in fewer attempts',
     route: '/game/number-recall',
   },
   color_count_focus: {
     label: 'Color Count',
     icon: '🎨',
-    mode: 'COMPLETION',
-    challengeTagline: 'I completed Color Count — can you?',
-    acceptTagline: 'Count the right colors across 8 rounds',
+    mode: 'ROUNDS',
+    challengeTagline: 'I cleared Color Count — can you?',
+    acceptTagline: 'Clear 8 rounds in fewer attempts',
     route: '/game/color-count-focus',
   },
   speed_pattern: {
     label: 'Speed Pattern',
     icon: '📐',
-    mode: 'COMPLETION',
-    challengeTagline: 'I completed Speed Pattern — can you?',
-    acceptTagline: 'Replicate 3 grid patterns before time runs out',
+    mode: 'ROUNDS',
+    challengeTagline: 'I cleared Speed Pattern — can you?',
+    acceptTagline: 'Finish 3 rounds in fewer attempts',
     route: '/game/speed-pattern',
   },
   reverse_order: {
     label: 'Reverse Order',
     icon: '🔀',
-    mode: 'COMPLETION',
-    challengeTagline: 'I completed Reverse Order — can you?',
-    acceptTagline: 'Apply 3 rules and pick the correct sequence',
+    mode: 'ROUNDS',
+    challengeTagline: 'I cleared Reverse Order — can you?',
+    acceptTagline: 'Solve 3 rounds in fewer attempts',
     route: '/game/reverse-order',
   },
   number_stack: {
     label: 'Number Stack',
     icon: '🔢',
-    mode: 'COMPLETION',
-    challengeTagline: 'I completed Number Stack — can you?',
-    acceptTagline: 'Follow 3 rules and pick the final number stack',
+    mode: 'ROUNDS',
+    challengeTagline: 'I cleared Number Stack — can you?',
+    acceptTagline: 'Solve 3 rounds in fewer attempts',
     route: '/game/number-stack',
   },
   pattern_sequence: {
     label: 'Pattern Sequence',
     icon: '🔮',
-    mode: 'COMPLETION',
-    challengeTagline: 'I completed Pattern Sequence — can you?',
-    acceptTagline: 'Spot the rule and pick the 4th item, 9 rounds',
+    mode: 'TIME',
+    challengeTagline: 'I cleared Pattern Sequence — can you?',
+    acceptTagline: 'Solve 9 rounds faster than their time',
     route: '/game/pattern-sequence',
   },
   logic_grid: {
     label: 'Logic Grid',
     icon: '♟️',
-    mode: 'COMPLETION',
+    mode: 'TIME',
     challengeTagline: 'I solved a Logic Grid — can you?',
-    acceptTagline: 'Use clues to solve the logic matrix',
+    acceptTagline: 'Solve the grid faster than their time',
     route: '/game/logic-grid',
   },
   reaction_tap: {
     label: 'Reaction Tap',
     icon: '⚡',
-    mode: 'COMPLETION',
-    challengeTagline: 'I completed Reaction Tap — can you?',
-    acceptTagline: 'Complete 5 reaction trials',
+    mode: 'TIME',
+    challengeTagline: 'I cleared Reaction Tap — can you?',
+    acceptTagline: 'Beat their average reaction time',
     route: '/game/reaction-tap',
   },
 }
@@ -191,7 +191,7 @@ function getMeta(gameType) {
   return GAME_META[gameType] || {
     label: gameType,
     icon: '⚔️',
-    mode: 'COMPLETION',
+    mode: 'ROUNDS',
     challengeTagline: 'I completed this game — can you?',
     acceptTagline: 'Complete the game to win',
     route: '/game',
@@ -199,7 +199,62 @@ function getMeta(gameType) {
 }
 
 function isScoreBased(gameType) {
-  return getMeta(gameType).mode === 'SCORE_BASED'
+  return getMeta(gameType).mode === 'SCORE'
+}
+
+function isTimeBased(gameType) {
+  return getMeta(gameType).mode === 'TIME'
+}
+
+function isRoundsBased(gameType) {
+  return getMeta(gameType).mode === 'ROUNDS'
+}
+
+function formatTimeMs(ms) {
+  if (!Number.isFinite(ms)) return '--'
+  if (ms < 1000) return `${Math.round(ms)} ms`
+  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`
+  const totalSeconds = Math.round(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+function formatRounds(rounds) {
+  if (!Number.isFinite(rounds)) return '--'
+  const count = Math.max(0, Math.round(rounds))
+  return `${count} round${count === 1 ? '' : 's'}`
+}
+
+function formatMetric(gameType, value) {
+  if (isScoreBased(gameType)) {
+    if (!Number.isFinite(value)) return '--'
+    return String(Math.round(value))
+  }
+  if (isRoundsBased(gameType)) {
+    return formatRounds(value)
+  }
+  return formatTimeMs(value)
+}
+
+function metricLabel(gameType) {
+  if (isScoreBased(gameType)) return 'Score to beat'
+  if (isRoundsBased(gameType)) return 'Rounds to beat'
+  return 'Time to beat'
+}
+
+function compareMetrics(gameType, yourValue, theirValue) {
+  if (!Number.isFinite(yourValue) || !Number.isFinite(theirValue)) {
+    return null
+  }
+  if (isScoreBased(gameType)) {
+    if (yourValue > theirValue) return 'win'
+    if (yourValue < theirValue) return 'loss'
+    return 'tie'
+  }
+  if (yourValue < theirValue) return 'win'
+  if (yourValue > theirValue) return 'loss'
+  return 'tie'
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -222,10 +277,15 @@ function getShareUrl(challengeId) {
 function buildShareText(challenge) {
   const meta = getMeta(challenge.game_type)
   const name = challenge.challenger?.name || 'A warrior'
-  if (meta.mode === 'SCORE_BASED') {
+  if (isScoreBased(challenge.game_type)) {
     return `${name} scored ${challenge.challenger_score} in ZYNEXON ${meta.label}. Can you beat it? ⚔️`
   }
-  return `${name} just completed ZYNEXON ${meta.label}. Can you do the same? ⚔️`
+  if (isRoundsBased(challenge.game_type)) {
+    const rounds = formatMetric(challenge.game_type, challenge.challenger_metric)
+    return `${name} cleared ZYNEXON ${meta.label} in ${rounds}. Can you beat it? ⚔️`
+  }
+  const time = formatMetric(challenge.game_type, challenge.challenger_metric)
+  return `${name} finished ZYNEXON ${meta.label} in ${time}. Can you beat it? ⚔️`
 }
 
 function timeAgo(isoString) {
@@ -370,29 +430,43 @@ function QuickMathChallenge({ targetScore, challengerName, onFinish }) {
 
 // ─── Challenge Result Screen ───────────────────────────────────────────────────
 
-function ChallengeResultScreen({ challenge, yourScore, isAuthenticated, xpGained, onLogin, onRegister, onClose }) {
-  const meta           = getMeta(challenge.game_type)
+function ChallengeResultScreen({ challenge, yourScore, yourMetric, isAuthenticated, xpGained, onLogin, onRegister, onClose }) {
+  const meta = getMeta(challenge.game_type)
   const challengerName = challenge.challenger?.name || 'Challenger'
+  const challengerMetric = challenge.challenger_metric
 
-  // Determine outcome labels based on game mode
-  let won, resultHeading, resultBody
+  let won = false
+  let tied = false
+  let resultHeading = ''
+  let resultBody = ''
+  const metricOutcome = compareMetrics(challenge.game_type, yourMetric, challengerMetric)
+  const metricSymbol = metricOutcome === 'win' ? '<' : metricOutcome === 'loss' ? '>' : '='
 
-  if (meta.mode === 'SCORE_BASED') {
-    won         = yourScore > challenge.challenger_score
-    const tied  = yourScore === challenge.challenger_score
+  if (isScoreBased(challenge.game_type)) {
+    won = yourScore > challenge.challenger_score
+    tied = yourScore === challenge.challenger_score
     resultHeading = won ? 'You Win ⚔️' : tied ? 'It\'s a Tie' : 'You Lose 💀'
-    resultBody    = won
+    resultBody = won
       ? `You beat ${challengerName} by ${yourScore - challenge.challenger_score}. Send them a rematch.`
       : tied
         ? `Dead even with ${challengerName}. Rematch to break the tie.`
         : `${challengerName} holds the record by ${challenge.challenger_score - yourScore}. Train harder.`
+  } else if (metricOutcome) {
+    won = metricOutcome === 'win'
+    tied = metricOutcome === 'tie'
+    const diffValue = Math.abs((challengerMetric || 0) - (yourMetric || 0))
+    const diffText = formatMetric(challenge.game_type, diffValue)
+    const lowerBetterLabel = isTimeBased(challenge.game_type) ? 'faster' : 'fewer rounds'
+    resultHeading = won ? 'You Win ⚔️' : tied ? 'It\'s a Tie' : 'You Lose 💀'
+    resultBody = won
+      ? `You were ${lowerBetterLabel} by ${diffText}. Send them a rematch.`
+      : tied
+        ? `Dead even with ${challengerName}. Rematch to break the tie.`
+        : `${challengerName} was ${lowerBetterLabel} by ${diffText}. Train harder.`
   } else {
-    // Completion mode — yourScore 1 = completed, 0 = failed
-    won           = yourScore === 1
-    resultHeading = won ? 'Challenge Beaten! ✅' : 'Challenge Failed ❌'
-    resultBody    = won
-      ? `You matched ${challengerName} and proved you can do it.`
-      : `${challengerName}'s record stands. Come back stronger.`
+    won = false
+    resultHeading = 'Challenge Failed ❌'
+    resultBody = `${challengerName}'s record stands. Come back stronger.`
   }
 
   useEffect(() => { if (won) fireWinConfetti() }, [won])
@@ -412,7 +486,7 @@ function ChallengeResultScreen({ challenge, yourScore, isAuthenticated, xpGained
           </p>
 
           {/* Score display for score-based */}
-          {meta.mode === 'SCORE_BASED' && (
+          {isScoreBased(challenge.game_type) && (
             <div className="flex items-center justify-center gap-6 py-1">
               <div className="text-center">
                 <p className="text-4xl font-black tabular-nums text-white">{yourScore}</p>
@@ -428,10 +502,24 @@ function ChallengeResultScreen({ challenge, yourScore, isAuthenticated, xpGained
             </div>
           )}
 
-          {/* Completion badge for completion-based */}
-          {meta.mode === 'COMPLETION' && (
-            <div className="py-2">
-              <p className="text-5xl">{won ? '✅' : '❌'}</p>
+          {/* Metric display for time/rounds */}
+          {!isScoreBased(challenge.game_type) && (
+            <div className="flex items-center justify-center gap-6 py-1">
+              <div className="text-center">
+                <p className="text-2xl font-black tabular-nums text-white">
+                  {formatMetric(challenge.game_type, yourMetric)}
+                </p>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase mt-1">You</p>
+              </div>
+              <p className={`text-2xl font-black ${won ? 'text-emerald-400' : tied ? 'text-white' : 'text-red-400'}`}>
+                {metricOutcome ? metricSymbol : '?'}
+              </p>
+              <div className="text-center">
+                <p className="text-2xl font-black tabular-nums text-white">
+                  {formatMetric(challenge.game_type, challengerMetric)}
+                </p>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase mt-1">{challengerName}</p>
+              </div>
             </div>
           )}
 
@@ -485,7 +573,7 @@ function ChallengeResultScreen({ challenge, yourScore, isAuthenticated, xpGained
 // score-based games  → pass the actual score number
 // completion games   → always pass score={1}  (means "I won / completed")
 
-export function ChallengeCreateButton({ gameType, score, authedFetch, className = '' }) {
+export function ChallengeCreateButton({ gameType, score, metric = null, authedFetch, className = '' }) {
   const [phase, setPhase]         = useState('idle') // idle | wager | creating | created | error
   const [wager, setWager]         = useState(0)
   const [challenge, setChallenge] = useState(null)
@@ -493,9 +581,16 @@ export function ChallengeCreateButton({ gameType, score, authedFetch, className 
   const [error, setError]         = useState('')
 
   const meta        = getMeta(gameType)
-  const scoreMode   = meta.mode === 'SCORE_BASED'
+  const scoreMode   = isScoreBased(gameType)
+  const metricValue = Number.isFinite(metric) ? metric : (scoreMode ? score : null)
+  const metricDisplay = scoreMode ? score : formatMetric(gameType, metricValue)
 
   async function handleCreate() {
+    if (!scoreMode && !Number.isFinite(metricValue)) {
+      setError('Finish the game to set a valid challenge metric.')
+      setPhase('error')
+      return
+    }
     setPhase('creating')
     setError('')
     try {
@@ -504,6 +599,7 @@ export function ChallengeCreateButton({ gameType, score, authedFetch, className 
         body: JSON.stringify({
           game_type: gameType,
           challenger_score: score,
+          challenger_metric: metricValue,
           xp_wager: wager,
           seed: {},
         }),
@@ -547,7 +643,7 @@ export function ChallengeCreateButton({ gameType, score, authedFetch, className 
             <p className="text-sm font-black text-white">
               {scoreMode
                 ? `You scored ${score}. Can they beat it?`
-                : `You completed ${meta.label}. Can they?`}
+                : `You finished in ${metricDisplay}. Can they beat it?`}
             </p>
           </div>
         </div>
@@ -595,7 +691,7 @@ export function ChallengeCreateButton({ gameType, score, authedFetch, className 
           <p className="text-sm font-black text-white">
             {scoreMode
               ? `Your score: ${score}. Set a wager.`
-              : `You completed it. Dare a friend.`}
+              : `Your result: ${metricDisplay}. Set a wager.`}
           </p>
         </div>
 
@@ -650,7 +746,9 @@ export function ChallengeCreateButton({ gameType, score, authedFetch, className 
             Challenge a friend
           </p>
           <p className="text-sm font-black text-white">
-            ⚔️ {scoreMode ? `1v1 Duel — Score: ${score}` : `Dare them to complete ${meta.label}`}
+            ⚔️ {scoreMode
+              ? `1v1 Duel — Score: ${score}`
+              : `1v1 Duel — Result: ${metricDisplay}`}
           </p>
         </div>
         <span className="text-2xl shrink-0">{meta.icon}</span>
@@ -675,7 +773,9 @@ export function ChallengeLandingPage({
   const [phase, setPhase]         = useState('loading')
   const [challenge, setChallenge] = useState(null)
   const [yourScore, setYourScore] = useState(null)
+  const [yourMetric, setYourMetric] = useState(null)
   const [xpGained, setXpGained]  = useState(0)
+  const [guestPlayed, setGuestPlayed] = useState(false)
   const [error, setError]         = useState('')
   const normalizedChallengeId = String(challengeId || '').trim().replace(/\/+$/, '')
 
@@ -699,9 +799,17 @@ export function ChallengeLandingPage({
   useEffect(() => { fetchChallenge() }, [fetchChallenge])
 
   /* Submit result to backend after playing */
-  async function submitResult(score) {
+  async function submitResult(score, metricValue) {
+    if (!isAuthenticated && challenge?.xp_wager > 0) {
+      setYourScore(score)
+      setYourMetric(metricValue)
+      setGuestPlayed(true)
+      setPhase('result')
+      return
+    }
     if (!isAuthenticated) {
       setYourScore(score)
+      setYourMetric(metricValue)
       setPhase('result')
       return
     }
@@ -709,20 +817,28 @@ export function ChallengeLandingPage({
     try {
       const data = await authedFetch(`/api/challenges/${encodeURIComponent(normalizedChallengeId)}/accept/`, {
         method: 'POST',
-        body: JSON.stringify({ opponent_score: score }),
+        body: JSON.stringify({ opponent_score: score, opponent_metric: metricValue }),
       })
       setChallenge(data.challenge)
       setXpGained(data.xp_gained || 0)
+      setGuestPlayed(Boolean(data.guest_played))
     } catch { /* show result anyway */ }
     setYourScore(score)
+    setYourMetric(metricValue)
     setPhase('result')
   }
 
   // Called by embedded QuickMath for score-based challenges
-  function handleScoreFinish(score) { submitResult(score) }
+  function handleScoreFinish(score) { submitResult(score, score) }
 
   // Called by App.jsx via onNavigateToGame callback when a completion game ends
-  function handleCompletionFinish(wonAsInt) { submitResult(wonAsInt) }
+  function handleCompletionFinish(result) {
+    if (typeof result === 'object' && result !== null) {
+      submitResult(result.score ?? 1, result.metric ?? null)
+    } else {
+      submitResult(result, null)
+    }
+  }
 
   /* ── Loading ── */
   if (phase === 'loading') {
@@ -758,7 +874,7 @@ export function ChallengeLandingPage({
 
   const meta           = getMeta(challenge.game_type)
   const challengerName = challenge.challenger?.name || 'A warrior'
-  const scoreMode      = meta.mode === 'SCORE_BASED'
+  const scoreMode      = isScoreBased(challenge.game_type)
   const isOpen         = challenge.status === 'open'
   const isCompleted    = challenge.status === 'completed'
   const isExpired      = challenge.status === 'expired'
@@ -820,10 +936,8 @@ export function ChallengeLandingPage({
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                        Their status
-                      </span>
-                      <span className="text-sm font-black text-emerald-400">✅ Completed</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{metricLabel(challenge.game_type)}</span>
+                      <span className="text-sm font-black text-emerald-400">{formatMetric(challenge.game_type, challenge.challenger_metric)}</span>
                     </div>
                   )}
 
@@ -848,7 +962,7 @@ export function ChallengeLandingPage({
                 {(isCompleted || isExpired) && (
                   <div className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-center">
                     <p className="text-xs font-black text-zinc-400">
-                      {isCompleted ? 'This challenge has already been completed.' : 'This challenge has expired.'}
+                      {isCompleted ? 'This challenge has already been played.' : 'This challenge has expired.'}
                     </p>
                     {isCompleted && challenge.winner && (
                       <p className="text-[10px] font-semibold text-zinc-600 mt-0.5">
@@ -964,6 +1078,7 @@ export function ChallengeLandingPage({
           <ChallengeResultScreen
             challenge={challenge}
             yourScore={yourScore}
+            yourMetric={yourMetric}
             isAuthenticated={isAuthenticated}
             xpGained={xpGained}
             onLogin={onLogin}
@@ -971,6 +1086,18 @@ export function ChallengeLandingPage({
             onClose={onClose}
           />
         )}
+
+        {phase === 'result' && guestPlayed && challenge?.xp_wager > 0 && !isAuthenticated ? (
+          <div className="rounded-3xl border border-zinc-200 bg-white p-5 space-y-3">
+            <p className="text-sm font-black text-zinc-950 leading-snug">
+              Sign up to see who won and claim or protect your XP.
+            </p>
+            <button type="button" onClick={onRegister}
+              className="w-full rounded-2xl bg-zinc-950 px-4 py-3.5 text-sm font-black uppercase tracking-wider text-white active:scale-[0.98]">
+              Sign Up to Continue
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -1081,9 +1208,9 @@ export function MyChallengeDashboard({ authedFetch, onClose }) {
                       <div>
                         <p className="text-sm font-black text-zinc-900">{meta.label}</p>
                         <p className="text-[10px] font-semibold text-zinc-500">
-                          {meta.mode === 'SCORE_BASED'
+                          {isScoreBased(c.game_type)
                             ? `Score to beat: ${c.challenger_score}`
-                            : 'Completion challenge'}
+                            : `${metricLabel(c.game_type)}: ${formatMetric(c.game_type, c.challenger_metric)}`}
                           {c.xp_wager > 0 ? ` · 💰 ${c.xp_wager} XP` : ''}
                         </p>
                       </div>
@@ -1118,27 +1245,27 @@ export function MyChallengeDashboard({ authedFetch, onClose }) {
               const youWon = (c.is_challenger && c.winner === 'challenger') ||
                              (c.is_opponent   && c.winner === 'opponent')
               const tied   = c.winner === 'tie'
+              const opponentName = c.is_challenger
+                ? (c.opponent?.name || 'Opponent')
+                : (c.challenger?.name || 'Challenger')
 
               // Human-readable result line
               let resultLine
-              if (meta.mode === 'SCORE_BASED') {
+              if (isScoreBased(c.game_type)) {
                 const yourS     = c.is_challenger ? c.challenger_score : c.opponent_score
                 const theirS    = c.is_challenger ? c.opponent_score   : c.challenger_score
-                const theirName = c.is_challenger
-                  ? (c.opponent?.name || 'Opponent')
-                  : (c.challenger?.name || 'Challenger')
-                resultLine = `${yourS} vs ${theirS} (${theirName})`
+                resultLine = `${yourS} vs ${theirS} (${opponentName})`
               } else {
-                const theirName = c.is_challenger
-                  ? (c.opponent?.name || 'Opponent')
-                  : (c.challenger?.name || 'Challenger')
-                if (c.is_challenger) {
-                  resultLine = youWon
-                    ? `${theirName} couldn't complete it`
-                    : `${theirName} completed it`
-                } else {
-                  resultLine = youWon ? 'You completed it ✅' : 'You failed to complete it'
-                }
+                const yourMetric = c.is_challenger ? c.challenger_metric : c.opponent_metric
+                const theirMetric = c.is_challenger ? c.opponent_metric : c.challenger_metric
+                resultLine = `${formatMetric(c.game_type, yourMetric)} vs ${formatMetric(c.game_type, theirMetric)}`
+              }
+
+              let wagerLine = ''
+              if (c.xp_wager > 0 && !tied) {
+                wagerLine = youWon
+                  ? `You won - gained +${c.xp_wager} XP from ${opponentName}`
+                  : `You lost - transferred ${c.xp_wager} XP to ${opponentName}`
               }
 
               return (
@@ -1162,6 +1289,7 @@ export function MyChallengeDashboard({ authedFetch, onClose }) {
                     </span>
                   </div>
                   <p className="mt-1 text-[9px] font-semibold text-zinc-400">{timeAgo(c.completed_at)}</p>
+                  {wagerLine ? <p className="mt-1 text-[10px] font-semibold text-zinc-600">{wagerLine}</p> : null}
                 </div>
               )
             })}
